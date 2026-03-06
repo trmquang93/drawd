@@ -79,6 +79,7 @@ export function HotspotModal({ screen, hotspot, screens, prefilledTarget, prefil
                     type="number"
                     min={0}
                     max={100}
+                    step={0.1}
                     value={val}
                     onChange={(e) => setter(Number(e.target.value))}
                     style={styles.input}

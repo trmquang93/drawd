@@ -137,10 +137,12 @@ export default function FlowForge() {
     const screen = screens.find((s) => s.id === screenId);
     if (!screen?.imageData || !screen.imageHeight) return;
 
+    const imageAreaRect = e.currentTarget.getBoundingClientRect();
     setHotspotInteraction({
       mode: "draw",
       screenId,
       drawStart: { clientX: e.clientX, clientY: e.clientY },
+      imageAreaRect,
       drawRect: null,
     });
   }, [hotspotInteraction, connecting, screens]);
@@ -238,23 +240,13 @@ export default function FlowForge() {
   const onCanvasMouseMove = useCallback((e) => {
     // Handle hotspot interactions
     if (hotspotInteraction?.mode === "draw") {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const screen = screens.find((s) => s.id === hotspotInteraction.screenId);
-      if (!screen || !screen.imageHeight) return;
+      const { imageAreaRect } = hotspotInteraction;
+      if (!imageAreaRect) return;
 
-      const screenW = screen.width || 220;
-      const toCanvasX = (clientX) => (clientX - rect.left - pan.x) / zoom;
-      const toCanvasY = (clientY) => (clientY - rect.top - pan.y) / zoom;
-
-      const startImgX = toCanvasX(hotspotInteraction.drawStart.clientX) - screen.x;
-      const startImgY = toCanvasY(hotspotInteraction.drawStart.clientY) - screen.y - HEADER_HEIGHT;
-      const curImgX = toCanvasX(e.clientX) - screen.x;
-      const curImgY = toCanvasY(e.clientY) - screen.y - HEADER_HEIGHT;
-
-      const startPctX = (startImgX / screenW) * 100;
-      const startPctY = (startImgY / screen.imageHeight) * 100;
-      const curPctX = (curImgX / screenW) * 100;
-      const curPctY = (curImgY / screen.imageHeight) * 100;
+      const startPctX = ((hotspotInteraction.drawStart.clientX - imageAreaRect.left) / imageAreaRect.width) * 100;
+      const startPctY = ((hotspotInteraction.drawStart.clientY - imageAreaRect.top) / imageAreaRect.height) * 100;
+      const curPctX = ((e.clientX - imageAreaRect.left) / imageAreaRect.width) * 100;
+      const curPctY = ((e.clientY - imageAreaRect.top) / imageAreaRect.height) * 100;
 
       const x = Math.max(0, Math.min(100, Math.min(startPctX, curPctX)));
       const y = Math.max(0, Math.min(100, Math.min(startPctY, curPctY)));
@@ -264,7 +256,7 @@ export default function FlowForge() {
       setHotspotInteraction((prev) => ({
         ...prev,
         drawRect: {
-          screenId: screen.id,
+          screenId: hotspotInteraction.screenId,
           x: Math.round(x * 10) / 10,
           y: Math.round(y * 10) / 10,
           w: Math.round((x2 - x) * 10) / 10,
