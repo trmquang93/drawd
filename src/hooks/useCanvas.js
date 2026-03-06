@@ -61,8 +61,20 @@ export function useCanvas() {
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     if (e.metaKey || e.ctrlKey) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
       const delta = e.deltaY > 0 ? -0.01 : 0.01;
-      setZoom((z) => Math.max(0.2, Math.min(2, z + delta)));
+
+      setZoom((prevZoom) => {
+        const newZoom = Math.max(0.2, Math.min(2, prevZoom + delta));
+        const scale = newZoom / prevZoom;
+        setPan((p) => ({
+          x: mouseX - (mouseX - p.x) * scale,
+          y: mouseY - (mouseY - p.y) * scale,
+        }));
+        return newZoom;
+      });
     } else {
       setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
     }
