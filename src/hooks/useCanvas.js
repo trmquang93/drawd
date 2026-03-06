@@ -67,7 +67,9 @@ export function useCanvas() {
 
   return {
     pan,
+    setPan,
     zoom,
+    setZoom,
     isPanning,
     dragging,
     canvasRef,

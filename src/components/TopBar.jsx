@@ -1,6 +1,6 @@
 import { COLORS, FONTS } from "../styles/theme";
 
-export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onGenerate }) {
+export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate }) {
   return (
     <div
       style={{
@@ -95,6 +95,44 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onG
           }}
         >
           + Blank Screen
+        </button>
+
+        <button
+          onClick={onImport}
+          style={{
+            padding: "8px 16px",
+            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            color: COLORS.textMuted,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: FONTS.mono,
+          }}
+        >
+          Import
+        </button>
+
+        <button
+          onClick={onExport}
+          disabled={screenCount === 0}
+          style={{
+            padding: "8px 16px",
+            background: screenCount === 0
+              ? "rgba(108,92,231,0.05)"
+              : "rgba(108,92,231,0.12)",
+            border: `1px solid ${screenCount === 0 ? COLORS.border : "rgba(108,92,231,0.3)"}`,
+            borderRadius: 8,
+            color: screenCount === 0 ? COLORS.textDim : COLORS.accentLight,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: screenCount === 0 ? "not-allowed" : "pointer",
+            fontFamily: FONTS.mono,
+            transition: "all 0.2s",
+          }}
+        >
+          Export
         </button>
 
         <button

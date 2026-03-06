@@ -137,6 +137,18 @@ export function useScreenManager(pan, zoom) {
     setConnections((prev) => prev.filter((c) => c.hotspotId !== hotspotId));
   }, []);
 
+  const replaceAll = useCallback((newScreens, newConnections, newScreenCounter) => {
+    setScreens(newScreens);
+    setConnections(newConnections);
+    screenCounter.current = newScreenCounter;
+    setSelectedScreen(null);
+  }, []);
+
+  const mergeAll = useCallback((newScreens, newConnections) => {
+    setScreens((prev) => [...prev, ...newScreens]);
+    setConnections((prev) => [...prev, ...newConnections]);
+  }, []);
+
   return {
     screens,
     connections,
@@ -153,5 +165,7 @@ export function useScreenManager(pan, zoom) {
     handleCanvasDrop,
     saveHotspot,
     deleteHotspot,
+    replaceAll,
+    mergeAll,
   };
 }

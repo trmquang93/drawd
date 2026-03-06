@@ -1,6 +1,9 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
 import { generateInstructions } from "./utils/generateInstructions";
+import { exportFlow } from "./utils/exportFlow";
+import { importFlow } from "./utils/importFlow";
+import { mergeFlow } from "./utils/mergeFlow";
 import { useCanvas } from "./hooks/useCanvas";
 import { useScreenManager } from "./hooks/useScreenManager";
 import { ScreenNode } from "./components/ScreenNode";
@@ -8,23 +11,26 @@ import { ConnectionLines } from "./components/ConnectionLines";
 import { HotspotModal } from "./components/HotspotModal";
 import { InstructionsPanel } from "./components/InstructionsPanel";
 import { RenameModal } from "./components/RenameModal";
+import { ImportConfirmModal } from "./components/ImportConfirmModal";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { EmptyState } from "./components/EmptyState";
 
 export default function FlowForge() {
-  const { pan, zoom, isPanning, canvasRef, handleDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown } = useCanvas();
+  const { pan, setPan, zoom, setZoom, isPanning, canvasRef, handleDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown } = useCanvas();
   const {
     screens, connections, selectedScreen, setSelectedScreen,
     fileInputRef, addScreen, removeScreen, renameScreen, moveScreen,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
-    saveHotspot, deleteHotspot,
+    saveHotspot, deleteHotspot, replaceAll, mergeAll,
   } = useScreenManager(pan, zoom);
 
   const [hotspotModal, setHotspotModal] = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [renameModal, setRenameModal] = useState(null);
+  const [importConfirm, setImportConfirm] = useState(null);
+  const importFileRef = useRef(null);
 
   const onCanvasMouseDown = useCallback((e) => {
     const wasPan = handleCanvasMouseDown(e);
@@ -46,6 +52,49 @@ export default function FlowForge() {
     const screen = screens.find((s) => s.id === screenId);
     setHotspotModal({ screen, hotspot: null });
   }, [screens]);
+
+  const onExport = useCallback(() => {
+    exportFlow(screens, connections, pan, zoom);
+  }, [screens, connections, pan, zoom]);
+
+  const onImport = useCallback(() => {
+    importFileRef.current?.click();
+  }, []);
+
+  const onImportFileChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const payload = importFlow(ev.target.result);
+        setImportConfirm(payload);
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, []);
+
+  const onImportReplace = useCallback(() => {
+    if (!importConfirm) return;
+    replaceAll(importConfirm.screens, importConfirm.connections, importConfirm.screens.length + 1);
+    if (importConfirm.viewport) {
+      setPan(importConfirm.viewport.pan);
+      setZoom(importConfirm.viewport.zoom);
+    }
+    setImportConfirm(null);
+  }, [importConfirm, replaceAll, setPan, setZoom]);
+
+  const onImportMerge = useCallback(() => {
+    if (!importConfirm) return;
+    const { screens: newScreens, connections: newConns } = mergeFlow(
+      importConfirm.screens, importConfirm.connections, screens
+    );
+    mergeAll(newScreens, newConns);
+    setImportConfirm(null);
+  }, [importConfirm, screens, mergeAll]);
 
   const onGenerate = useCallback(() => {
     if (screens.length === 0) return;
@@ -84,6 +133,8 @@ export default function FlowForge() {
         connectionCount={connections.length}
         onUpload={handleImageUpload}
         onAddBlank={() => addScreen()}
+        onExport={onExport}
+        onImport={onImport}
         onGenerate={onGenerate}
       />
 
@@ -175,6 +226,14 @@ export default function FlowForge() {
         onChange={onFileChange}
       />
 
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".flowforge"
+        style={{ display: "none" }}
+        onChange={onImportFileChange}
+      />
+
       {hotspotModal && (
         <HotspotModal
           screen={hotspotModal.screen}
@@ -198,6 +257,16 @@ export default function FlowForge() {
           screen={renameModal}
           onSave={(name) => { renameScreen(renameModal.id, name); setRenameModal(null); }}
           onClose={() => setRenameModal(null)}
+        />
+      )}
+
+      {importConfirm && (
+        <ImportConfirmModal
+          payload={importConfirm}
+          canvasEmpty={screens.length === 0}
+          onReplace={onImportReplace}
+          onMerge={onImportMerge}
+          onClose={() => setImportConfirm(null)}
         />
       )}
     </div>
