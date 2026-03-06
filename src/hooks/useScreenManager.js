@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { generateId } from "../utils/generateId";
 
-export function useScreenManager(pan, zoom) {
+export function useScreenManager(pan, zoom, canvasRef) {
   const [screens, setScreens] = useState([]);
   const [connections, setConnections] = useState([]);
   const [selectedScreen, setSelectedScreen] = useState(null);
@@ -98,6 +98,30 @@ export function useScreenManager(pan, zoom) {
     setSelectedScreen(newScreen.id);
   }, [screens, connections, pushHistory, pan, zoom]);
 
+  const addScreenAtCenter = useCallback((imageData = null, name = null, offset = 0) => {
+    pushHistory(screens, connections);
+    const count = screenCounter.current++;
+    const screenWidth = 220;
+    const screenHeight = 160;
+    const el = canvasRef?.current;
+    const vw = el ? el.clientWidth : 800;
+    const vh = el ? el.clientHeight : 600;
+    const cx = (-pan.x + vw / 2) / zoom - screenWidth / 2 + offset * 30;
+    const cy = (-pan.y + vh / 2) / zoom - screenHeight / 2 + offset * 30;
+    const newScreen = {
+      id: generateId(),
+      name: name || `Screen ${count}`,
+      x: cx,
+      y: cy,
+      width: screenWidth,
+      imageData,
+      description: "",
+      hotspots: [],
+    };
+    setScreens((prev) => [...prev, newScreen]);
+    setSelectedScreen(newScreen.id);
+  }, [screens, connections, pushHistory, pan, zoom, canvasRef]);
+
   const removeScreen = useCallback((id) => {
     pushHistory(screens, connections);
     setScreens((prev) => prev.filter((s) => s.id !== id));
@@ -144,17 +168,17 @@ export function useScreenManager(pan, zoom) {
     const imageItems = items.filter((item) => item.type.startsWith("image/"));
     if (imageItems.length === 0) return;
     e.preventDefault();
-    imageItems.forEach((item) => {
+    imageItems.forEach((item, index) => {
       const file = item.getAsFile();
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
         const count = screenCounter.current;
-        addScreen(ev.target.result, `Pasted Screen ${count}`);
+        addScreenAtCenter(ev.target.result, `Pasted Screen ${count}`, index);
       };
       reader.readAsDataURL(file);
     });
-  }, [addScreen]);
+  }, [addScreenAtCenter]);
 
   const handleCanvasDrop = useCallback((e) => {
     e.preventDefault();
@@ -338,6 +362,7 @@ export function useScreenManager(pan, zoom) {
     setSelectedScreen,
     fileInputRef,
     addScreen,
+    addScreenAtCenter,
     removeScreen,
     renameScreen,
     moveScreen,

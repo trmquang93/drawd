@@ -22,13 +22,13 @@ export default function FlowForge() {
   const { pan, setPan, zoom, setZoom, isPanning, dragging, canvasRef, isSpaceHeld, spaceHeld, handleDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown } = useCanvas();
   const {
     screens, connections, selectedScreen, setSelectedScreen,
-    fileInputRef, addScreen, removeScreen, renameScreen, moveScreen,
+    fileInputRef, addScreen, addScreenAtCenter, removeScreen, renameScreen, moveScreen,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, moveHotspot, resizeHotspot, updateScreenDimensions,
     updateScreenDescription, quickConnectHotspot, updateConnection, deleteConnection,
     addConnection, replaceAll, mergeAll,
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
-  } = useScreenManager(pan, zoom);
+  } = useScreenManager(pan, zoom, canvasRef);
 
   const [hotspotModal, setHotspotModal] = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -653,7 +653,7 @@ export default function FlowForge() {
         screenCount={screens.length}
         connectionCount={connections.length}
         onUpload={handleImageUpload}
-        onAddBlank={() => addScreen()}
+        onAddBlank={() => addScreenAtCenter()}
         onExport={onExport}
         onImport={onImport}
         onGenerate={onGenerate}
