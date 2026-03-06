@@ -49,8 +49,8 @@ export function EmptyState() {
           lineHeight: 1.6,
         }}
       >
-        Drag &amp; drop wireframes, screenshots, or mockups<br />
-        Or use the buttons above to get started
+        Drag &amp; drop or paste from clipboard<br />
+        wireframes, screenshots, or mockups
       </div>
     </div>
   );

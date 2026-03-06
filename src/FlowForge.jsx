@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
 import { generateInstructions } from "./utils/generateInstructions";
 import { useCanvas } from "./hooks/useCanvas";
@@ -17,7 +17,7 @@ export default function FlowForge() {
   const {
     screens, connections, selectedScreen, setSelectedScreen,
     fileInputRef, addScreen, removeScreen, renameScreen, moveScreen,
-    handleImageUpload, onFileChange, handleCanvasDrop,
+    handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot,
   } = useScreenManager(pan, zoom);
 
@@ -52,6 +52,16 @@ export default function FlowForge() {
     setInstructions(generateInstructions(screens, connections));
     setShowInstructions(true);
   }, [screens, connections]);
+
+  useEffect(() => {
+    const onPaste = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      handlePaste(e);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [handlePaste]);
 
   const selectedScreenData = screens.find((s) => s.id === selectedScreen);
 

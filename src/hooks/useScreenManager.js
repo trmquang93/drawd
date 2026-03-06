@@ -60,6 +60,23 @@ export function useScreenManager(pan, zoom) {
     e.target.value = "";
   }, [addScreen]);
 
+  const handlePaste = useCallback((e) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItems = items.filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length === 0) return;
+    e.preventDefault();
+    imageItems.forEach((item) => {
+      const file = item.getAsFile();
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const count = screenCounter.current;
+        addScreen(ev.target.result, `Pasted Screen ${count}`);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, [addScreen]);
+
   const handleCanvasDrop = useCallback((e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
@@ -132,6 +149,7 @@ export function useScreenManager(pan, zoom) {
     moveScreen,
     handleImageUpload,
     onFileChange,
+    handlePaste,
     handleCanvasDrop,
     saveHotspot,
     deleteHotspot,
