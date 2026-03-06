@@ -19,7 +19,7 @@ import { EmptyState } from "./components/EmptyState";
 const HEADER_HEIGHT = 37;
 
 export default function FlowForge() {
-  const { pan, setPan, zoom, setZoom, isPanning, canvasRef, handleDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown } = useCanvas();
+  const { pan, setPan, zoom, setZoom, isPanning, dragging, canvasRef, handleDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown } = useCanvas();
   const {
     screens, connections, selectedScreen, setSelectedScreen,
     fileInputRef, addScreen, removeScreen, renameScreen, moveScreen,
@@ -27,6 +27,7 @@ export default function FlowForge() {
     saveHotspot, deleteHotspot, moveHotspot, resizeHotspot, updateScreenDimensions,
     updateScreenDescription, quickConnectHotspot, updateConnection, deleteConnection,
     addConnection, replaceAll, mergeAll,
+    canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
   } = useScreenManager(pan, zoom);
 
   const [hotspotModal, setHotspotModal] = useState(null);
@@ -105,6 +106,7 @@ export default function FlowForge() {
       const screen = screens.find((s) => s.id === screenId);
       const hs = screen?.hotspots.find((h) => h.id === hotspotId);
       if (!screen || !hs) return;
+      captureDragSnapshot();
       setHotspotInteraction({
         mode: "reposition",
         screenId,
@@ -119,7 +121,7 @@ export default function FlowForge() {
       // Select this hotspot
       setHotspotInteraction({ mode: "selected", screenId, hotspotId });
     }
-  }, [hotspotInteraction, canvasRef, screens]);
+  }, [hotspotInteraction, canvasRef, screens, captureDragSnapshot]);
 
   // Image area mouse down: begin draw
   const onImageAreaMouseDown = useCallback((e, screenId) => {
@@ -149,6 +151,7 @@ export default function FlowForge() {
     const screen = screens.find((s) => s.id === screenId);
     const hs = screen?.hotspots.find((h) => h.id === hotspotId);
     if (!screen || !hs) return;
+    captureDragSnapshot();
     setHotspotInteraction({
       mode: "resize",
       screenId,
@@ -158,7 +161,7 @@ export default function FlowForge() {
       startClientY: e.clientY,
       startRect: { x: hs.x, y: hs.y, w: hs.w, h: hs.h },
     });
-  }, [screens]);
+  }, [screens, captureDragSnapshot]);
 
   // Hotspot drag handle mouse down
   const onHotspotDragHandleMouseDown = useCallback((e, screenId, hotspotId) => {
@@ -395,6 +398,7 @@ export default function FlowForge() {
 
     // Handle resize completion
     if (hotspotInteraction?.mode === "resize") {
+      commitDragSnapshot();
       setHotspotInteraction({
         mode: "selected",
         screenId: hotspotInteraction.screenId,
@@ -405,6 +409,7 @@ export default function FlowForge() {
 
     // Handle reposition completion
     if (hotspotInteraction?.mode === "reposition") {
+      commitDragSnapshot();
       setHotspotInteraction({
         mode: "selected",
         screenId: hotspotInteraction.screenId,
@@ -428,15 +433,26 @@ export default function FlowForge() {
       cancelConnecting();
       return;
     }
+    const wasDragging = !!dragging;
     handleMouseUp(e);
-  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, screens, updateConnection]);
+    if (wasDragging) commitDragSnapshot();
+  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, screens, updateConnection, dragging, commitDragSnapshot]);
 
   const onCanvasMouseLeave = useCallback((e) => {
     if (hotspotInteraction?.mode === "conn-endpoint-drag") {
       setHotspotInteraction(null);
       return;
     }
-    if (hotspotInteraction?.mode === "draw" || hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "resize") {
+    if (hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "resize") {
+      commitDragSnapshot();
+      setHotspotInteraction({
+        mode: "selected",
+        screenId: hotspotInteraction.screenId,
+        hotspotId: hotspotInteraction.hotspotId,
+      });
+      return;
+    }
+    if (hotspotInteraction?.mode === "draw") {
       setHotspotInteraction({
         mode: "selected",
         screenId: hotspotInteraction.screenId,
@@ -458,11 +474,12 @@ export default function FlowForge() {
       return;
     }
     handleMouseUp(e);
-  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction]);
+  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, commitDragSnapshot]);
 
   const onDragStart = useCallback((e, screenId) => {
+    captureDragSnapshot();
     handleDragStart(e, screenId, screens);
-  }, [handleDragStart, screens]);
+  }, [handleDragStart, screens, captureDragSnapshot]);
 
   const addHotspot = useCallback((screenId) => {
     const screen = screens.find((s) => s.id === screenId);
@@ -544,10 +561,25 @@ export default function FlowForge() {
           setSelectedConnection(null);
         }
       }
+      // Undo/Redo shortcuts
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (hotspotModal || renameModal || importConfirm || showInstructions) return;
+        e.preventDefault();
+        undo();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && e.shiftKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (hotspotModal || renameModal || importConfirm || showInstructions) return;
+        e.preventDefault();
+        redo();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [connecting, cancelConnecting, hotspotInteraction, cancelHotspotInteraction, selectedConnection, deleteConnection, hotspotModal, renameModal, importConfirm, showInstructions]);
+  }, [connecting, cancelConnecting, hotspotInteraction, cancelHotspotInteraction, selectedConnection, deleteConnection, hotspotModal, renameModal, importConfirm, showInstructions, undo, redo]);
 
   useEffect(() => {
     const onPaste = (e) => {
@@ -622,6 +654,10 @@ export default function FlowForge() {
         onExport={onExport}
         onImport={onImport}
         onGenerate={onGenerate}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>

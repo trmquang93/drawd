@@ -1,6 +1,6 @@
 import { COLORS, FONTS } from "../styles/theme";
 
-export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate }) {
+export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo }) {
   return (
     <div
       style={{
@@ -61,6 +61,53 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
         <span style={{ fontSize: 11, color: COLORS.textDim, fontFamily: FONTS.mono }}>
           {screenCount} screen{screenCount !== 1 ? "s" : ""} &middot; {connectionCount} link{connectionCount !== 1 ? "s" : ""}
         </span>
+
+        <div style={{ display: "flex", gap: 2 }}>
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo (Cmd+Z)"
+            style={{
+              width: 32,
+              height: 32,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: `1px solid ${canUndo ? COLORS.border : "transparent"}`,
+              borderRadius: 6,
+              color: canUndo ? COLORS.textMuted : COLORS.textDim,
+              fontSize: 15,
+              cursor: canUndo ? "pointer" : "not-allowed",
+              opacity: canUndo ? 1 : 0.4,
+              transition: "all 0.2s",
+            }}
+          >
+            &#8617;
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo (Cmd+Shift+Z)"
+            style={{
+              width: 32,
+              height: 32,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: `1px solid ${canRedo ? COLORS.border : "transparent"}`,
+              borderRadius: 6,
+              color: canRedo ? COLORS.textMuted : COLORS.textDim,
+              fontSize: 15,
+              cursor: canRedo ? "pointer" : "not-allowed",
+              opacity: canRedo ? 1 : 0.4,
+              transition: "all 0.2s",
+            }}
+          >
+            &#8618;
+          </button>
+        </div>
 
         <button
           onClick={onUpload}

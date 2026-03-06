@@ -9,7 +9,78 @@ export function useScreenManager(pan, zoom) {
   const fileInputRef = useRef(null);
   const screenCounter = useRef(1);
 
+  // Undo/redo history
+  const historyRef = useRef({ past: [], future: [] });
+  const dragSnapshotRef = useRef(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const syncHistoryFlags = useCallback(() => {
+    setCanUndo(historyRef.current.past.length > 0);
+    setCanRedo(historyRef.current.future.length > 0);
+  }, []);
+
+  const pushHistory = useCallback((prevScreens, prevConnections) => {
+    const snapshot = {
+      screens: JSON.parse(JSON.stringify(prevScreens)),
+      connections: JSON.parse(JSON.stringify(prevConnections)),
+    };
+    historyRef.current.past.push(snapshot);
+    historyRef.current.future = [];
+    syncHistoryFlags();
+  }, [syncHistoryFlags]);
+
+  const clearHistory = useCallback(() => {
+    historyRef.current = { past: [], future: [] };
+    syncHistoryFlags();
+  }, [syncHistoryFlags]);
+
+  const captureDragSnapshot = useCallback(() => {
+    dragSnapshotRef.current = {
+      screens: JSON.parse(JSON.stringify(screens)),
+      connections: JSON.parse(JSON.stringify(connections)),
+    };
+  }, [screens, connections]);
+
+  const commitDragSnapshot = useCallback(() => {
+    if (dragSnapshotRef.current) {
+      historyRef.current.past.push(dragSnapshotRef.current);
+      historyRef.current.future = [];
+      dragSnapshotRef.current = null;
+      syncHistoryFlags();
+    }
+  }, [syncHistoryFlags]);
+
+  const undo = useCallback(() => {
+    const { past, future } = historyRef.current;
+    if (past.length === 0) return;
+    const current = {
+      screens: JSON.parse(JSON.stringify(screens)),
+      connections: JSON.parse(JSON.stringify(connections)),
+    };
+    future.push(current);
+    const snapshot = past.pop();
+    setScreens(snapshot.screens);
+    setConnections(snapshot.connections);
+    syncHistoryFlags();
+  }, [screens, connections, syncHistoryFlags]);
+
+  const redo = useCallback(() => {
+    const { past, future } = historyRef.current;
+    if (future.length === 0) return;
+    const current = {
+      screens: JSON.parse(JSON.stringify(screens)),
+      connections: JSON.parse(JSON.stringify(connections)),
+    };
+    past.push(current);
+    const snapshot = future.pop();
+    setScreens(snapshot.screens);
+    setConnections(snapshot.connections);
+    syncHistoryFlags();
+  }, [screens, connections, syncHistoryFlags]);
+
   const addScreen = useCallback((imageData = null, name = null) => {
+    pushHistory(screens, connections);
     const count = screenCounter.current++;
     const offsetX = (screens.length % 4) * 280 + 60;
     const offsetY = Math.floor(screens.length / 4) * 420 + 60;
@@ -25,23 +96,26 @@ export function useScreenManager(pan, zoom) {
     };
     setScreens((prev) => [...prev, newScreen]);
     setSelectedScreen(newScreen.id);
-  }, [screens.length, pan, zoom]);
+  }, [screens, connections, pushHistory, pan, zoom]);
 
   const removeScreen = useCallback((id) => {
+    pushHistory(screens, connections);
     setScreens((prev) => prev.filter((s) => s.id !== id));
     setConnections((prev) =>
       prev.filter((c) => c.fromScreenId !== id && c.toScreenId !== id)
     );
     if (selectedScreen === id) setSelectedScreen(null);
-  }, [selectedScreen]);
+  }, [selectedScreen, screens, connections, pushHistory]);
 
   const renameScreen = useCallback((id, name) => {
+    pushHistory(screens, connections);
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const updateScreenDescription = useCallback((id, description) => {
+    pushHistory(screens, connections);
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, description } : s)));
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const moveScreen = useCallback((id, x, y) => {
     setScreens((prev) =>
@@ -95,6 +169,7 @@ export function useScreenManager(pan, zoom) {
   }, [addScreen]);
 
   const saveHotspot = useCallback((screenId, hotspot) => {
+    pushHistory(screens, connections);
     setScreens((prev) =>
       prev.map((s) => {
         if (s.id !== screenId) return s;
@@ -131,16 +206,17 @@ export function useScreenManager(pan, zoom) {
         ];
       });
     }
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const deleteHotspot = useCallback((screenId, hotspotId) => {
+    pushHistory(screens, connections);
     setScreens((prev) =>
       prev.map((s) =>
         s.id === screenId ? { ...s, hotspots: s.hotspots.filter((h) => h.id !== hotspotId) } : s
       )
     );
     setConnections((prev) => prev.filter((c) => c.hotspotId !== hotspotId));
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const moveHotspot = useCallback((screenId, hotspotId, newX, newY) => {
     setScreens((prev) =>
@@ -179,6 +255,7 @@ export function useScreenManager(pan, zoom) {
   }, []);
 
   const quickConnectHotspot = useCallback((screenId, hotspotId, targetScreenId) => {
+    pushHistory(screens, connections);
     setScreens((prev) =>
       prev.map((s) => {
         if (s.id !== screenId) return s;
@@ -208,19 +285,22 @@ export function useScreenManager(pan, zoom) {
         },
       ];
     });
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const updateConnection = useCallback((connectionId, patch) => {
+    pushHistory(screens, connections);
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, ...patch } : c))
     );
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const deleteConnection = useCallback((connectionId) => {
+    pushHistory(screens, connections);
     setConnections((prev) => prev.filter((c) => c.id !== connectionId));
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const addConnection = useCallback((fromScreenId, toScreenId) => {
+    pushHistory(screens, connections);
     setConnections((prev) => {
       const exists = prev.some(
         (c) => c.fromScreenId === fromScreenId && c.toScreenId === toScreenId && !c.hotspotId
@@ -235,19 +315,21 @@ export function useScreenManager(pan, zoom) {
         action: "navigate",
       }];
     });
-  }, []);
+  }, [screens, connections, pushHistory]);
 
   const replaceAll = useCallback((newScreens, newConnections, newScreenCounter) => {
+    clearHistory();
     setScreens(newScreens);
     setConnections(newConnections);
     screenCounter.current = newScreenCounter;
     setSelectedScreen(null);
-  }, []);
+  }, [clearHistory]);
 
   const mergeAll = useCallback((newScreens, newConnections) => {
+    clearHistory();
     setScreens((prev) => [...prev, ...newScreens]);
     setConnections((prev) => [...prev, ...newConnections]);
-  }, []);
+  }, [clearHistory]);
 
   return {
     screens,
@@ -275,5 +357,11 @@ export function useScreenManager(pan, zoom) {
     addConnection,
     replaceAll,
     mergeAll,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    captureDragSnapshot,
+    commitDragSnapshot,
   };
 }
