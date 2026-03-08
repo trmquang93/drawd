@@ -25,7 +25,7 @@ export default function FlowForge() {
     fileInputRef, addScreen, addScreenAtCenter, removeScreen, renameScreen, moveScreen,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, moveHotspot, resizeHotspot, updateScreenDimensions,
-    updateScreenDescription, quickConnectHotspot, updateConnection, deleteConnection,
+    updateScreenDescription, assignScreenImage, quickConnectHotspot, updateConnection, deleteConnection,
     addConnection, addState, updateStateName, replaceAll, mergeAll,
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
   } = useScreenManager(pan, zoom, canvasRef);
@@ -33,7 +33,6 @@ export default function FlowForge() {
   const [hotspotModal, setHotspotModal] = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructions, setInstructions] = useState(null);
-  const [platformPreference, setPlatformPreference] = useState("auto");
   const [renameModal, setRenameModal] = useState(null);
   const [importConfirm, setImportConfirm] = useState(null);
   const importFileRef = useRef(null);
@@ -184,6 +183,14 @@ export default function FlowForge() {
   const onScreenDimensions = useCallback((screenId, imageWidth, imageHeight) => {
     updateScreenDimensions(screenId, imageWidth, imageHeight);
   }, [updateScreenDimensions]);
+
+  const handleDropImage = useCallback((screenId, file) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      assignScreenImage(screenId, ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  }, [assignScreenImage]);
 
   // Connection line interaction callbacks
   const onConnectionClick = useCallback((connId) => {
@@ -537,10 +544,10 @@ export default function FlowForge() {
 
   const onGenerate = useCallback(() => {
     if (screens.length === 0) return;
-    const result = generateInstructionFiles(screens, connections, { platform: platformPreference });
+    const result = generateInstructionFiles(screens, connections, { platform: "auto" });
     setInstructions(result);
     setShowInstructions(true);
-  }, [screens, connections, platformPreference]);
+  }, [screens, connections]);
 
   // Keyboard shortcuts: Escape cancels, Delete/Backspace removes selected connection
   useEffect(() => {
@@ -666,8 +673,6 @@ export default function FlowForge() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
-        platformPreference={platformPreference}
-        onPlatformChange={setPlatformPreference}
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -726,6 +731,7 @@ export default function FlowForge() {
                 isHotspotDragging={isHotspotDragging}
                 onUpdateDescription={updateScreenDescription}
                 onAddState={addState}
+                onDropImage={handleDropImage}
               />
             ))}
             <ConnectionLines

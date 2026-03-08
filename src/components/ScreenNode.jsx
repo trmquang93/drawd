@@ -6,11 +6,12 @@ export function ScreenNode({
   onDotDragStart, onConnectTarget, onHoverTarget, isConnectHoverTarget, isConnecting,
   selectedHotspotId, onHotspotMouseDown, onImageAreaMouseDown, onHotspotDragHandleMouseDown,
   onResizeHandleMouseDown, onScreenDimensions, drawRect, isHotspotDragging,
-  onUpdateDescription, isSpaceHeld, onAddState,
+  onUpdateDescription, isSpaceHeld, onAddState, onDropImage,
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [draftDesc, setDraftDesc] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
   const imgRef = useRef(null);
 
   const borderColor = isConnectHoverTarget
@@ -46,23 +47,44 @@ export function ScreenNode({
       onMouseLeave={() => {
         if (isConnecting) onHoverTarget?.(null);
         if (isHotspotDragging) onHoverTarget?.(null);
+        if (!screen.imageData) setIsDragOver(false);
       }}
+      onDragOver={!screen.imageData ? (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+      } : undefined}
+      onDragLeave={!screen.imageData ? (e) => {
+        e.stopPropagation();
+        if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false);
+      } : undefined}
+      onDrop={!screen.imageData ? (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+        const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+        if (files.length > 0 && onDropImage) {
+          onDropImage(screen.id, files[0]);
+        }
+      } : undefined}
       style={{
         position: "absolute",
         left: screen.x,
         top: screen.y,
         width: screen.width || 220,
         minHeight: 80,
-        background: COLORS.screenBg,
-        border: `2px solid ${borderColor}`,
+        background: isDragOver ? "rgba(0,210,211,0.05)" : COLORS.screenBg,
+        border: `2px solid ${isDragOver ? COLORS.success : borderColor}`,
         borderRadius: 14,
         cursor: isConnecting || isHotspotDragging ? "default" : "grab",
-        boxShadow: isConnectHoverTarget
+        boxShadow: isDragOver
           ? `0 0 30px rgba(0,210,211,0.3), 0 8px 32px rgba(0,0,0,0.5)`
-          : selected
-            ? `0 0 30px ${COLORS.accentGlow}, 0 8px 32px rgba(0,0,0,0.5)`
-            : "0 4px 20px rgba(0,0,0,0.4)",
-        transition: "border-color 0.2s, box-shadow 0.2s",
+          : isConnectHoverTarget
+            ? `0 0 30px rgba(0,210,211,0.3), 0 8px 32px rgba(0,0,0,0.5)`
+            : selected
+              ? `0 0 30px ${COLORS.accentGlow}, 0 8px 32px rgba(0,0,0,0.5)`
+              : "0 4px 20px rgba(0,0,0,0.4)",
+        transition: "border-color 0.2s, box-shadow 0.2s, background 0.2s",
         overflow: "hidden",
         userSelect: "none",
       }}
@@ -325,8 +347,31 @@ export function ScreenNode({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
+              position: "relative",
             }}
           >
+            {isDragOver && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 4,
+                  border: `2px dashed ${COLORS.success}`,
+                  borderRadius: 8,
+                  background: "rgba(0,210,211,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: COLORS.success,
+                  fontSize: 11,
+                  fontFamily: FONTS.mono,
+                  fontWeight: 600,
+                  zIndex: 5,
+                  pointerEvents: "none",
+                }}
+              >
+                Drop image here
+              </div>
+            )}
             {isEditingDesc ? (
               <div style={{ width: "100%", textAlign: "left" }}>
                 <textarea

@@ -1,6 +1,6 @@
 import { COLORS, FONTS } from "../styles/theme";
 
-export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, platformPreference, onPlatformChange }) {
+export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo }) {
   return (
     <div
       style={{
@@ -181,28 +181,6 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
         >
           Export
         </button>
-
-        <select
-          value={platformPreference}
-          onChange={(e) => onPlatformChange(e.target.value)}
-          style={{
-            padding: "7px 10px",
-            background: COLORS.bg,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 8,
-            color: COLORS.textMuted,
-            fontSize: 11,
-            fontFamily: FONTS.mono,
-            cursor: "pointer",
-            outline: "none",
-          }}
-        >
-          <option value="auto">Auto</option>
-          <option value="swiftui">SwiftUI</option>
-          <option value="react-native">React Native</option>
-          <option value="flutter">Flutter</option>
-          <option value="jetpack-compose">Jetpack Compose</option>
-        </select>
 
         <button
           onClick={onGenerate}

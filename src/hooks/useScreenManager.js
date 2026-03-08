@@ -160,6 +160,11 @@ export function useScreenManager(pan, zoom, canvasRef) {
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, description } : s)));
   }, [screens, connections, pushHistory]);
 
+  const assignScreenImage = useCallback((id, imageData) => {
+    pushHistory(screens, connections);
+    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, imageData } : s)));
+  }, [screens, connections, pushHistory]);
+
   const moveScreen = useCallback((id, x, y) => {
     setScreens((prev) =>
       prev.map((s) => (s.id === id ? { ...s, x, y } : s))
@@ -187,6 +192,20 @@ export function useScreenManager(pan, zoom, canvasRef) {
     const imageItems = items.filter((item) => item.type.startsWith("image/"));
     if (imageItems.length === 0) return;
     e.preventDefault();
+
+    // Single image pasted with a blank screen selected -> assign to that screen
+    const sel = selectedScreen ? screens.find((s) => s.id === selectedScreen) : null;
+    if (imageItems.length === 1 && sel && !sel.imageData) {
+      const file = imageItems[0].getAsFile();
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        assignScreenImage(sel.id, ev.target.result);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
     imageItems.forEach((item, index) => {
       const file = item.getAsFile();
       if (!file) return;
@@ -197,7 +216,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
       };
       reader.readAsDataURL(file);
     });
-  }, [addScreenAtCenter]);
+  }, [addScreenAtCenter, selectedScreen, screens, assignScreenImage]);
 
   const handleCanvasDrop = useCallback((e) => {
     e.preventDefault();
@@ -490,6 +509,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
     resizeHotspot,
     updateScreenDimensions,
     updateScreenDescription,
+    assignScreenImage,
     quickConnectHotspot,
     updateConnection,
     deleteConnection,
