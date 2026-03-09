@@ -19,6 +19,7 @@ export const COLORS = {
   hotspot: "rgba(108, 92, 231, 0.25)",
   hotspotBorder: "#6c5ce7",
   connectionLine: "#6c5ce7",
+  condition: "#f0932b",
 };
 
 export const FONTS = {

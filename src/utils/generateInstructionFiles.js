@@ -96,6 +96,7 @@ const PLATFORM_TERMINOLOGY = {
     navigate: "Use `NavigationStack` with `.navigationDestination(for:)` to push the target view.",
     back: "Call `dismiss()` via `@Environment(\\.dismiss)` or pop from the navigation path.",
     modal: "Present the target view using `.sheet(isPresented:)` or `.fullScreenCover()`.",
+    conditional: "Evaluate the condition and navigate to the matching target screen. Use `if`/`switch` to branch.",
     api: "Use `URLSession.shared.data(from:)` with `async/await`. Handle success/error follow-up actions in the completion. Mark the call with `// TODO: implement API`.",
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up a `NavigationStack` with a path-based router using `@State private var path = NavigationPath()`.",
@@ -106,6 +107,7 @@ const PLATFORM_TERMINOLOGY = {
     navigate: "Use `navigation.navigate('ScreenName')` from React Navigation's stack navigator.",
     back: "Call `navigation.goBack()` to return to the previous screen.",
     modal: "Use `navigation.navigate()` with `presentation: 'modal'` in stack screen options.",
+    conditional: "Evaluate the condition and call `navigation.navigate()` to the matching target screen.",
     api: "Use `fetch()` or `axios` for the API call. Handle success/error follow-up navigation in `.then()`/`.catch()`. Add a `// TODO: implement API` comment.",
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up `createNativeStackNavigator()` with `NavigationContainer` wrapping `Stack.Navigator`.",
@@ -116,6 +118,7 @@ const PLATFORM_TERMINOLOGY = {
     navigate: "Use `Navigator.push(context, MaterialPageRoute(builder: (_) => TargetScreen()))`.",
     back: "Call `Navigator.pop(context)` to return to the previous screen.",
     modal: "Use `showModalBottomSheet()` or `showDialog()` to present the screen as an overlay.",
+    conditional: "Evaluate the condition and call `Navigator.push()` to the matching target screen.",
     api: "Use the `http` package with `http.get()`/`http.post()`. Handle success/error follow-up navigation in try/catch. Add a `// TODO: implement API` comment.",
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up `MaterialApp` with named routes or `GoRouter` for declarative routing.",
@@ -126,6 +129,7 @@ const PLATFORM_TERMINOLOGY = {
     navigate: "Use `navController.navigate(\"screenRoute\")` within a `NavHost`.",
     back: "Call `navController.popBackStack()` to return to the previous screen.",
     modal: "Use `Dialog { }` or `ModalBottomSheet { }` to present the screen as an overlay.",
+    conditional: "Evaluate the condition and call `navController.navigate()` to the matching target screen.",
     api: "Use Retrofit or Ktor with coroutines. Handle success/error follow-up navigation in try/catch. Add a `// TODO: implement API` comment.",
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up `NavHost(navController, startDestination)` with `composable(\"route\") { }` for each screen.",
@@ -328,6 +332,14 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
           }
         }
       }
+      if (h.action === "conditional" && h.conditions?.length > 0) {
+        md += `**${h.label || "Unnamed"}** \u2014 Conditional branches:\n\n`;
+        h.conditions.forEach((cond, ci) => {
+          const t = cond.targetScreenId ? screens.find(ts => ts.id === cond.targetScreenId) : null;
+          md += `- ${cond.label || `branch ${ci + 1}`} \u2192 ${t?.name || "none"}\n`;
+        });
+        md += `\n`;
+      }
       if (h.action === "custom" && h.customDescription) {
         md += `**${h.label || "Unnamed"}** \u2014 Custom: ${h.customDescription}\n\n`;
       }
@@ -450,8 +462,8 @@ function generateNavigationMd(screens, connections, navAnalysis) {
   if (connections.length === 0) {
     md += `No connections defined yet.\n\n`;
   } else {
-    md += `| # | From | To | Trigger | Action |\n`;
-    md += `|---|------|----|---------|--------|\n`;
+    md += `| # | From | To | Trigger | Action | Condition |\n`;
+    md += `|---|------|----|---------|--------|-----------|\n`;
     connections.forEach((c, i) => {
       const from = screens.find(s => s.id === c.fromScreenId);
       const to = screens.find(s => s.id === c.toScreenId);
@@ -459,7 +471,9 @@ function generateNavigationMd(screens, connections, navAnalysis) {
       let actionCol = c.action || "navigate";
       if (c.connectionPath === "api-success") actionCol += " (success)";
       else if (c.connectionPath === "api-error") actionCol += " (error)";
-      md += `| ${i + 1} | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "—"} | ${actionCol} |\n`;
+      else if (c.connectionPath && c.connectionPath.startsWith("condition-")) actionCol += " (conditional)";
+      const conditionCol = c.condition || "\u2014";
+      md += `| ${i + 1} | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${conditionCol} |\n`;
     });
     md += `\n`;
   }
@@ -482,6 +496,7 @@ function generateBuildGuideMd(screens, connections, options) {
     md += `   - **back** — Pop/go back to previous screen\n`;
     md += `   - **modal** — Present target screen as a modal/overlay\n`;
     md += `   - **api** — Make the specified HTTP request (see endpoint and method in screens.md)\n`;
+    md += `   - **conditional** — Branch to different screens based on a condition (see screens.md for branch definitions)\n`;
     md += `   - **custom** — Implement custom logic as described in screens.md\n`;
     md += `6. Set up proper navigation stack/router with all routes\n`;
     md += `7. Add smooth transitions between screens matching mobile platform conventions\n`;
@@ -517,6 +532,7 @@ function generateBuildGuideMd(screens, connections, options) {
     md += `| **navigate** | ${pt.navigate} |\n`;
     md += `| **back** | ${pt.back} |\n`;
     md += `| **modal** | ${pt.modal} |\n`;
+    md += `| **conditional** | ${pt.conditional} |\n`;
     md += `| **api** | ${pt.api} |\n`;
     md += `| **custom** | ${pt.custom} |\n\n`;
 

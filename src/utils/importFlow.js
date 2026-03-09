@@ -12,7 +12,7 @@ export function importFlow(fileText) {
     throw new Error("Invalid file: missing version field.");
   }
 
-  if (data.version > 5) {
+  if (data.version > 6) {
     throw new Error(
       `Unsupported file version ${data.version}. Please update FlowForge to open this file.`
     );
@@ -41,6 +41,7 @@ export function importFlow(fileText) {
         if (!hs.apiEndpoint) hs.apiEndpoint = "";
         if (!hs.apiMethod) hs.apiMethod = "";
         if (!hs.customDescription) hs.customDescription = "";
+        if (!hs.conditions) hs.conditions = [];
         if (!hs.onSuccessAction) hs.onSuccessAction = "";
         if (!hs.onSuccessTargetId) hs.onSuccessTargetId = "";
         if (!hs.onSuccessCustomDesc) hs.onSuccessCustomDesc = "";
@@ -76,6 +77,8 @@ export function importFlow(fileText) {
   // Backward compat: default connectionPath for older files
   for (const conn of data.connections) {
     if (!conn.connectionPath) conn.connectionPath = "default";
+    if (conn.condition === undefined) conn.condition = "";
+    if (conn.conditionGroupId === undefined) conn.conditionGroupId = null;
   }
 
   return data;

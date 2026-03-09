@@ -236,6 +236,8 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
             <div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 4, fontFamily: FONTS.mono }}>
               {hs.action === "api"
                 ? `api: ${hs.apiMethod || "GET"} ${hs.apiEndpoint || "/endpoint"}`
+                : hs.action === "conditional"
+                ? `conditional: ${(hs.conditions || []).length} branch${(hs.conditions || []).length !== 1 ? "es" : ""}`
                 : <>{hs.action} &rarr; {target?.name || "none"}</>
               }
             </div>
@@ -257,6 +259,14 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
                 })()}
               </div>
             )}
+            {hs.action === "conditional" && (hs.conditions || []).map((cond, ci) => {
+              const t = cond.targetScreenId ? screens.find((s) => s.id === cond.targetScreenId) : null;
+              return (
+                <div key={cond.id || ci} style={{ fontSize: 9, color: "#f0932b", marginTop: ci === 0 ? 3 : 2, fontFamily: FONTS.mono }}>
+                  {cond.label || `branch ${ci + 1}`} &rarr; {t?.name || "none"}
+                </div>
+              );
+            })}
           </div>
         );
       })}
@@ -309,7 +319,7 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
                   fontFamily: FONTS.mono,
                 }}
               >
-                &larr; {from?.name} {c.label ? `(${c.label})` : ""}
+                &larr; {from?.name} {c.condition ? `(${c.condition})` : c.label ? `(${c.label})` : ""}
               </div>
             );
           })}

@@ -1,6 +1,6 @@
 export function buildPayload(screens, connections, pan, zoom, documents = []) {
   return {
-    version: 5,
+    version: 6,
     metadata: {
       name: "Untitled Flow",
       exportedAt: new Date().toISOString(),

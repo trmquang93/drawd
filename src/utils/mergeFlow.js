@@ -10,6 +10,7 @@ export function mergeFlow(importedScreens, importedConnections, existingScreens,
   const hotspotIdMap = {};
   const stateGroupMap = {};
   const documentIdMap = {};
+  const conditionGroupMap = {};
 
   // Remap document IDs
   const newDocuments = importedDocuments.map((doc) => {
@@ -46,7 +47,7 @@ export function mergeFlow(importedScreens, importedConnections, existingScreens,
     };
   });
 
-  // Remap targetScreenId and documentId in hotspots
+  // Remap targetScreenId, documentId, and conditions in hotspots
   newScreens.forEach((screen) => {
     screen.hotspots = screen.hotspots.map((hs) => ({
       ...hs,
@@ -56,16 +57,31 @@ export function mergeFlow(importedScreens, importedConnections, existingScreens,
       documentId: hs.documentId
         ? documentIdMap[hs.documentId] || hs.documentId
         : hs.documentId,
+      conditions: (hs.conditions || []).map((cond) => ({
+        ...cond,
+        id: generateId(),
+        targetScreenId: cond.targetScreenId
+          ? screenIdMap[cond.targetScreenId] || cond.targetScreenId
+          : cond.targetScreenId,
+      })),
     }));
   });
 
-  const newConnections = importedConnections.map((conn) => ({
-    ...conn,
-    id: generateId(),
-    fromScreenId: screenIdMap[conn.fromScreenId] || conn.fromScreenId,
-    toScreenId: screenIdMap[conn.toScreenId] || conn.toScreenId,
-    hotspotId: hotspotIdMap[conn.hotspotId] || conn.hotspotId,
-  }));
+  const newConnections = importedConnections.map((conn) => {
+    let newCondGroupId = conn.conditionGroupId || null;
+    if (newCondGroupId) {
+      if (!conditionGroupMap[newCondGroupId]) conditionGroupMap[newCondGroupId] = generateId();
+      newCondGroupId = conditionGroupMap[newCondGroupId];
+    }
+    return {
+      ...conn,
+      id: generateId(),
+      fromScreenId: screenIdMap[conn.fromScreenId] || conn.fromScreenId,
+      toScreenId: screenIdMap[conn.toScreenId] || conn.toScreenId,
+      hotspotId: hotspotIdMap[conn.hotspotId] || conn.hotspotId,
+      conditionGroupId: newCondGroupId,
+    };
+  });
 
   return { screens: newScreens, connections: newConnections, documents: newDocuments };
 }
