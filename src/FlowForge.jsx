@@ -60,6 +60,16 @@ export default function FlowForge() {
     }
   }, [saveAs]);
 
+  const onNew = useCallback(() => {
+    if (screens.length > 0) {
+      if (!window.confirm("You have unsaved changes. Start a new flow?")) return;
+    }
+    replaceAll([], [], 1, []);
+    setPan({ x: 0, y: 0 });
+    setZoom(1);
+    disconnect();
+  }, [screens.length, replaceAll, setPan, setZoom, disconnect]);
+
   const [hotspotModal, setHotspotModal] = useState(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -727,6 +737,7 @@ export default function FlowForge() {
         connectedFileName={connectedFileName}
         saveStatus={saveStatus}
         isFileSystemSupported={isFileSystemSupported}
+        onNew={onNew}
         onOpen={onOpen}
         onSaveAs={onSaveAs}
       />

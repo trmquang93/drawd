@@ -1,13 +1,57 @@
+import { useState, useRef, useEffect } from "react";
 import { COLORS, FONTS } from "../styles/theme";
 
-export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onOpen, onSaveAs, onDocuments, documentCount = 0 }) {
+export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0 }) {
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const fileMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!fileMenuOpen) return;
+    function handleMouseDown(e) {
+      if (fileMenuRef.current && !fileMenuRef.current.contains(e.target)) {
+        setFileMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === "Escape") setFileMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [fileMenuOpen]);
+
   const statusDotColor = saveStatus === "saving" ? COLORS.warning
     : saveStatus === "saved" ? COLORS.success
     : saveStatus === "error" ? COLORS.danger
     : null;
+
+  const menuItemStyle = (disabled) => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    padding: "8px 14px",
+    background: "transparent",
+    border: "none",
+    borderRadius: 6,
+    color: disabled ? COLORS.textDim : COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: FONTS.mono,
+    cursor: disabled ? "not-allowed" : "pointer",
+    textAlign: "left",
+    gap: 24,
+  });
+
   return (
     <>
-    <style>{`@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
+    <style>{`
+      @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+      .ff-menu-item:hover:not(:disabled) { background: rgba(255,255,255,0.06) !important; }
+    `}</style>
     <div
       style={{
         height: 56,
@@ -214,87 +258,98 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
           + Blank Screen
         </button>
 
-        {isFileSystemSupported && (
+        {/* File dropdown */}
+        <div ref={fileMenuRef} style={{ position: "relative" }}>
           <button
-            onClick={onOpen}
-            title="Open file (Cmd+O)"
+            onClick={() => setFileMenuOpen((v) => !v)}
             style={{
-              padding: "8px 16px",
-              background: "rgba(255,255,255,0.04)",
-              border: `1px solid ${COLORS.border}`,
+              padding: "8px 14px",
+              background: fileMenuOpen ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${fileMenuOpen ? COLORS.textDim : COLORS.border}`,
               borderRadius: 8,
               color: COLORS.textMuted,
               fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: FONTS.mono,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
             }}
           >
-            Open
+            File
+            <span style={{ fontSize: 9, opacity: 0.7 }}>&#9660;</span>
           </button>
-        )}
 
-        <button
-          onClick={onImport}
-          style={{
-            padding: "8px 16px",
-            background: "rgba(255,255,255,0.04)",
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 8,
-            color: COLORS.textMuted,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: FONTS.mono,
-          }}
-        >
-          Import
-        </button>
+          {fileMenuOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 10,
+                padding: "6px",
+                minWidth: 210,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                zIndex: 100,
+              }}
+            >
+              <button
+                className="ff-menu-item"
+                onClick={() => { setFileMenuOpen(false); onNew(); }}
+                style={menuItemStyle(false)}
+              >
+                <span>New</span>
+              </button>
 
-        <button
-          onClick={onExport}
-          disabled={screenCount === 0}
-          style={{
-            padding: "8px 16px",
-            background: screenCount === 0
-              ? "rgba(108,92,231,0.05)"
-              : "rgba(108,92,231,0.12)",
-            border: `1px solid ${screenCount === 0 ? COLORS.border : "rgba(108,92,231,0.3)"}`,
-            borderRadius: 8,
-            color: screenCount === 0 ? COLORS.textDim : COLORS.accentLight,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: screenCount === 0 ? "not-allowed" : "pointer",
-            fontFamily: FONTS.mono,
-            transition: "all 0.2s",
-          }}
-        >
-          Export
-        </button>
+              {isFileSystemSupported && (
+                <button
+                  className="ff-menu-item"
+                  onClick={() => { setFileMenuOpen(false); onOpen(); }}
+                  style={menuItemStyle(false)}
+                >
+                  <span>Open</span>
+                  <span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 400 }}>Cmd+O</span>
+                </button>
+              )}
 
-        {isFileSystemSupported && (
-          <button
-            onClick={onSaveAs}
-            disabled={screenCount === 0}
-            title="Save As (Cmd+S)"
-            style={{
-              padding: "8px 16px",
-              background: screenCount === 0
-                ? "rgba(108,92,231,0.05)"
-                : "rgba(108,92,231,0.12)",
-              border: `1px solid ${screenCount === 0 ? COLORS.border : "rgba(108,92,231,0.3)"}`,
-              borderRadius: 8,
-              color: screenCount === 0 ? COLORS.textDim : COLORS.accentLight,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: screenCount === 0 ? "not-allowed" : "pointer",
-              fontFamily: FONTS.mono,
-              transition: "all 0.2s",
-            }}
-          >
-            Save As
-          </button>
-        )}
+              {isFileSystemSupported && (
+                <button
+                  className="ff-menu-item"
+                  onClick={() => { if (screenCount > 0) { setFileMenuOpen(false); onSaveAs(); } }}
+                  disabled={screenCount === 0}
+                  style={menuItemStyle(screenCount === 0)}
+                >
+                  <span>Save As</span>
+                  <span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 400 }}>Cmd+S</span>
+                </button>
+              )}
+
+              {isFileSystemSupported && (
+                <div style={{ height: 1, background: COLORS.border, margin: "6px 0" }} />
+              )}
+
+              <button
+                className="ff-menu-item"
+                onClick={() => { setFileMenuOpen(false); onImport(); }}
+                style={menuItemStyle(false)}
+              >
+                <span>Import</span>
+              </button>
+
+              <button
+                className="ff-menu-item"
+                onClick={() => { if (screenCount > 0) { setFileMenuOpen(false); onExport(); } }}
+                disabled={screenCount === 0}
+                style={menuItemStyle(screenCount === 0)}
+              >
+                <span>Export</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={onGenerate}
