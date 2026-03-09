@@ -322,7 +322,30 @@ export function useScreenManager(pan, zoom, canvasRef) {
       });
     }
 
-    if (hotspot.action !== "api" && hotspot.action !== "navigate" && hotspot.action !== "modal") {
+    if (hotspot.action === "conditional") {
+      setConnections((prev) => {
+        // Remove all existing connections for this hotspot
+        let updated = prev.filter((c) => c.hotspotId !== hotspot.id);
+        // Create one connection per condition branch with a target
+        (hotspot.conditions || []).forEach((cond, i) => {
+          if (cond.targetScreenId) {
+            updated.push({
+              id: generateId(),
+              fromScreenId: screenId,
+              toScreenId: cond.targetScreenId,
+              hotspotId: hotspot.id,
+              label: hotspot.label ? `${hotspot.label} (${cond.label || `branch ${i + 1}`})` : (cond.label || `branch ${i + 1}`),
+              action: "navigate",
+              connectionPath: `condition-${i}`,
+              condition: cond.label || "",
+            });
+          }
+        });
+        return updated;
+      });
+    }
+
+    if (hotspot.action !== "api" && hotspot.action !== "navigate" && hotspot.action !== "modal" && hotspot.action !== "conditional") {
       // For back/custom actions, clean up all connections for this hotspot
       setConnections((prev) =>
         prev.filter((c) => c.hotspotId !== hotspot.id)
@@ -419,6 +442,107 @@ export function useScreenManager(pan, zoom, canvasRef) {
   const deleteConnection = useCallback((connectionId) => {
     pushHistory(screens, connections, documents);
     setConnections((prev) => prev.filter((c) => c.id !== connectionId));
+  }, [screens, connections, documents, pushHistory]);
+
+  const saveConnectionGroup = useCallback((originalConnId, payload) => {
+    pushHistory(screens, connections, documents);
+    const { mode, label, targetId, fromScreenId, conditions, conditionGroupId } = payload;
+
+    setConnections((prev) => {
+      // Remove the original connection and any group members
+      let cleaned;
+      if (conditionGroupId) {
+        cleaned = prev.filter((c) => c.conditionGroupId !== conditionGroupId);
+      } else {
+        cleaned = prev.filter((c) => c.id !== originalConnId);
+      }
+
+      if (mode === "navigate") {
+        if (!targetId) return cleaned;
+        return [...cleaned, {
+          id: generateId(),
+          fromScreenId,
+          toScreenId: targetId,
+          hotspotId: null,
+          label: label || "",
+          action: "navigate",
+          connectionPath: "default",
+          condition: "",
+          conditionGroupId: null,
+        }];
+      }
+
+      if (mode === "conditional") {
+        const groupId = conditionGroupId || generateId();
+        const newConns = (conditions || [])
+          .filter((cond) => cond.targetScreenId)
+          .map((cond, i) => ({
+            id: generateId(),
+            fromScreenId,
+            toScreenId: cond.targetScreenId,
+            hotspotId: null,
+            label: cond.label || `branch ${i + 1}`,
+            action: "navigate",
+            connectionPath: `condition-${i}`,
+            condition: cond.label || "",
+            conditionGroupId: groupId,
+          }));
+        return [...cleaned, ...newConns];
+      }
+
+      return cleaned;
+    });
+  }, [screens, connections, documents, pushHistory]);
+
+  const deleteConnectionGroup = useCallback((conditionGroupId) => {
+    pushHistory(screens, connections, documents);
+    setConnections((prev) => prev.filter((c) => c.conditionGroupId !== conditionGroupId));
+  }, [screens, connections, documents, pushHistory]);
+
+  const convertToConditionalGroup = useCallback((existingConnId, fromScreenId, toScreenId) => {
+    pushHistory(screens, connections, documents);
+    const groupId = generateId();
+    setConnections((prev) => {
+      const updated = prev.map((c) =>
+        c.id === existingConnId
+          ? { ...c, connectionPath: "condition-0", condition: "", conditionGroupId: groupId }
+          : c
+      );
+      return [...updated, {
+        id: generateId(),
+        fromScreenId,
+        toScreenId,
+        hotspotId: null,
+        label: "",
+        action: "navigate",
+        connectionPath: "condition-1",
+        condition: "",
+        conditionGroupId: groupId,
+      }];
+    });
+    return groupId;
+  }, [screens, connections, documents, pushHistory]);
+
+  const addToConditionalGroup = useCallback((fromScreenId, toScreenId, conditionGroupId) => {
+    pushHistory(screens, connections, documents);
+    setConnections((prev) => {
+      const groupConns = prev.filter((c) => c.conditionGroupId === conditionGroupId);
+      const maxIndex = groupConns.reduce((max, c) => {
+        const match = c.connectionPath?.match(/^condition-(\d+)$/);
+        return match ? Math.max(max, parseInt(match[1], 10)) : max;
+      }, -1);
+      return [...prev, {
+        id: generateId(),
+        fromScreenId,
+        toScreenId,
+        hotspotId: null,
+        label: "",
+        action: "navigate",
+        connectionPath: `condition-${maxIndex + 1}`,
+        condition: "",
+        conditionGroupId,
+      }];
+    });
   }, [screens, connections, documents, pushHistory]);
 
   const addConnection = useCallback((fromScreenId, toScreenId) => {
@@ -551,6 +675,10 @@ export function useScreenManager(pan, zoom, canvasRef) {
     updateConnection,
     deleteConnection,
     addConnection,
+    convertToConditionalGroup,
+    addToConditionalGroup,
+    saveConnectionGroup,
+    deleteConnectionGroup,
     addState,
     updateStateName,
     addDocument,

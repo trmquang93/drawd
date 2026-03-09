@@ -8,7 +8,7 @@ function getScreenCenterY(screen) {
   return screen.y + (HEADER_HEIGHT + imageAreaHeight) / 2;
 }
 
-function computePoints(conn, screens) {
+export function computePoints(conn, screens) {
   const from = screens.find((s) => s.id === conn.fromScreenId);
   const to = screens.find((s) => s.id === conn.toScreenId);
   if (!from || !to) return null;
@@ -74,6 +74,9 @@ export function ConnectionLines({
         </marker>
         <marker id="arrowhead-error" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0, 10 3.5, 0 7" fill={COLORS.danger} />
+        </marker>
+        <marker id="arrowhead-condition" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill={COLORS.condition} />
         </marker>
         <filter id="glow">
           <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -145,6 +148,10 @@ export function ConnectionLines({
           lineColor = COLORS.danger;
           lineMarker = "url(#arrowhead-error)";
           selectedMarker = "url(#arrowhead-error)";
+        } else if (conn.connectionPath && conn.connectionPath.startsWith("condition-")) {
+          lineColor = COLORS.condition;
+          lineMarker = "url(#arrowhead-condition)";
+          selectedMarker = "url(#arrowhead-condition)";
         }
 
         // Apply endpoint drag preview overrides
@@ -196,17 +203,17 @@ export function ConnectionLines({
               opacity={isSelected ? 1 : 0.7}
             />
             {/* Label */}
-            {conn.label && (
+            {(conn.label || conn.condition) && (
               <text
                 x={(fromX + toX) / 2}
                 y={(fromY + toY) / 2 - 10}
-                fill={COLORS.accentLight}
+                fill={conn.condition ? COLORS.condition : COLORS.accentLight}
                 fontSize={10}
                 fontFamily={FONTS.mono}
                 textAnchor="middle"
                 style={{ filter: "url(#glow)" }}
               >
-                {conn.label}
+                {conn.condition || conn.label}
               </text>
             )}
             {/* Endpoint handles when selected */}

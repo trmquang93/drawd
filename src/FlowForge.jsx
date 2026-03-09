@@ -10,6 +10,7 @@ import { useFilePersistence } from "./hooks/useFilePersistence";
 import { ScreenNode } from "./components/ScreenNode";
 import { ConnectionLines } from "./components/ConnectionLines";
 import { HotspotModal } from "./components/HotspotModal";
+import { ConnectionEditModal } from "./components/ConnectionEditModal";
 import { InstructionsPanel } from "./components/InstructionsPanel";
 import { DocumentsPanel } from "./components/DocumentsPanel";
 import { RenameModal } from "./components/RenameModal";
@@ -17,6 +18,8 @@ import { ImportConfirmModal } from "./components/ImportConfirmModal";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { EmptyState } from "./components/EmptyState";
+import { ConditionalPrompt } from "./components/ConditionalPrompt";
+import { InlineConditionLabels } from "./components/InlineConditionLabels";
 
 const HEADER_HEIGHT = 37;
 
@@ -28,7 +31,8 @@ export default function FlowForge() {
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, moveHotspot, resizeHotspot, updateScreenDimensions,
     updateScreenDescription, assignScreenImage, quickConnectHotspot, updateConnection, deleteConnection,
-    addConnection, addState, updateStateName, addDocument, updateDocument, deleteDocument,
+    addConnection, convertToConditionalGroup, addToConditionalGroup, saveConnectionGroup, deleteConnectionGroup,
+    addState, updateStateName, addDocument, updateDocument, deleteDocument,
     replaceAll, mergeAll,
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
   } = useScreenManager(pan, zoom, canvasRef);
@@ -71,6 +75,7 @@ export default function FlowForge() {
   }, [screens.length, replaceAll, setPan, setZoom, disconnect]);
 
   const [hotspotModal, setHotspotModal] = useState(null);
+  const [connectionEditModal, setConnectionEditModal] = useState(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructions, setInstructions] = useState(null);
@@ -87,6 +92,10 @@ export default function FlowForge() {
 
   // Selected connection state
   const [selectedConnection, setSelectedConnection] = useState(null);
+
+  // Conditional branch drag-to-create state
+  const [conditionalPrompt, setConditionalPrompt] = useState(null);
+  const [editingConditionGroup, setEditingConditionGroup] = useState(null);
 
   const cancelConnecting = useCallback(() => {
     setConnecting(null);
@@ -130,13 +139,49 @@ export default function FlowForge() {
     }
 
     if (!connecting) return;
-    if (targetScreenId === connecting.fromScreenId) {
+    const fromId = connecting.fromScreenId;
+    if (targetScreenId === fromId) {
       cancelConnecting();
       return;
     }
-    addConnection(connecting.fromScreenId, targetScreenId);
+
+    // Check for existing non-hotspot connections from same screen
+    const existingPlain = connections.filter((c) => c.fromScreenId === fromId && !c.hotspotId);
+
+    // Scenario 2: existing conditional group -- auto-join
+    const existingGroup = existingPlain.find((c) => c.conditionGroupId);
+    if (existingGroup) {
+      addToConditionalGroup(fromId, targetScreenId, existingGroup.conditionGroupId);
+      setEditingConditionGroup(existingGroup.conditionGroupId);
+      cancelConnecting();
+      return;
+    }
+
+    // Scenario 1: existing non-grouped connection -- show prompt
+    if (existingPlain.length > 0) {
+      // Skip if dragging to same target as existing (duplicate guard)
+      const isDuplicate = existingPlain.some((c) => c.toScreenId === targetScreenId);
+      if (isDuplicate) {
+        cancelConnecting();
+        return;
+      }
+      const fromScreen = screens.find((s) => s.id === fromId);
+      const promptX = fromScreen ? fromScreen.x + (fromScreen.width || 220) + 20 : 0;
+      const promptY = fromScreen ? fromScreen.y : 0;
+      setConditionalPrompt({
+        fromId,
+        targetScreenId,
+        existingConnId: existingPlain[0].id,
+        x: promptX,
+        y: promptY,
+      });
+      cancelConnecting();
+      return;
+    }
+
+    addConnection(fromId, targetScreenId);
     cancelConnecting();
-  }, [connecting, cancelConnecting, hotspotInteraction, quickConnectHotspot, addConnection]);
+  }, [connecting, cancelConnecting, hotspotInteraction, quickConnectHotspot, addConnection, connections, screens, addToConditionalGroup]);
 
   // Hotspot mouse down: select or begin reposition
   const onHotspotMouseDown = useCallback((e, screenId, hotspotId) => {
@@ -244,13 +289,29 @@ export default function FlowForge() {
     if (!conn) return;
     const screen = screens.find((s) => s.id === conn.fromScreenId);
     if (!screen) return;
-    const hotspot = conn.hotspotId
-      ? screen.hotspots.find((h) => h.id === conn.hotspotId)
-      : null;
-    if (hotspot) {
-      setHotspotModal({ screen, hotspot });
+    if (conn.hotspotId) {
+      const hotspot = screen.hotspots.find((h) => h.id === conn.hotspotId);
+      if (hotspot) setHotspotModal({ screen, hotspot });
+    } else {
+      const groupConns = conn.conditionGroupId
+        ? connections.filter((c) => c.conditionGroupId === conn.conditionGroupId)
+        : [conn];
+      setConnectionEditModal({ connection: conn, groupConnections: groupConns, fromScreen: screen });
     }
   }, [connections, screens]);
+
+  const onConditionalPromptConfirm = useCallback(() => {
+    if (!conditionalPrompt) return;
+    const groupId = convertToConditionalGroup(conditionalPrompt.existingConnId, conditionalPrompt.fromId, conditionalPrompt.targetScreenId);
+    setEditingConditionGroup(groupId);
+    setConditionalPrompt(null);
+  }, [conditionalPrompt, convertToConditionalGroup]);
+
+  const onConditionalPromptCancel = useCallback(() => {
+    if (!conditionalPrompt) return;
+    addConnection(conditionalPrompt.fromId, conditionalPrompt.targetScreenId);
+    setConditionalPrompt(null);
+  }, [conditionalPrompt, addConnection]);
 
   const onEndpointMouseDown = useCallback((e, connId, endpoint) => {
     e.preventDefault();
@@ -276,6 +337,15 @@ export default function FlowForge() {
       handleCanvasMouseDown(e);
       return;
     }
+    // Dismiss conditional prompt on canvas click (add normal connection)
+    if (conditionalPrompt) {
+      onConditionalPromptCancel();
+      return;
+    }
+    // Dismiss inline condition label editing
+    if (editingConditionGroup) {
+      setEditingConditionGroup(null);
+    }
     // Clear selected connection on canvas click
     if (selectedConnection) setSelectedConnection(null);
     // Cancel hotspot interaction on canvas click
@@ -293,7 +363,7 @@ export default function FlowForge() {
     }
     const wasPan = handleCanvasMouseDown(e);
     if (wasPan) setSelectedScreen(null);
-  }, [handleCanvasMouseDown, setSelectedScreen, connecting, cancelConnecting, hotspotInteraction, selectedConnection, isSpaceHeld]);
+  }, [handleCanvasMouseDown, setSelectedScreen, connecting, cancelConnecting, hotspotInteraction, selectedConnection, isSpaceHeld, conditionalPrompt, onConditionalPromptCancel, editingConditionGroup]);
 
   const onCanvasMouseMove = useCallback((e) => {
     // Handle hotspot interactions
@@ -594,6 +664,14 @@ export default function FlowForge() {
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === "Escape") {
+        if (conditionalPrompt) {
+          setConditionalPrompt(null);
+          return;
+        }
+        if (editingConditionGroup) {
+          setEditingConditionGroup(null);
+          return;
+        }
         if (hotspotInteraction?.mode === "conn-endpoint-drag") {
           setHotspotInteraction(null);
           return;
@@ -605,10 +683,15 @@ export default function FlowForge() {
       if (e.key === "Delete" || e.key === "Backspace") {
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
-        if (hotspotModal || renameModal || importConfirm || showInstructions || showDocuments) return;
+        if (hotspotModal || connectionEditModal || renameModal || importConfirm || showInstructions || showDocuments || conditionalPrompt || editingConditionGroup) return;
         if (selectedConnection) {
           e.preventDefault();
-          deleteConnection(selectedConnection);
+          const selConn = connections.find((c) => c.id === selectedConnection);
+          if (selConn?.conditionGroupId) {
+            deleteConnectionGroup(selConn.conditionGroupId);
+          } else {
+            deleteConnection(selectedConnection);
+          }
           setSelectedConnection(null);
         } else if (selectedScreen) {
           e.preventDefault();
@@ -637,21 +720,21 @@ export default function FlowForge() {
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
-        if (hotspotModal || renameModal || importConfirm || showInstructions || showDocuments) return;
+        if (hotspotModal || connectionEditModal || renameModal || importConfirm || showInstructions || showDocuments || conditionalPrompt || editingConditionGroup) return;
         e.preventDefault();
         undo();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && e.shiftKey) {
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
-        if (hotspotModal || renameModal || importConfirm || showInstructions || showDocuments) return;
+        if (hotspotModal || connectionEditModal || renameModal || importConfirm || showInstructions || showDocuments || conditionalPrompt || editingConditionGroup) return;
         e.preventDefault();
         redo();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [connecting, cancelConnecting, hotspotInteraction, cancelHotspotInteraction, selectedConnection, deleteConnection, selectedScreen, removeScreen, hotspotModal, renameModal, importConfirm, showInstructions, showDocuments, undo, redo, saveNow, isFileSystemSupported, onSaveAs, onExport, onOpen]);
+  }, [connecting, cancelConnecting, hotspotInteraction, cancelHotspotInteraction, selectedConnection, connections, deleteConnection, deleteConnectionGroup, selectedScreen, removeScreen, hotspotModal, connectionEditModal, renameModal, importConfirm, showInstructions, showDocuments, undo, redo, saveNow, isFileSystemSupported, onSaveAs, onExport, onOpen, conditionalPrompt, editingConditionGroup]);
 
   useEffect(() => {
     const onPaste = (e) => {
@@ -812,6 +895,23 @@ export default function FlowForge() {
               onEndpointMouseDown={onEndpointMouseDown}
               endpointDragPreview={endpointDragPreview}
             />
+            {conditionalPrompt && (
+              <ConditionalPrompt
+                x={conditionalPrompt.x}
+                y={conditionalPrompt.y}
+                onConfirm={onConditionalPromptConfirm}
+                onCancel={onConditionalPromptCancel}
+              />
+            )}
+            {editingConditionGroup && (
+              <InlineConditionLabels
+                connections={connections}
+                screens={screens}
+                conditionGroupId={editingConditionGroup}
+                onUpdateLabel={(connId, patch) => updateConnection(connId, patch)}
+                onDone={() => setEditingConditionGroup(null)}
+              />
+            )}
           </div>
 
           {screens.length === 0 && <EmptyState />}
@@ -880,6 +980,31 @@ export default function FlowForge() {
           onSave={(hs) => { saveHotspot(hotspotModal.screen.id, hs); setHotspotModal(null); }}
           onDelete={(id) => { deleteHotspot(hotspotModal.screen.id, id); setHotspotModal(null); }}
           onClose={() => setHotspotModal(null)}
+        />
+      )}
+
+      {connectionEditModal && (
+        <ConnectionEditModal
+          connection={connectionEditModal.connection}
+          groupConnections={connectionEditModal.groupConnections}
+          screens={screens}
+          fromScreen={connectionEditModal.fromScreen}
+          onSave={(payload) => {
+            saveConnectionGroup(connectionEditModal.connection.id, payload);
+            setConnectionEditModal(null);
+            setSelectedConnection(null);
+          }}
+          onDelete={() => {
+            const conn = connectionEditModal.connection;
+            if (conn.conditionGroupId) {
+              deleteConnectionGroup(conn.conditionGroupId);
+            } else {
+              deleteConnection(conn.id);
+            }
+            setConnectionEditModal(null);
+            setSelectedConnection(null);
+          }}
+          onClose={() => setConnectionEditModal(null)}
         />
       )}
 
