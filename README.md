@@ -1,75 +1,78 @@
-# FlowForge
+# Drawd
 
-A visual mobile app flow designer built with React. Design app navigation flows by uploading screen images, placing them on an infinite canvas, defining interactive hotspots, connecting screens with navigation links, and generating AI build instructions from the resulting flow.
+**Draw the logic. Let AI build it right.**
 
-## Features
+Stop writing paragraphs to describe your app. Draw the flow instead.
 
-- **Infinite Canvas** — Pan, zoom, and drag screens freely on a dark-themed canvas
-- **Screen Management** — Upload screen images, add blank screens, rename, describe, and organize screen states (variants of the same logical screen)
-- **Interactive Hotspots** — Draw tap areas directly on screen images, choose element types (button, text-input, toggle, etc.), and define actions (navigate, back, modal, API call, custom)
-- **Navigation Connections** — Visually connect screens with bezier arrows; drag endpoints to reroute, click to select, double-click to edit
-- **API Flow Support** — Define API endpoints on hotspots with method, success/error follow-up actions, and linked reference documents
-- **Project Documents** — Attach reusable project-level documents (API specs, design guides) that can be referenced by hotspots
-- **AI Instruction Generation** — Generate structured build instructions (main.md, screens.md, navigation.md, build-guide.md) with platform-specific code patterns for SwiftUI, React Native, Flutter, or Jetpack Compose
-- **Export / Import** — Save and load `.flowforge` project files; merge flows from multiple files
-- **Auto-Save** — File System Access API integration for silent auto-save to a connected `.flowforge` file (Chromium browsers)
-- **Undo / Redo** — Full snapshot-based undo/redo with keyboard shortcuts
-- **ZIP Download** — Download generated instructions and extracted screen images as a ZIP
+When you describe a login flow in prose, AI builds 3 screens instead of 7. The error state is missing. The loading screen is forgotten. The conditional branch is ignored. You spend more time fixing the output than you saved generating it.
 
-## Getting Started
+Drawd is a visual app flow designer that turns your screen designs into structured, AI-ready build instructions -- complete, unambiguous, and impossible to misinterpret.
 
-### Prerequisites
+**[Try it now →](https://drawd.vercel.app/)**
 
-- Node.js 18+
+---
 
-### Install and Run
+## The Problem
+
+AI is great at writing code. It is terrible at reading your mind.
+
+You paste a paragraph into ChatGPT describing your app's navigation. It hallucinates screens you didn't mention, skips the ones you did, and connects them in ways that make no sense. You correct it. It misses something else. You try again.
+
+The problem isn't AI. The problem is **prose is a lossy format for describing interactive flows**. Navigation has structure -- screens, transitions, conditions, error states. Text flattens all of that into ambiguity.
+
+## How It Works
+
+1. **Upload your screens** -- drag images onto the canvas, or start with blank screens
+2. **Draw hotspots** -- click and drag on screen images to define tap areas, buttons, inputs, and interactive elements
+3. **Connect the flow** -- link screens with navigation arrows, define API calls, conditional branches, and error handling
+4. **Generate instructions** -- one click produces structured, multi-file build instructions that AI can follow precisely
+
+What comes out is not a paragraph. It is a complete specification: every screen cataloged, every interaction mapped, every edge case documented.
+
+## What You Get
+
+### Visual Flow Design
+Infinite canvas. Drag-and-drop screens. Bezier connection lines. Zoom in, zoom out. Rearrange until the flow makes sense visually before a single line of code is written.
+
+### Rich Interactions
+Hotspots aren't just "tap here, go there." Define element types, API calls with success/error paths, conditional branches, modals, back navigation, and custom behaviors. The hotspot system captures what actually happens when a user taps, not just where they end up.
+
+### AI-Ready Output
+Generated instructions are split into structured files -- screen inventory, navigation map, and a platform-specific build guide for **SwiftUI**, **React Native**, **Flutter**, or **Jetpack Compose**. No ambiguity. No missing screens. No guesswork.
+
+### Project Context
+Attach API specs, design guidelines, or reference documents directly to your project. Link them to specific hotspots so AI knows exactly what endpoint to call and what response to expect.
+
+### Works Locally
+No account. No cloud. Auto-saves to a local `.drawd` file. Export, import, merge flows from multiple files. Your designs stay on your machine.
+
+---
+
+## Who Is This For?
+
+- **Developers using AI to build mobile apps** -- give your AI assistant a spec it can actually follow
+- **Product managers** -- communicate app logic visually instead of writing 20-page PRDs that nobody reads
+- **Designers** -- hand off interactive flows, not static mockups
+
+---
+
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-### Build for Production
+Opens at [http://localhost:5173](http://localhost:5173).
 
 ```bash
-npm run build
-npm run preview
+npm run build    # production build
+npm test         # run tests
 ```
 
-### Run Tests
+### Tech Stack
 
-```bash
-npm test
-```
-
-## Usage
-
-1. **Upload screens** — Click "Upload Screens" or drag-and-drop images onto the canvas
-2. **Arrange screens** — Drag screen cards to organize your flow layout
-3. **Define hotspots** — Click and drag on a screen image to draw a tap area, then configure the action in the modal
-4. **Connect screens** — Drag from a hotspot's green handle to another screen, or set the target in the hotspot modal
-5. **Add descriptions** — Select a screen and add context in the sidebar
-6. **Generate instructions** — Click "Generate" to produce AI-ready build instructions, then copy or download as ZIP
-
-## Tech Stack
-
-- **React 19** — UI framework (no external state management)
-- **Vite** — Dev server and build tool
-- **Vitest** — Test runner
-- No TypeScript, no routing — single-view application with plain JSX
-
-## Project Structure
-
-```
-src/
-  FlowForge.jsx            — Main orchestrator component
-  components/              — UI components (ScreenNode, ConnectionLines, HotspotModal, TopBar, Sidebar, etc.)
-  hooks/                   — Custom hooks (useCanvas, useScreenManager, useFilePersistence)
-  styles/                  — Theme and shared style objects
-  utils/                   — ID generation, instruction generation, import/export, ZIP builder
-```
+React 19, Vite, Vitest. No TypeScript, no routing, no external state management. Single-view app, plain JSX.
 
 ## License
 
