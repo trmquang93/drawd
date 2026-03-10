@@ -65,22 +65,15 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
+        <img
+          src="/icon.svg"
+          alt="Drawd"
           style={{
             width: 32,
             height: 32,
             borderRadius: 8,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #a29bfe)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#fff",
           }}
-        >
-          D
-        </div>
+        />
         <span
           style={{
             fontSize: 17,
