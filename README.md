@@ -10,6 +10,8 @@ Drawd is a visual app flow designer that turns your screen designs into structur
 
 **[Try it now →](https://drawd.vercel.app/)**
 
+![Drawd - Visual app flow designer](public/example-flow.png)
+
 ---
 
 ## The Problem
