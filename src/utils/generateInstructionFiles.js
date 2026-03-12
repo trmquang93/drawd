@@ -139,7 +139,7 @@ const PLATFORM_TERMINOLOGY = {
 
 // --- Sub-generators ---
 
-function generateMainMd(screens, connections, options, navAnalysis, documents = []) {
+function generateMainMd(screens, connections, options, navAnalysis, images, documents = []) {
   const sorted = sortedScreens(screens);
   const platform = options.platform || "auto";
   const platformLabel = platform === "auto"
@@ -175,62 +175,105 @@ function generateMainMd(screens, connections, options, navAnalysis, documents = 
 
   md += `---\n\n`;
 
-  md += `## How to Use These Instructions\n\n`;
-  md += `> **AI Implementation Directive**\n`;
+  md += `## Your Role as Orchestrator\n\n`;
+  md += `> **You are the project orchestrator.** Your responsibility is to ship a complete, working\n`;
+  md += `> app — not to implement any single screen yourself. You plan, delegate, track, and integrate.\n`;
   md += `>\n`;
-  md += `> These are multi-file instructions. \`main.md\` is the entry point — you MUST read all\n`;
-  md += `> companion files before writing any code. Each screen must be implemented by a dedicated\n`;
-  md += `> sub-agent that visually analyzes the screen's PNG image as its first step.\n`;
+  md += `> **What you work from:** This file (\`main.md\`) gives you everything you need to plan and\n`;
+  md += `> delegate. You do NOT need to read the detail files (\`screens.md\`, \`navigation.md\`,\n`;
+  md += `> \`build-guide.md\`) yourself — those are for your sub-agents. Trust the Screen Roster and\n`;
+  md += `> navigation summary below to form your delegation strategy.\n`;
   md += `>\n`;
-  md += `> The PNG images in \`images/\` are the **PRIMARY design specification**. The markdown\n`;
-  md += `> files describe structure and interactions, but the images define exactly what to build.\n`;
-  md += `> Image analysis is mandatory — do not skip or defer it.\n\n`;
+  md += `> **Your core loop:**\n`;
+  md += `> 1. Study the Screen Roster and navigation pattern → form a delegation plan\n`;
+  md += `> 2. Spawn sub-agent teams to implement screens in parallel\n`;
+  md += `> 3. Track progress; handle failures with retries\n`;
+  md += `> 4. Once all screens are done, wire shared navigation and the app entry point\n\n`;
+
+  md += `## Screen Roster\n\n`;
+  md += `Use this inventory to plan your delegation. Each sub-agent will implement one screen.\n\n`;
+  md += `| # | Screen | Image | Role |\n`;
+  md += `|---|--------|-------|------|\n`;
+
+  sorted.forEach((s, i) => {
+    const imgRef = imageRefForScreen(s, images) || "—";
+    const isEntry = navAnalysis.entryScreens.some(e => e.id === s.id);
+    const isModal = navAnalysis.modalScreens.some(m => m.id === s.id);
+    const isTab = navAnalysis.tabBarPatterns.some(p => p.tabs.some(t => t.id === s.id));
+    const isHub = navAnalysis.tabBarPatterns.some(p => p.hubScreenId === s.id);
+    const roles = [];
+    if (isEntry) roles.push("entry");
+    if (isHub) roles.push("tab hub");
+    if (isTab) roles.push("tab");
+    if (isModal) roles.push("modal");
+    const stateLabel = (s.stateGroup && s.stateName) ? ` (${s.stateName})` : "";
+    md += `| ${i + 1} | ${s.name}${stateLabel} | \`${imgRef}\` | ${roles.length > 0 ? roles.join(", ") : "screen"} |\n`;
+  });
+  md += `\n`;
+
+  md += `## Delegation & Progress Tracking\n\n`;
+  md += `Analyze the Screen Roster and the navigation pattern above, then decide:\n\n`;
+  md += `- **How to group screens into teams** — consider which screens are independent vs. share\n`;
+  md += `  components or navigation context (e.g., entry flow, tab sections, modal overlays)\n`;
+  md += `- **Parallelism** — screens with no shared dependencies can be implemented simultaneously;\n`;
+  md += `  screens that share components or build on each other should be sequenced\n`;
+  md += `- **How to track progress** — use whatever format keeps you accurate (checklist, table,\n`;
+  md += `  counter). Update it as each sub-agent reports back.\n\n`;
+  md += `> **Before spawning any sub-agents:** state your delegation plan — which screens go to which\n`;
+  md += `> team/wave, and why. This keeps you accountable and makes retries easier to reason about.\n\n`;
 
   md += `## Design Override\n\n`;
   md += `If the user has explicitly stated that the designs are approximate — for example:\n`;
   md += `*"design is just a demo"*, *"screens are placeholders"*, *"don't follow the design exactly"*,\n`;
-  md += `*"use your own judgment for visuals"* — then treat the PNG images as layout reference only.\n`;
+  md += `*"use your own judgment for visuals"* — then pass this override to every sub-agent.\n`;
   md += `In override mode: preserve element positions and hierarchy from the images, but apply\n`;
   md += `your own color scheme, typography, and visual polish. Do not pixel-match.\n\n`;
-  md += `**Default (no override):** match the reference images as precisely as possible.\n\n`;
+  md += `**Default (no override):** instruct sub-agents to match the reference images precisely.\n\n`;
 
-  md += `## Orchestration Workflow\n\n`;
-  md += `Read all companion files first, then spawn one sub-agent per screen:\n\n`;
-  md += `1. Read \`screens.md\` — understand every screen, its elements, and hotspot interactions\n`;
-  md += `2. Read \`navigation.md\` — understand the full navigation architecture and flow\n`;
-  md += `3. Read \`build-guide.md\` — understand platform patterns and implementation steps\n`;
-  if (documents.length > 0) {
-    md += `4. Read \`documents.md\` — review all API specs, design guides, and reference documents\n`;
-    md += `5. For **each screen**, spawn a sub-agent with the prompt below — wait for all to complete\n`;
-    md += `6. Wire up shared navigation, routing, and app entry point once all screens are built\n`;
-  } else {
-    md += `4. For **each screen**, spawn a sub-agent with the prompt below — wait for all to complete\n`;
-    md += `5. Wire up shared navigation, routing, and app entry point once all screens are built\n`;
-  }
-  md += `\n`;
-
-  md += `## Sub-Agent Prompt Template\n\n`;
-  md += `Use this prompt for each screen sub-agent (fill in the screen name and image path):\n\n`;
+  md += `## Sub-Agent Contract\n\n`;
+  md += `Every sub-agent you spawn **must** follow these steps in order. Include this contract in\n`;
+  md += `each sub-agent's prompt (substitute the screen name and image path from the Roster above):\n\n`;
   md += `\`\`\`\n`;
   md += `Implement the [Screen Name] screen.\n`;
   md += `\n`;
-  md += `Step 1 — REQUIRED: Open and visually analyze images/[XX-screen-name.png]. Study the exact\n`;
+  md += `Step 1 — REQUIRED: Open and visually analyze [image path from roster]. Study the exact\n`;
   md += `colors, typography, spacing, component layout, icons, and visual hierarchy. Do not proceed\n`;
   md += `to step 2 until you have read the image.\n`;
   md += `\n`;
   md += `Step 2: Read the [Screen Name] section in screens.md for element types, hotspot positions,\n`;
   md += `and action mappings.\n`;
   md += `\n`;
-  md += `Step 3: Implement the screen. Match the reference image exactly (unless the user has\n`;
-  md += `specified a design override — in that case, preserve layout structure but apply your own\n`;
-  md += `visual design).\n`;
+  md += `Step 3: Read the relevant sections in navigation.md to understand how this screen connects\n`;
+  md += `to the rest of the app.\n`;
   md += `\n`;
-  md += `Step 4: Wire all interactions defined in the hotspot table (navigate, back, modal, api,\n`;
-  md += `custom) using the patterns from build-guide.md.\n`;
+  md += `Step 4: Read build-guide.md for platform patterns and implement the screen, matching the\n`;
+  md += `reference image exactly (unless the orchestrator passed a design override).\n`;
   md += `\n`;
-  md += `Step 5: Do a final visual check — compare your implementation to the reference image and\n`;
-  md += `adjust until they match.\n`;
+  md += `Step 5: Wire all interactions (navigate, back, modal, api, custom) using the patterns\n`;
+  md += `from build-guide.md.\n`;
+  md += `\n`;
+  md += `Step 6 — Verification: Compare your implementation to the reference image and adjust\n`;
+  md += `until they match.\n`;
+  md += `\n`;
+  md += `When done, report back:\n`;
+  md += `- What was implemented\n`;
+  md += `- Any blockers or unresolved interactions\n`;
+  md += `- Confidence level (High / Medium / Low) on visual fidelity\n`;
   md += `\`\`\`\n\n`;
+  if (documents.length > 0) {
+    md += `> **API / Reference Documents:** If a sub-agent encounters an API call or references a\n`;
+    md += `> document, point them to \`documents.md\` for specs, payloads, and design guides.\n\n`;
+  }
+
+  md += `## Orchestrator Responsibilities\n\n`;
+  md += `After all sub-agents report back:\n\n`;
+  md += `1. **Review results** — check each agent's completion status and confidence level\n`;
+  md += `2. **Retry failures** — for any agent that failed or reported Low confidence, re-spawn\n`;
+  md += `   with the specific issue called out and tighter instructions\n`;
+  md += `3. **Wire the app** — once all screens pass, implement shared navigation setup, routing,\n`;
+  md += `   tab bar wiring, and the app entry point connecting all screens together\n`;
+  md += `4. **Final check** — confirm the navigation graph matches \`navigation.md\` and that all\n`;
+  md += `   connections between screens work end-to-end\n\n`;
 
   md += `## File Reference\n\n`;
   md += `- **screens.md** — Detailed screen specifications, hotspots, and element descriptions\n`;
@@ -577,7 +620,7 @@ export function generateInstructionFiles(screens, connections, options = {}) {
   const images = extractImages(screens);
 
   const files = [
-    { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, documents) },
+    { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, images, documents) },
     { name: "screens.md", content: generateScreensMd(screens, connections, images, documents) },
     { name: "navigation.md", content: generateNavigationMd(screens, connections, navAnalysis) },
     { name: "build-guide.md", content: generateBuildGuideMd(screens, connections, options) },
