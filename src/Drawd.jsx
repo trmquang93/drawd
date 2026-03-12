@@ -22,6 +22,7 @@ import { ConditionalPrompt } from "./components/ConditionalPrompt";
 import { InlineConditionLabels } from "./components/InlineConditionLabels";
 import { ShortcutsPanel } from "./components/ShortcutsPanel";
 import { BatchHotspotBar } from "./components/BatchHotspotBar";
+import { ScreensPanel } from "./components/ScreensPanel";
 
 const HEADER_HEIGHT = 37;
 
@@ -823,6 +824,19 @@ export default function Drawd() {
 
   const selectedScreenData = screens.find((s) => s.id === selectedScreen);
 
+  const onScreensPanelClick = useCallback((screenId) => {
+    setSelectedScreen(screenId);
+    const screen = screens.find((s) => s.id === screenId);
+    if (!screen || !canvasRef.current) return;
+    const vw = canvasRef.current.clientWidth;
+    const vh = canvasRef.current.clientHeight;
+    const screenW = screen.width || 220;
+    const screenH = screen.imageHeight ? screen.imageHeight + 37 : 200;
+    const centerX = screen.x + screenW / 2;
+    const centerY = screen.y + screenH / 2;
+    setPan({ x: vw / 2 - centerX * zoom, y: vh / 2 - centerY * zoom });
+  }, [screens, zoom, canvasRef, setPan, setSelectedScreen]);
+
   const previewLine = connecting
     ? { fromScreenId: connecting.fromScreenId, toX: connecting.mouseX, toY: connecting.mouseY }
     : null;
@@ -901,6 +915,11 @@ export default function Drawd() {
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <ScreensPanel
+          screens={screens}
+          selectedScreen={selectedScreen}
+          onScreenClick={onScreensPanelClick}
+        />
         {/* Canvas */}
         <div
           ref={canvasRef}
