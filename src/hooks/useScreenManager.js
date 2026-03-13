@@ -102,6 +102,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
       notes: "",
       codeRef: "",
       status: "new",
+      acceptanceCriteria: [],
       hotspots: [],
       stateGroup: null,
       stateName: "",
@@ -131,6 +132,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
       notes: "",
       codeRef: "",
       status: "new",
+      acceptanceCriteria: [],
       hotspots: [],
       stateGroup: null,
       stateName: "",
@@ -180,6 +182,10 @@ export function useScreenManager(pan, zoom, canvasRef) {
 
   const updateScreenCodeRef = useCallback((id, codeRef) => {
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, codeRef } : s)));
+  }, []);
+
+  const updateScreenCriteria = useCallback((id, acceptanceCriteria) => {
+    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, acceptanceCriteria } : s)));
   }, []);
 
   const updateScreenStatus = useCallback((id, status) => {
@@ -645,6 +651,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
       notes: "",
       codeRef: "",
       status: "new",
+      acceptanceCriteria: [],
       hotspots: [],
       stateGroup: groupId,
       stateName: `State ${stateNumber - 1}`,
@@ -727,6 +734,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
     updateScreenDescription,
     updateScreenNotes,
     updateScreenCodeRef,
+    updateScreenCriteria,
     updateScreenStatus,
     markAllExisting,
     assignScreenImage,

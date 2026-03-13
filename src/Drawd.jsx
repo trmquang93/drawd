@@ -15,6 +15,7 @@ import { HotspotModal } from "./components/HotspotModal";
 import { ConnectionEditModal } from "./components/ConnectionEditModal";
 import { InstructionsPanel } from "./components/InstructionsPanel";
 import { DocumentsPanel } from "./components/DocumentsPanel";
+import { DataModelsPanel } from "./components/DataModelsPanel";
 import { RenameModal } from "./components/RenameModal";
 import { ImportConfirmModal } from "./components/ImportConfirmModal";
 import { TopBar } from "./components/TopBar";
@@ -44,7 +45,7 @@ export default function Drawd() {
     fileInputRef, addScreen, addScreenAtCenter, removeScreen, renameScreen, moveScreen,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, deleteHotspots, moveHotspot, resizeHotspot, updateScreenDimensions,
-    updateScreenDescription, updateScreenNotes, updateScreenCodeRef, assignScreenImage, quickConnectHotspot,
+    updateScreenDescription, updateScreenNotes, updateScreenCodeRef, updateScreenCriteria, assignScreenImage, quickConnectHotspot,
     updateConnection, deleteConnection, pasteHotspots,
     addConnection, convertToConditionalGroup, addToConditionalGroup, saveConnectionGroup, deleteConnectionGroup,
     addState, updateStateName, addDocument, updateDocument, deleteDocument,
@@ -55,7 +56,25 @@ export default function Drawd() {
 
   // ── Feature brief + scope ─────────────────────────────────────────────────
   const [featureBrief, setFeatureBrief] = useState("");
+  const [taskLink, setTaskLink] = useState("");
+  const [techStack, setTechStack] = useState({});
   const [scopeRoot, setScopeRoot] = useState(null);
+
+  // ── Data models ───────────────────────────────────────────────────────────
+  const [dataModels, setDataModels] = useState([]);
+  const [showDataModels, setShowDataModels] = useState(false);
+
+  const addDataModel = useCallback((name, schema) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    setDataModels((prev) => [...prev, { id, name, schema, createdAt: new Date().toISOString() }]);
+    return id;
+  }, []);
+  const updateDataModel = useCallback((id, patch) => {
+    setDataModels((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  }, []);
+  const deleteDataModel = useCallback((id) => {
+    setDataModels((prev) => prev.filter((m) => m.id !== id));
+  }, []);
 
   // BFS forward from scopeRoot following connections
   const scopeScreenIds = scopeRoot ? (() => {
@@ -76,7 +95,7 @@ export default function Drawd() {
   const {
     connectedFileName, saveStatus, isFileSystemSupported,
     openFile, saveAs, saveNow, disconnect,
-  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief);
+  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels);
 
   // ── File actions ───────────────────────────────────────────────────
   const onOpen = useCallback(async () => {
@@ -86,6 +105,9 @@ export default function Drawd() {
       replaceAll(payload.screens, payload.connections, payload.screens.length + 1, payload.documents || []);
       if (payload.viewport) { setPan(payload.viewport.pan); setZoom(payload.viewport.zoom); }
       setFeatureBrief(payload.metadata?.featureBrief || "");
+      setTaskLink(payload.metadata?.taskLink || "");
+      setTechStack(payload.metadata?.techStack || {});
+      setDataModels(payload.dataModels || []);
       setScopeRoot(null);
     } catch (err) { alert(err.message); }
   }, [openFile, replaceAll, setPan, setZoom]);
@@ -102,6 +124,9 @@ export default function Drawd() {
     setPan({ x: 0, y: 0 });
     setZoom(1);
     setFeatureBrief("");
+    setTaskLink("");
+    setTechStack({});
+    setDataModels([]);
     setScopeRoot(null);
     disconnect();
   }, [screens.length, replaceAll, setPan, setZoom, disconnect]);
@@ -244,7 +269,7 @@ export default function Drawd() {
 
   // ── Import / export ────────────────────────────────────────────────────────────────
   const { importConfirm, setImportConfirm, importFileRef, onExport, onImport, onImportFileChange, onImportReplace, onImportMerge } =
-    useImportExport({ screens, connections, documents, pan, zoom, featureBrief, replaceAll, mergeAll, setPan, setZoom });
+    useImportExport({ screens, connections, documents, dataModels, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom });
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────────────
   useKeyboardShortcuts({
@@ -297,6 +322,9 @@ export default function Drawd() {
       platform: "auto",
       documents,
       featureBrief,
+      taskLink,
+      techStack,
+      dataModels,
       scopeScreenIds,
       allScreens: screens,
     });
@@ -354,12 +382,14 @@ export default function Drawd() {
         screenCount={screens.length}
         connectionCount={connections.length}
         documentCount={documents.length}
+        dataModelCount={dataModels.length}
         onUpload={handleImageUpload}
         onAddBlank={() => addScreenAtCenter()}
         onExport={onExport}
         onImport={onImport}
         onGenerate={onGenerate}
         onDocuments={() => setShowDocuments(true)}
+        onDataModels={() => setShowDataModels(true)}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
@@ -384,6 +414,10 @@ export default function Drawd() {
           scopeScreenIds={scopeScreenIds}
           featureBrief={featureBrief}
           onFeatureBriefChange={setFeatureBrief}
+          taskLink={taskLink}
+          onTaskLinkChange={setTaskLink}
+          techStack={techStack}
+          onTechStackChange={setTechStack}
         />
 
         {/* Canvas */}
@@ -518,6 +552,7 @@ export default function Drawd() {
             onUpdateStateName={updateStateName}
             onUpdateNotes={updateScreenNotes}
             onUpdateCodeRef={updateScreenCodeRef}
+            onUpdateCriteria={updateScreenCriteria}
             onUpdateStatus={updateScreenStatus}
           />
         )}
@@ -573,6 +608,16 @@ export default function Drawd() {
           onUpdateDocument={updateDocument}
           onDeleteDocument={deleteDocument}
           onClose={() => setShowDocuments(false)}
+        />
+      )}
+
+      {showDataModels && (
+        <DataModelsPanel
+          dataModels={dataModels}
+          onAddModel={addDataModel}
+          onUpdateModel={updateDataModel}
+          onDeleteModel={deleteDataModel}
+          onClose={() => setShowDataModels(false)}
         />
       )}
 

@@ -146,6 +146,8 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     ? "Auto (choose based on project needs)"
     : (PLATFORM_TERMINOLOGY[platform]?.name || platform);
   const featureBrief = options.featureBrief || "";
+  const taskLink = options.taskLink || "";
+  const techStack = options.techStack || {};
   const allScreens = options.allScreens || screens;
 
   // Detect dominant device type
@@ -171,6 +173,7 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   }
 
   md += `| | |\n|---|---|\n`;
+  if (taskLink) md += `| **Ticket** | [${taskLink}](${taskLink}) |\n`;
   md += `| **Screens to build** | ${newScreens.length > 0 ? `${newScreens.length} new` : "—"}${modifyScreens.length > 0 ? `, ${modifyScreens.length} to modify` : ""}${existingScreens.length > 0 ? `, ${existingScreens.length} existing (context only)` : ""} |\n`;
   md += `| **Connections** | ${connections.length} |\n`;
   md += `| **Documents** | ${documents.length} |\n`;
@@ -339,6 +342,12 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
 
   if (s.codeRef) {
     md += `**File:** \`${s.codeRef}\`\n\n`;
+  }
+
+  if (s.acceptanceCriteria && s.acceptanceCriteria.length > 0) {
+    md += `**Acceptance Criteria:**\n\n`;
+    s.acceptanceCriteria.forEach((c) => { md += `- [ ] ${c}\n`; });
+    md += `\n`;
   }
 
   if (s.notes) {
@@ -599,7 +608,19 @@ function generateNavigationMd(screens, connections, navAnalysis) {
 
 function generateBuildGuideMd(screens, connections, options) {
   const platform = options.platform || "auto";
+  const techStack = options.techStack || {};
+  const hasTechStack = Object.values(techStack).some(Boolean);
   let md = `# Build Guide\n\n`;
+
+  if (hasTechStack) {
+    md += `## Project Tech Stack\n\n`;
+    md += `| | |\n|---|---|\n`;
+    const labels = { stateManagement: "State Management", apiClient: "API Client", navigation: "Navigation", auth: "Auth", uiLibrary: "UI Library", testing: "Testing" };
+    for (const [key, label] of Object.entries(labels)) {
+      if (techStack[key]) md += `| **${label}** | ${techStack[key]} |\n`;
+    }
+    md += `\n`;
+  }
 
   if (platform === "auto") {
     md += `## Implementation Instructions\n\n`;
@@ -673,7 +694,62 @@ function generateBuildGuideMd(screens, connections, options) {
   return md;
 }
 
-// --- Main export ---
+function generateTasksMd(screens, connections, options) {
+  const allScreens = options.allScreens || screens;
+  const sorted = sortedScreens(screens);
+  const toBuild = sorted.filter(s => !s.status || s.status === "new" || s.status === "modify");
+
+  let md = `# Tasks\n\n`;
+  md += `Checklist generated from scope. Copy into your task tracker or paste to your coding agent.\n\n`;
+
+  let hasAny = false;
+  (toBuild.length > 0 ? toBuild : sorted).forEach((s) => {
+    const criteria = s.acceptanceCriteria || [];
+    const outgoing = connections.filter(c => c.fromScreenId === s.id);
+    if (criteria.length === 0 && outgoing.length === 0) return;
+
+    hasAny = true;
+    const tag = s.status === "modify" ? " *(modify)*" : "";
+    md += `## ${s.name}${tag}\n\n`;
+
+    if (s.codeRef) md += `> File: \`${s.codeRef}\`\n\n`;
+
+    criteria.forEach((c) => {
+      md += `- [ ] ${c}\n`;
+    });
+
+    outgoing.forEach((conn) => {
+      const toScreen = allScreens.find(ts => ts.id === conn.toScreenId);
+      const label = conn.label || resolveHotspotLabel(conn, allScreens) || "tap";
+      if (toScreen) {
+        md += `- [ ] Wire: ${label} → ${toScreen.name}\n`;
+      }
+    });
+
+    md += `\n`;
+  });
+
+  if (!hasAny) {
+    md += `*No acceptance criteria defined. Add them in the Sidebar for each screen.*\n\n`;
+  }
+
+  return md;
+}
+
+function generateTypesMd(dataModels) {
+  if (!dataModels || dataModels.length === 0) return null;
+  let md = `# Data Models\n\n`;
+  md += `Type definitions for this project. Reference these when implementing API calls and state.\n\n`;
+  dataModels.forEach((model, i) => {
+    md += `## ${i + 1}. ${model.name}\n\n`;
+    if (model.schema) {
+      md += `\`\`\`\n${model.schema}\n\`\`\`\n\n`;
+    } else {
+      md += `*No schema defined*\n\n`;
+    }
+  });
+  return md;
+}
 
 /**
  * Generate a multi-file instruction package from screens and connections.
@@ -685,6 +761,7 @@ function generateBuildGuideMd(screens, connections, options) {
  */
 export function generateInstructionFiles(screens, connections, options = {}) {
   const documents = options.documents || [];
+  const dataModels = options.dataModels || [];
   const navAnalysis = analyzeNavGraph(screens, connections);
   const images = extractImages(screens);
 
@@ -699,6 +776,14 @@ export function generateInstructionFiles(screens, connections, options = {}) {
   if (documentsMd) {
     files.push({ name: "documents.md", content: documentsMd });
   }
+
+  const typesMd = generateTypesMd(dataModels);
+  if (typesMd) {
+    files.push({ name: "types.md", content: typesMd });
+  }
+
+  const tasksMd = generateTasksMd(screens, connections, options);
+  files.push({ name: "tasks.md", content: tasksMd });
 
   return { files, images };
 }

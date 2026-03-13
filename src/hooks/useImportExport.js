@@ -7,9 +7,12 @@ export function useImportExport({
   screens,
   connections,
   documents,
+  dataModels,
   pan,
   zoom,
   featureBrief,
+  taskLink,
+  techStack,
   replaceAll,
   mergeAll,
   setPan,
@@ -19,8 +22,8 @@ export function useImportExport({
   const importFileRef = useRef(null);
 
   const onExport = useCallback(() => {
-    exportFlow(screens, connections, pan, zoom, documents, featureBrief);
-  }, [screens, connections, documents, pan, zoom, featureBrief]);
+    exportFlow(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels);
+  }, [screens, connections, documents, dataModels, pan, zoom, featureBrief, taskLink, techStack]);
 
   const onImport = useCallback(() => {
     importFileRef.current?.click();

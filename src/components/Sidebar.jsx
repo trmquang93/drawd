@@ -9,11 +9,12 @@ const STATUS_CONFIG = {
 };
 const STATUS_CYCLE = { new: "modify", modify: "existing", existing: "new" };
 
-export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateStatus }) {
+export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus }) {
   const [draftNotes, setDraftNotes] = useState(screen.notes || "");
   const [notesScreenId, setNotesScreenId] = useState(screen.id);
   const [draftCodeRef, setDraftCodeRef] = useState(screen.codeRef || "");
   const [codeRefScreenId, setCodeRefScreenId] = useState(screen.id);
+  const [newCriterion, setNewCriterion] = useState("");
 
   // Reset drafts when screen changes
   if (screen.id !== notesScreenId) {
@@ -240,6 +241,70 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
             boxSizing: "border-box",
           }}
         />
+      </div>
+
+      {/* Acceptance Criteria */}
+      <div
+        style={{
+          padding: "10px 12px",
+          background: COLORS.bg,
+          borderRadius: 8,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{
+          fontSize: 10,
+          color: COLORS.textMuted,
+          fontFamily: FONTS.mono,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: 6,
+        }}>
+          Acceptance Criteria
+        </div>
+        {(screen.acceptanceCriteria || []).map((item, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
+            <span style={{ color: COLORS.textDim, fontFamily: FONTS.mono, fontSize: 11, marginTop: 2, flexShrink: 0 }}>□</span>
+            <span style={{ flex: 1, fontSize: 11, color: COLORS.textMuted, fontFamily: FONTS.mono, lineHeight: 1.5, wordBreak: "break-word" }}>
+              {item}
+            </span>
+            <button
+              onClick={() => {
+                const updated = [...(screen.acceptanceCriteria || [])];
+                updated.splice(i, 1);
+                onUpdateCriteria?.(screen.id, updated);
+              }}
+              style={{ background: "none", border: "none", color: COLORS.danger, cursor: "pointer", fontSize: 12, padding: "0 2px", flexShrink: 0, lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+          <input
+            type="text"
+            value={newCriterion}
+            onChange={(e) => setNewCriterion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newCriterion.trim()) {
+                onUpdateCriteria?.(screen.id, [...(screen.acceptanceCriteria || []), newCriterion.trim()]);
+                setNewCriterion("");
+              }
+            }}
+            placeholder="Add criterion, press Enter…"
+            style={{
+              flex: 1,
+              padding: "4px 8px",
+              background: "rgba(255,255,255,0.05)",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              color: COLORS.text,
+              fontSize: 11,
+              fontFamily: FONTS.mono,
+              outline: "none",
+            }}
+          />
+        </div>
       </div>
 
       {/* Screen States */}

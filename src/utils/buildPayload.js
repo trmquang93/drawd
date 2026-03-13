@@ -1,6 +1,6 @@
-export function buildPayload(screens, connections, pan, zoom, documents = [], featureBrief = "") {
+export function buildPayload(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = []) {
   return {
-    version: 7,
+    version: 8,
     metadata: {
       name: "Untitled Flow",
       exportedAt: new Date().toISOString(),
@@ -8,10 +8,13 @@ export function buildPayload(screens, connections, pan, zoom, documents = [], fe
       connectionCount: connections.length,
       documentCount: documents.length,
       featureBrief,
+      taskLink,
+      techStack,
     },
     viewport: { pan: { x: pan.x, y: pan.y }, zoom },
     screens,
     connections,
     documents,
+    dataModels,
   };
 }

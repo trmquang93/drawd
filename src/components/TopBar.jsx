@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { COLORS, FONTS } from "../styles/theme";
 
-export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0 }) {
+export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0 }) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef(null);
 
@@ -212,6 +212,38 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
               padding: "1px 6px",
             }}>
               {documentCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={onDataModels}
+          style={{
+            padding: "8px 16px",
+            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            color: COLORS.textMuted,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: FONTS.mono,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          Models
+          {dataModelCount > 0 && (
+            <span style={{
+              background: "rgba(108,92,231,0.25)",
+              color: COLORS.accentLight,
+              borderRadius: 10,
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "1px 6px",
+            }}>
+              {dataModelCount}
             </span>
           )}
         </button>

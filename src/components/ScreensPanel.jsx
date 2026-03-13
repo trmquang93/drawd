@@ -20,8 +20,13 @@ export function ScreensPanel({
   scopeScreenIds,
   featureBrief,
   onFeatureBriefChange,
+  taskLink,
+  onTaskLinkChange,
+  techStack,
+  onTechStackChange,
 }) {
   const [briefOpen, setBriefOpen] = useState(false);
+  const [techOpen, setTechOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState(null); // { screenId, x, y }
 
   const handleContextMenu = (e, screenId) => {
@@ -173,6 +178,83 @@ export function ScreensPanel({
               outline: "none",
             }}
           />
+        )}
+
+        {/* Task / ticket link */}
+        <div style={{ marginTop: 6 }}>
+          <input
+            type="url"
+            value={taskLink || ""}
+            onChange={(e) => onTaskLinkChange?.(e.target.value)}
+            placeholder="Ticket URL (Jira, Linear, GitHub…)"
+            style={{
+              width: "100%",
+              padding: "4px 8px",
+              background: COLORS.bg,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              color: taskLink ? COLORS.text : COLORS.textDim,
+              fontFamily: FONTS.mono,
+              fontSize: 10,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+
+        {/* Tech stack toggle */}
+        <button
+          onClick={() => setTechOpen((v) => !v)}
+          style={{
+            background: "none",
+            border: "none",
+            color: Object.values(techStack || {}).some(Boolean) ? COLORS.accentLight : COLORS.textDim,
+            cursor: "pointer",
+            fontSize: 11,
+            fontFamily: FONTS.ui,
+            padding: "4px 0 0",
+            textAlign: "left",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <span>{techOpen ? "▾" : "▸"}</span>
+          <span>{Object.values(techStack || {}).some(Boolean) ? "Tech stack ✓" : "Add tech stack…"}</span>
+        </button>
+
+        {techOpen && (
+          <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+            {[
+              ["stateManagement", "State mgmt"],
+              ["apiClient", "API client"],
+              ["navigation", "Navigation"],
+              ["auth", "Auth"],
+              ["uiLibrary", "UI library"],
+              ["testing", "Testing"],
+            ].map(([key, label]) => (
+              <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 9, color: COLORS.textDim, fontFamily: FONTS.mono, width: 64, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
+                <input
+                  type="text"
+                  value={(techStack || {})[key] || ""}
+                  onChange={(e) => onTechStackChange?.({ ...(techStack || {}), [key]: e.target.value })}
+                  placeholder="—"
+                  style={{
+                    flex: 1,
+                    padding: "3px 6px",
+                    background: COLORS.bg,
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 4,
+                    color: COLORS.text,
+                    fontFamily: FONTS.mono,
+                    fontSize: 10,
+                    outline: "none",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
