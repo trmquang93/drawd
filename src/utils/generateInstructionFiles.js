@@ -1,4 +1,6 @@
 import { analyzeNavGraph } from "./analyzeNavGraph.js";
+import { PLATFORM_TERMINOLOGY, renderHotspotDetailBlock, renderBuildGuideActionTable } from "./instructionRenderers.js";
+import { screenReqId, connectionReqId } from "./generateReqIds.js";
 
 // --- Helpers ---
 
@@ -88,54 +90,9 @@ function imageRefForScreen(screen, images) {
   return img ? img.name : null;
 }
 
-// --- Platform templates ---
-
-const PLATFORM_TERMINOLOGY = {
-  swiftui: {
-    name: "SwiftUI",
-    navigate: "Use `NavigationStack` with `.navigationDestination(for:)` to push the target view.",
-    back: "Call `dismiss()` via `@Environment(\\.dismiss)` or pop from the navigation path.",
-    modal: "Present the target view using `.sheet(isPresented:)` or `.fullScreenCover()`.",
-    conditional: "Evaluate the condition and navigate to the matching target screen. Use `if`/`switch` to branch.",
-    api: "Use `URLSession.shared.data(from:)` with `async/await`. Handle success/error follow-up actions in the completion. Mark the call with `// TODO: implement API`.",
-    custom: "Add a `// TODO: custom action` comment with the description.",
-    stack: "Set up a `NavigationStack` with a path-based router using `@State private var path = NavigationPath()`.",
-    tabs: "Use `TabView` with `.tabItem { Label(\"Title\", systemImage: \"icon\") }` for each tab.",
-  },
-  "react-native": {
-    name: "React Native",
-    navigate: "Use `navigation.navigate('ScreenName')` from React Navigation's stack navigator.",
-    back: "Call `navigation.goBack()` to return to the previous screen.",
-    modal: "Use `navigation.navigate()` with `presentation: 'modal'` in stack screen options.",
-    conditional: "Evaluate the condition and call `navigation.navigate()` to the matching target screen.",
-    api: "Use `fetch()` or `axios` for the API call. Handle success/error follow-up navigation in `.then()`/`.catch()`. Add a `// TODO: implement API` comment.",
-    custom: "Add a `// TODO: custom action` comment with the description.",
-    stack: "Set up `createNativeStackNavigator()` with `NavigationContainer` wrapping `Stack.Navigator`.",
-    tabs: "Use `createBottomTabNavigator()` with `Tab.Screen` for each tab.",
-  },
-  flutter: {
-    name: "Flutter",
-    navigate: "Use `Navigator.push(context, MaterialPageRoute(builder: (_) => TargetScreen()))`.",
-    back: "Call `Navigator.pop(context)` to return to the previous screen.",
-    modal: "Use `showModalBottomSheet()` or `showDialog()` to present the screen as an overlay.",
-    conditional: "Evaluate the condition and call `Navigator.push()` to the matching target screen.",
-    api: "Use the `http` package with `http.get()`/`http.post()`. Handle success/error follow-up navigation in try/catch. Add a `// TODO: implement API` comment.",
-    custom: "Add a `// TODO: custom action` comment with the description.",
-    stack: "Set up `MaterialApp` with named routes or `GoRouter` for declarative routing.",
-    tabs: "Use `BottomNavigationBar` inside a `Scaffold` with an `IndexedStack` for tab content.",
-  },
-  "jetpack-compose": {
-    name: "Jetpack Compose",
-    navigate: "Use `navController.navigate(\"screenRoute\")` within a `NavHost`.",
-    back: "Call `navController.popBackStack()` to return to the previous screen.",
-    modal: "Use `Dialog { }` or `ModalBottomSheet { }` to present the screen as an overlay.",
-    conditional: "Evaluate the condition and call `navController.navigate()` to the matching target screen.",
-    api: "Use Retrofit or Ktor with coroutines. Handle success/error follow-up navigation in try/catch. Add a `// TODO: implement API` comment.",
-    custom: "Add a `// TODO: custom action` comment with the description.",
-    stack: "Set up `NavHost(navController, startDestination)` with `composable(\"route\") { }` for each screen.",
-    tabs: "Use `Scaffold` with `NavigationBar` and `NavigationBarItem` for each tab.",
-  },
-};
+// Schema version for the generated instruction package.
+// Increment when the generated output format changes in a breaking way.
+const INSTRUCTION_SCHEMA_VERSION = 1;
 
 // --- Sub-generators ---
 
@@ -166,6 +123,26 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     (modifyScreens.length > 0 || existingScreens.length > 0);
 
   let md = `# AI Build Instructions\n\n`;
+
+  // Validation warnings callout (prepended when issues were found before generation)
+  const warnings = options.warnings || [];
+  if (warnings.length > 0) {
+    md += `## Validation Warnings\n\n`;
+    md += `> The following issues were detected before generation. Review and address them for accurate output.\n\n`;
+    const errors = warnings.filter((w) => w.level === "error");
+    const notices = warnings.filter((w) => w.level === "warning");
+    if (errors.length > 0) {
+      md += `### Errors\n\n`;
+      errors.forEach((e) => { md += `- **[${e.code}]** ${e.message}\n`; });
+      md += `\n`;
+    }
+    if (notices.length > 0) {
+      md += `### Warnings\n\n`;
+      notices.forEach((w) => { md += `- **[${w.code}]** ${w.message}\n`; });
+      md += `\n`;
+    }
+    md += `---\n\n`;
+  }
 
   // Feature brief comes first
   if (featureBrief) {
@@ -230,14 +207,15 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   const hasGroups = screenGroups.length > 0;
 
   if (hasGroups) {
-    md += `| # | Screen | Image | Group | Status | TBD | Access | Role |\n`;
-    md += `|---|--------|-------|-------|--------|-----|--------|------|\n`;
+    md += `| # | ID | Screen | Image | Group | Status | TBD | Access | Role |\n`;
+    md += `|---|-------|--------|-------|-------|--------|-----|--------|------|\n`;
   } else {
-    md += `| # | Screen | Image | Status | TBD | Access | Role |\n`;
-    md += `|---|--------|-------|--------|-----|--------|------|\n`;
+    md += `| # | ID | Screen | Image | Status | TBD | Access | Role |\n`;
+    md += `|---|-------|--------|-------|--------|-----|--------|------|\n`;
   }
 
   sorted.forEach((s, i) => {
+    const reqId = screenReqId(s);
     const imgRef = imageRefForScreen(s, images) || "—";
     const isEntry = navAnalysis.entryScreens.some(e => e.id === s.id);
     const isModal = navAnalysis.modalScreens.some(m => m.id === s.id);
@@ -254,9 +232,9 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     const accessLabel = (s.roles && s.roles.length > 0) ? s.roles.join(", ") : "—";
     const groupLabel = screenGroupMap[s.id] ? screenGroupMap[s.id].name : "—";
     if (hasGroups) {
-      md += `| ${i + 1} | ${s.name}${stateLabel} | \`${imgRef}\` | ${groupLabel} | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
+      md += `| ${i + 1} | \`${reqId}\` | ${s.name}${stateLabel} | \`${imgRef}\` | ${groupLabel} | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
     } else {
-      md += `| ${i + 1} | ${s.name}${stateLabel} | \`${imgRef}\` | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
+      md += `| ${i + 1} | \`${reqId}\` | ${s.name}${stateLabel} | \`${imgRef}\` | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
     }
   });
   md += `\n`;
@@ -452,60 +430,8 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
     md += `\n`;
 
     for (const h of s.hotspots) {
-      if (h.action === "api" && (h.apiEndpoint || h.apiMethod)) {
-        md += `**${h.label || "Unnamed"}** \u2014 API: \`${h.apiMethod || "GET"} ${h.apiEndpoint || "/endpoint"}\`\n\n`;
-
-        if (h.requestSchema) {
-          md += `Request:\n\`\`\`\n${h.requestSchema}\n\`\`\`\n\n`;
-        }
-        if (h.responseSchema) {
-          md += `Response:\n\`\`\`\n${h.responseSchema}\n\`\`\`\n\n`;
-        }
-
-        if (h.onSuccessAction) {
-          let successDetail = `On success: ${h.onSuccessAction}`;
-          if (h.onSuccessTargetId) {
-            const t = screens.find(ts => ts.id === h.onSuccessTargetId);
-            if (t) successDetail += ` \u2192 ${t.name}`;
-          }
-          if (h.onSuccessAction === "custom" && h.onSuccessCustomDesc) {
-            successDetail += ` (${h.onSuccessCustomDesc})`;
-          }
-          md += `- ${successDetail}\n`;
-        }
-
-        if (h.onErrorAction) {
-          let errorDetail = `On error: ${h.onErrorAction}`;
-          if (h.onErrorTargetId) {
-            const t = screens.find(ts => ts.id === h.onErrorTargetId);
-            if (t) errorDetail += ` \u2192 ${t.name}`;
-          }
-          if (h.onErrorAction === "custom" && h.onErrorCustomDesc) {
-            errorDetail += ` (${h.onErrorCustomDesc})`;
-          }
-          md += `- ${errorDetail}\n`;
-        }
-
-        if (h.onSuccessAction || h.onErrorAction) md += `\n`;
-
-        if (h.documentId) {
-          const doc = documents.find((d) => d.id === h.documentId);
-          if (doc) {
-            md += `API Documentation: see **${doc.name}** in documents.md\n\n`;
-          }
-        }
-      }
-      if (h.action === "conditional" && h.conditions?.length > 0) {
-        md += `**${h.label || "Unnamed"}** \u2014 Conditional branches:\n\n`;
-        h.conditions.forEach((cond, ci) => {
-          const t = cond.targetScreenId ? screens.find(ts => ts.id === cond.targetScreenId) : null;
-          md += `- ${cond.label || `branch ${ci + 1}`} \u2192 ${t?.name || "none"}\n`;
-        });
-        md += `\n`;
-      }
-      if (h.action === "custom" && h.customDescription) {
-        md += `**${h.label || "Unnamed"}** \u2014 Custom: ${h.customDescription}\n\n`;
-      }
+      const actionDetail = renderHotspotDetailBlock(h, screens, documents);
+      if (actionDetail) md += actionDetail;
       if (h.elementType === "text-input" && h.validation) {
         const v = h.validation;
         const parts = [];
@@ -586,7 +512,7 @@ function generateScreensMd(screens, connections, images, documents = []) {
 
     if (s.stateGroup && stateGroups[s.stateGroup]?.length >= 2) {
       const group = stateGroups[s.stateGroup];
-      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}\n\n`;
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag} \`[${screenReqId(s)}]\`\n\n`;
       md += `*This screen has ${group.length} states:*\n\n`;
 
       group.forEach((gs) => {
@@ -598,7 +524,7 @@ function generateScreensMd(screens, connections, images, documents = []) {
       md += `---\n\n`;
     } else {
       output.add(s.id);
-      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}\n\n`;
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag} \`[${screenReqId(s)}]\`\n\n`;
       if (s.tbd && s.tbdNote) {
         md += `> ⚠️ **TBD:** ${s.tbdNote}\n\n`;
       }
@@ -614,7 +540,7 @@ function generateScreensMd(screens, connections, images, documents = []) {
     contextOnly.forEach((s) => {
       output.add(s.id);
       screenNum++;
-      md += `## Screen ${screenNum}: ${s.name} *(existing)*\n\n`;
+      md += `## Screen ${screenNum}: ${s.name} *(existing)* \`[${screenReqId(s)}]\`\n\n`;
       if (s.description) md += `${s.description}\n\n`;
       md += `---\n\n`;
     });
@@ -675,9 +601,10 @@ function generateNavigationMd(screens, connections, navAnalysis) {
   if (connections.length === 0) {
     md += `No connections defined yet.\n\n`;
   } else {
-    md += `| # | From | To | Trigger | Action | Transition | Condition |\n`;
-    md += `|---|------|----|---------|--------|------------|-----------|\n`;
+    md += `| # | ID | From | To | Trigger | Action | Transition | Condition |\n`;
+    md += `|---|-------|------|----|---------|--------|------------|-----------|\n`;
     connections.forEach((c, i) => {
+      const reqId = connectionReqId(c);
       const from = screens.find(s => s.id === c.fromScreenId);
       const to = screens.find(s => s.id === c.toScreenId);
       const label = resolveHotspotLabel(c, screens);
@@ -689,7 +616,7 @@ function generateNavigationMd(screens, connections, navAnalysis) {
         ? (c.transitionType === "custom" ? (c.transitionLabel || "custom") : c.transitionType)
         : "\u2014";
       const conditionCol = c.condition || "\u2014";
-      md += `| ${i + 1} | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${transitionCol} | ${conditionCol} |\n`;
+      md += `| ${i + 1} | \`${reqId}\` | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${transitionCol} | ${conditionCol} |\n`;
     });
     md += `\n`;
   }
@@ -772,15 +699,7 @@ function generateBuildGuideMd(screens, connections, options, screenGroups = []) 
     md += `### Tab Bar\n\n`;
     md += `${pt.tabs}\n\n`;
 
-    md += `### Action Types\n\n`;
-    md += `| Action | Implementation |\n`;
-    md += `|--------|---------------|\n`;
-    md += `| **navigate** | ${pt.navigate} |\n`;
-    md += `| **back** | ${pt.back} |\n`;
-    md += `| **modal** | ${pt.modal} |\n`;
-    md += `| **conditional** | ${pt.conditional} |\n`;
-    md += `| **api** | ${pt.api} |\n`;
-    md += `| **custom** | ${pt.custom} |\n\n`;
+    md += renderBuildGuideActionTable(platform);
 
     md += `### Steps\n\n`;
     md += `1. Implement each screen from screens.md as a separate ${pt.name} view/component\n`;
@@ -819,7 +738,7 @@ function generateTasksMd(screens, connections, options) {
 
     hasAny = true;
     const tag = s.status === "modify" ? " *(modify)*" : "";
-    md += `## ${s.name}${tag}\n\n`;
+    md += `## ${s.name}${tag} \`[${screenReqId(s)}]\`\n\n`;
 
     if (s.codeRef) md += `> File: \`${s.codeRef}\`\n\n`;
 
@@ -868,14 +787,63 @@ function generateTypesMd(dataModels) {
  * @param {Object} options - { platform: "auto"|"swiftui"|"react-native"|"flutter"|"jetpack-compose", documents: [] }
  * @returns {{ files: Array<{ name: string, content: string }>, images: Array<{ name: string, data: Uint8Array }> }}
  */
+function generateIndexMd(screens, connections, options, navAnalysis, images, documents, dataModels, generatedAt) {
+  const sorted = sortedScreens(screens);
+  let md = `# Index\n\n`;
+  md += `| | |\n|---|---|\n`;
+  md += `| **Schema version** | ${INSTRUCTION_SCHEMA_VERSION} |\n`;
+  md += `| **Generated** | ${generatedAt} |\n`;
+  md += `| **Screens** | ${sorted.length} |\n`;
+  md += `| **Connections** | ${connections.length} |\n`;
+  if (documents.length > 0) md += `| **Documents** | ${documents.length} |\n`;
+  md += `\n`;
+
+  md += `## Files in This Package\n\n`;
+  md += `| File | Purpose |\n`;
+  md += `|------|---------|\n`;
+  md += `| \`index.md\` | This file — master checklist and manifest |\n`;
+  md += `| \`main.md\` | Orchestrator instructions and screen roster |\n`;
+  md += `| \`screens.md\` | Screen specifications and hotspot details |\n`;
+  md += `| \`navigation.md\` | Navigation architecture and connection graph |\n`;
+  md += `| \`build-guide.md\` | Platform-specific implementation guide |\n`;
+  if (documents.length > 0) md += `| \`documents.md\` | Project reference documents |\n`;
+  if (dataModels.length > 0) md += `| \`types.md\` | Data model definitions |\n`;
+  md += `| \`tasks.md\` | Acceptance criteria checklist |\n`;
+  md += `| \`images/\` | Screen reference images |\n`;
+  md += `\n`;
+
+  md += `## Screen Checklist\n\n`;
+  md += `| ID | Done | Screen | Status | Image | Hotspots | Connections |\n`;
+  md += `|----|------|--------|--------|-------|----------|-------------|\n`;
+  sorted.forEach((s) => {
+    const reqId = screenReqId(s);
+    const imgRef = imageRefForScreen(s, images) || "—";
+    const statusLabel = s.status === "existing" ? "Existing" : s.status === "modify" ? "Modify" : "New";
+    const hotspotCount = (s.hotspots || []).length;
+    const connCount = connections.filter((c) => c.fromScreenId === s.id || c.toScreenId === s.id).length;
+    const stateLabel = (s.stateGroup && s.stateName) ? ` (${s.stateName})` : "";
+    md += `| \`${reqId}\` | [ ] | ${s.name}${stateLabel} | ${statusLabel} | \`${imgRef}\` | ${hotspotCount} | ${connCount} |\n`;
+  });
+  md += `\n`;
+
+  if (navAnalysis.navigationSummary) {
+    md += `## Navigation Summary\n\n`;
+    md += `${navAnalysis.navigationSummary}\n\n`;
+  }
+
+  return md;
+}
+
 export function generateInstructionFiles(screens, connections, options = {}) {
   const documents = options.documents || [];
   const dataModels = options.dataModels || [];
   const screenGroups = options.screenGroups || [];
   const navAnalysis = analyzeNavGraph(screens, connections);
   const images = extractImages(screens);
+  const generatedAt = new Date().toISOString();
+  const schemaHeader = `<!-- drawd-schema: ${INSTRUCTION_SCHEMA_VERSION} | generated: ${generatedAt} -->\n\n`;
 
-  const files = [
+  const contentFiles = [
     { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, images, documents, screenGroups) },
     { name: "screens.md", content: generateScreensMd(screens, connections, images, documents) },
     { name: "navigation.md", content: generateNavigationMd(screens, connections, navAnalysis) },
@@ -884,16 +852,23 @@ export function generateInstructionFiles(screens, connections, options = {}) {
 
   const documentsMd = generateDocumentsMd(documents);
   if (documentsMd) {
-    files.push({ name: "documents.md", content: documentsMd });
+    contentFiles.push({ name: "documents.md", content: documentsMd });
   }
 
   const typesMd = generateTypesMd(dataModels);
   if (typesMd) {
-    files.push({ name: "types.md", content: typesMd });
+    contentFiles.push({ name: "types.md", content: typesMd });
   }
 
   const tasksMd = generateTasksMd(screens, connections, options);
-  files.push({ name: "tasks.md", content: tasksMd });
+  contentFiles.push({ name: "tasks.md", content: tasksMd });
+
+  // Prepend schema header to all content files
+  const files = contentFiles.map((f) => ({ ...f, content: schemaHeader + f.content }));
+
+  // index.md is the first file — generated after all others so it can reference them
+  const indexMd = schemaHeader + generateIndexMd(screens, connections, options, navAnalysis, images, documents, dataModels, generatedAt);
+  files.unshift({ name: "index.md", content: indexMd });
 
   return { files, images };
 }

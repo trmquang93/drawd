@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
 import { generateInstructionFiles } from "./utils/generateInstructionFiles";
+import { validateInstructions } from "./utils/validateInstructions";
 import { useCanvas } from "./hooks/useCanvas";
 import { useScreenManager } from "./hooks/useScreenManager";
 import { useFilePersistence } from "./hooks/useFilePersistence";
@@ -371,7 +372,7 @@ export default function Drawd() {
     onStartConnect(screenId);
   }, [onStartConnect]);
 
-  const buildInstructionResult = useCallback(() => {
+  const buildInstructionResult = useCallback((warnings) => {
     const scopedScreens = scopeScreenIds
       ? screens.filter((s) => scopeScreenIds.has(s.id))
       : screens;
@@ -385,15 +386,27 @@ export default function Drawd() {
       screenGroups,
       scopeScreenIds,
       allScreens: screens,
+      warnings,
     });
   }, [screens, connections, documents, featureBrief, scopeScreenIds, taskLink, techStack, dataModels, screenGroups]);
 
   const onGenerate = useCallback(() => {
     if (screens.length === 0) return;
-    const result = buildInstructionResult();
+    const scopedScreens = scopeScreenIds
+      ? screens.filter((s) => scopeScreenIds.has(s.id))
+      : screens;
+    const warnings = validateInstructions(scopedScreens, connections, { documents });
+    const errors = warnings.filter((w) => w.level === "error");
+    if (
+      errors.length > 0 &&
+      !window.confirm(
+        `Found ${errors.length} issue(s) that may affect generated output:\n\n${errors.map((e) => `\u2022 ${e.message}`).join("\n")}\n\nGenerate anyway?`
+      )
+    ) return;
+    const result = buildInstructionResult(warnings);
     setInstructions(result);
     setShowInstructions(true);
-  }, [screens, buildInstructionResult]);
+  }, [screens, connections, documents, scopeScreenIds, buildInstructionResult]);
 
   const onPreview = useCallback(() => {
     if (screens.length === 0) return;
