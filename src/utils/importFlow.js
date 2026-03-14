@@ -12,7 +12,7 @@ export function importFlow(fileText) {
     throw new Error("Invalid file: missing version field.");
   }
 
-  if (data.version > 8) {
+  if (data.version > 10) {
     throw new Error(
       `Unsupported file version ${data.version}. Please update Drawd to open this file.`
     );
@@ -39,10 +39,16 @@ export function importFlow(fileText) {
     if (screen.codeRef === undefined) screen.codeRef = "";
     if (screen.status === undefined) screen.status = "new";
     if (!Array.isArray(screen.acceptanceCriteria)) screen.acceptanceCriteria = [];
+    if (screen.tbd === undefined) screen.tbd = false;
+    if (screen.tbdNote === undefined) screen.tbdNote = "";
+    if (!Array.isArray(screen.roles)) screen.roles = [];
     if (Array.isArray(screen.hotspots)) {
       for (const hs of screen.hotspots) {
         if (!hs.elementType) hs.elementType = "button";
         if (!hs.interactionType) hs.interactionType = "tap";
+        if (hs.tbd === undefined) hs.tbd = false;
+        if (hs.tbdNote === undefined) hs.tbdNote = "";
+        if (hs.validation === undefined) hs.validation = null;
         if (!hs.apiEndpoint) hs.apiEndpoint = "";
         if (!hs.apiMethod) hs.apiMethod = "";
         if (!hs.requestSchema) hs.requestSchema = "";
@@ -86,6 +92,8 @@ export function importFlow(fileText) {
     if (!conn.connectionPath) conn.connectionPath = "default";
     if (conn.condition === undefined) conn.condition = "";
     if (conn.conditionGroupId === undefined) conn.conditionGroupId = null;
+    if (conn.transitionType === undefined) conn.transitionType = null;
+    if (conn.transitionLabel === undefined) conn.transitionLabel = "";
   }
 
   // Backward compat: featureBrief
@@ -96,6 +104,10 @@ export function importFlow(fileText) {
 
   // Backward compat: dataModels
   if (!Array.isArray(data.dataModels)) data.dataModels = [];
+
+  // Backward compat: stickyNotes / screenGroups
+  if (!Array.isArray(data.stickyNotes)) data.stickyNotes = [];
+  if (!Array.isArray(data.screenGroups)) data.screenGroups = [];
 
   return data;
 }

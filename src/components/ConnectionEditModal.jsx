@@ -8,6 +8,8 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
   const [mode, setMode] = useState(isConditional ? "conditional" : "navigate");
   const [label, setLabel] = useState(connection.label || "");
   const [targetId, setTargetId] = useState(connection.toScreenId || "");
+  const [transitionType, setTransitionType] = useState(connection.transitionType || "");
+  const [transitionLabel, setTransitionLabel] = useState(connection.transitionLabel || "");
 
   const [conditions, setConditions] = useState(() => {
     if (isConditional) {
@@ -31,6 +33,8 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
       fromScreenId: connection.fromScreenId,
       conditions: mode === "conditional" ? conditions : [],
       conditionGroupId: connection.conditionGroupId || null,
+      transitionType: transitionType || null,
+      transitionLabel: transitionType === "custom" ? transitionLabel : "",
     });
   };
 
@@ -199,6 +203,36 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
               </div>
             )}
           </div>
+
+          {/* Transition type */}
+          <label style={styles.monoLabel}>
+            TRANSITION
+            <select
+              value={transitionType}
+              onChange={(e) => setTransitionType(e.target.value)}
+              style={styles.select}
+            >
+              <option value="">— Unspecified —</option>
+              <option value="push">Push (stack navigation)</option>
+              <option value="modal">Modal sheet</option>
+              <option value="replace">Replace stack</option>
+              <option value="pop">Pop (go back)</option>
+              <option value="tab">Tab switch</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </label>
+
+          {transitionType === "custom" && (
+            <label style={styles.monoLabel}>
+              CUSTOM TRANSITION
+              <input
+                value={transitionLabel}
+                onChange={(e) => setTransitionLabel(e.target.value)}
+                placeholder="e.g. fade-in overlay"
+                style={styles.input}
+              />
+            </label>
+          )}
 
           <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
             <button type="submit" style={{ ...styles.btnPrimary, flex: 1 }}>

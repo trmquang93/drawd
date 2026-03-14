@@ -1,6 +1,6 @@
-export function buildPayload(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = []) {
+export function buildPayload(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = []) {
   return {
-    version: 8,
+    version: 10,
     metadata: {
       name: "Untitled Flow",
       exportedAt: new Date().toISOString(),
@@ -16,5 +16,7 @@ export function buildPayload(screens, connections, pan, zoom, documents = [], fe
     connections,
     documents,
     dataModels,
+    stickyNotes,
+    screenGroups,
   };
 }

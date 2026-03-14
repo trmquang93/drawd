@@ -8,6 +8,8 @@ export function useImportExport({
   connections,
   documents,
   dataModels,
+  stickyNotes,
+  screenGroups,
   pan,
   zoom,
   featureBrief,
@@ -17,13 +19,15 @@ export function useImportExport({
   mergeAll,
   setPan,
   setZoom,
+  setStickyNotes,
+  setScreenGroups,
 }) {
   const [importConfirm, setImportConfirm] = useState(null);
   const importFileRef = useRef(null);
 
   const onExport = useCallback(() => {
-    exportFlow(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels);
-  }, [screens, connections, documents, dataModels, pan, zoom, featureBrief, taskLink, techStack]);
+    exportFlow(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes || [], screenGroups || []);
+  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups, pan, zoom, featureBrief, taskLink, techStack]);
 
   const onImport = useCallback(() => {
     importFileRef.current?.click();
@@ -57,8 +61,10 @@ export function useImportExport({
       setPan(importConfirm.viewport.pan);
       setZoom(importConfirm.viewport.zoom);
     }
+    setStickyNotes?.(importConfirm.stickyNotes || []);
+    setScreenGroups?.(importConfirm.screenGroups || []);
     setImportConfirm(null);
-  }, [importConfirm, replaceAll, setPan, setZoom]);
+  }, [importConfirm, replaceAll, setPan, setZoom, setStickyNotes, setScreenGroups]);
 
   const onImportMerge = useCallback(() => {
     if (!importConfirm) return;

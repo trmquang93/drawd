@@ -27,6 +27,9 @@ import { ShortcutsPanel } from "./components/ShortcutsPanel";
 import { ScreensPanel } from "./components/ScreensPanel";
 import { BatchHotspotBar } from "./components/BatchHotspotBar";
 import { ToolBar } from "./components/ToolBar";
+import { StickyNote } from "./components/StickyNote";
+import { ScreenGroup } from "./components/ScreenGroup";
+import { generateId } from "./utils/generateId";
 
 const HEADER_HEIGHT = 37;
 
@@ -45,7 +48,7 @@ export default function Drawd() {
     fileInputRef, addScreen, addScreenAtCenter, removeScreen, renameScreen, moveScreen,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, deleteHotspots, moveHotspot, resizeHotspot, updateScreenDimensions,
-    updateScreenDescription, updateScreenNotes, updateScreenCodeRef, updateScreenCriteria, assignScreenImage, quickConnectHotspot,
+    updateScreenDescription, updateScreenNotes, updateScreenTbd, updateScreenRoles, updateScreenCodeRef, updateScreenCriteria, assignScreenImage, quickConnectHotspot,
     updateConnection, deleteConnection, pasteHotspots,
     addConnection, convertToConditionalGroup, addToConditionalGroup, saveConnectionGroup, deleteConnectionGroup,
     addState, updateStateName, addDocument, updateDocument, deleteDocument,
@@ -63,6 +66,55 @@ export default function Drawd() {
   // ── Data models ───────────────────────────────────────────────────────────
   const [dataModels, setDataModels] = useState([]);
   const [showDataModels, setShowDataModels] = useState(false);
+
+  // ── Sticky notes ──────────────────────────────────────────────────────────
+  const [stickyNotes, setStickyNotes] = useState([]);
+
+  // ── Screen groups ─────────────────────────────────────────────────────────
+  const [screenGroups, setScreenGroups] = useState([]);
+
+  // ── Screen group callbacks ────────────────────────────────────────────────
+  const addScreenGroup = useCallback((name, screenIds = [], color = "rgba(108,92,231,0.08)") => {
+    const group = { id: generateId(), name, screenIds, color, folderHint: "" };
+    setScreenGroups((prev) => [...prev, group]);
+    return group.id;
+  }, []);
+
+  const updateScreenGroup = useCallback((id, patch) => {
+    setScreenGroups((prev) => prev.map((g) => g.id === id ? { ...g, ...patch } : g));
+  }, []);
+
+  const deleteScreenGroup = useCallback((id) => {
+    setScreenGroups((prev) => prev.filter((g) => g.id !== id));
+  }, []);
+
+  const addScreenToGroup = useCallback((groupId, screenId) => {
+    setScreenGroups((prev) => prev.map((g) =>
+      g.id === groupId && !g.screenIds.includes(screenId)
+        ? { ...g, screenIds: [...g.screenIds, screenId] }
+        : g
+    ));
+  }, []);
+
+  const removeScreenFromGroup = useCallback((screenId) => {
+    setScreenGroups((prev) => prev.map((g) => ({
+      ...g,
+      screenIds: g.screenIds.filter((id) => id !== screenId),
+    })));
+  }, []);
+
+  const addStickyNote = useCallback((x, y) => {
+    const note = { id: generateId(), x, y, width: 220, content: "", color: "yellow", author: "" };
+    setStickyNotes((prev) => [...prev, note]);
+  }, []);
+
+  const updateStickyNote = useCallback((id, patch) => {
+    setStickyNotes((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
+  }, []);
+
+  const deleteStickyNote = useCallback((id) => {
+    setStickyNotes((prev) => prev.filter((n) => n.id !== id));
+  }, []);
 
   const addDataModel = useCallback((name, schema) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -95,7 +147,7 @@ export default function Drawd() {
   const {
     connectedFileName, saveStatus, isFileSystemSupported,
     openFile, saveAs, saveNow, disconnect,
-  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels);
+  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups);
 
   // ── File actions ───────────────────────────────────────────────────
   const onOpen = useCallback(async () => {
@@ -108,6 +160,8 @@ export default function Drawd() {
       setTaskLink(payload.metadata?.taskLink || "");
       setTechStack(payload.metadata?.techStack || {});
       setDataModels(payload.dataModels || []);
+      setStickyNotes(payload.stickyNotes || []);
+      setScreenGroups(payload.screenGroups || []);
       setScopeRoot(null);
     } catch (err) { alert(err.message); }
   }, [openFile, replaceAll, setPan, setZoom]);
@@ -127,6 +181,8 @@ export default function Drawd() {
     setTaskLink("");
     setTechStack({});
     setDataModels([]);
+    setStickyNotes([]);
+    setScreenGroups([]);
     setScopeRoot(null);
     disconnect();
   }, [screens.length, replaceAll, setPan, setZoom, disconnect]);
@@ -136,6 +192,8 @@ export default function Drawd() {
   const [connectionEditModal, setConnectionEditModal] = useState(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [groupContextMenu, setGroupContextMenu] = useState(null); // { screenId, x, y }
   const [instructions, setInstructions] = useState(null);
   const [renameModal, setRenameModal] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -269,12 +327,12 @@ export default function Drawd() {
 
   // ── Import / export ────────────────────────────────────────────────────────────────
   const { importConfirm, setImportConfirm, importFileRef, onExport, onImport, onImportFileChange, onImportReplace, onImportMerge } =
-    useImportExport({ screens, connections, documents, dataModels, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom });
+    useImportExport({ screens, connections, documents, dataModels, stickyNotes, screenGroups, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom, setStickyNotes, setScreenGroups });
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────────────
   useKeyboardShortcuts({
     hotspotModal, connectionEditModal, renameModal, importConfirm,
-    showInstructions, showDocuments, showShortcuts, setShowShortcuts,
+    showInstructions, showPreview, showDocuments, showShortcuts, setShowShortcuts,
     conditionalPrompt, editingConditionGroup,
     connecting, cancelConnecting,
     hotspotInteraction, cancelHotspotInteraction,
@@ -313,24 +371,36 @@ export default function Drawd() {
     onStartConnect(screenId);
   }, [onStartConnect]);
 
-  const onGenerate = useCallback(() => {
-    if (screens.length === 0) return;
+  const buildInstructionResult = useCallback(() => {
     const scopedScreens = scopeScreenIds
       ? screens.filter((s) => scopeScreenIds.has(s.id))
       : screens;
-    const result = generateInstructionFiles(scopedScreens, connections, {
+    return generateInstructionFiles(scopedScreens, connections, {
       platform: "auto",
       documents,
       featureBrief,
       taskLink,
       techStack,
       dataModels,
+      screenGroups,
       scopeScreenIds,
       allScreens: screens,
     });
+  }, [screens, connections, documents, featureBrief, scopeScreenIds, taskLink, techStack, dataModels, screenGroups]);
+
+  const onGenerate = useCallback(() => {
+    if (screens.length === 0) return;
+    const result = buildInstructionResult();
     setInstructions(result);
     setShowInstructions(true);
-  }, [screens, connections, documents, featureBrief, scopeScreenIds]);
+  }, [screens, buildInstructionResult]);
+
+  const onPreview = useCallback(() => {
+    if (screens.length === 0) return;
+    const result = buildInstructionResult();
+    setInstructions(result);
+    setShowPreview(true);
+  }, [screens, buildInstructionResult]);
 
   const onScreensPanelClick = useCallback((screenId) => {
     setSelectedScreen(screenId);
@@ -388,6 +458,7 @@ export default function Drawd() {
         onExport={onExport}
         onImport={onImport}
         onGenerate={onGenerate}
+        onPreview={onPreview}
         onDocuments={() => setShowDocuments(true)}
         onDataModels={() => setShowDataModels(true)}
         canUndo={canUndo}
@@ -429,6 +500,14 @@ export default function Drawd() {
           onMouseLeave={onCanvasMouseLeave}
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleCanvasDrop}
+          onClick={() => { if (groupContextMenu) setGroupContextMenu(null); }}
+          onDoubleClick={(e) => {
+            if (e.target !== canvasRef.current) return;
+            const rect = canvasRef.current.getBoundingClientRect();
+            const worldX = (e.clientX - rect.left - pan.x) / zoom;
+            const worldY = (e.clientY - rect.top - pan.y) / zoom;
+            addStickyNote(worldX, worldY);
+          }}
           style={{
             flex: 1,
             position: "relative",
@@ -450,6 +529,15 @@ export default function Drawd() {
               transformOrigin: "0 0",
             }}
           >
+            {screenGroups.map((group) => (
+              <ScreenGroup
+                key={group.id}
+                group={group}
+                screens={screens}
+                onUpdate={updateScreenGroup}
+                onDelete={deleteScreenGroup}
+              />
+            ))}
             {screens.map((screen) => (
               <ScreenNode
                 key={screen.id}
@@ -482,6 +570,39 @@ export default function Drawd() {
                 activeTool={activeTool}
                 scopeRoot={scopeRoot}
                 isInScope={scopeScreenIds ? scopeScreenIds.has(screen.id) : undefined}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const rect = canvasRef.current?.getBoundingClientRect();
+                  setGroupContextMenu({ screenId: screen.id, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) });
+                }}
+              />
+            ))}
+            {stickyNotes.map((note) => (
+              <StickyNote
+                key={note.id}
+                note={note}
+                zoom={zoom}
+                onUpdate={updateStickyNote}
+                onDelete={deleteStickyNote}
+                onDragStart={(e, id) => {
+                  e.stopPropagation();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const origX = note.x;
+                  const origY = note.y;
+                  const onMove = (me) => {
+                    const dx = (me.clientX - startX) / zoom;
+                    const dy = (me.clientY - startY) / zoom;
+                    updateStickyNote(id, { x: origX + dx, y: origY + dy });
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("mousemove", onMove);
+                    window.removeEventListener("mouseup", onUp);
+                  };
+                  window.addEventListener("mousemove", onMove);
+                  window.addEventListener("mouseup", onUp);
+                }}
               />
             ))}
             <ConnectionLines
@@ -534,6 +655,102 @@ export default function Drawd() {
             {Math.round(zoom * 100)}%
           </div>
 
+          {/* Screen group context menu */}
+          {groupContextMenu && (
+            <div
+              style={{
+                position: "absolute",
+                left: groupContextMenu.x,
+                top: groupContextMenu.y,
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 8,
+                padding: "6px 0",
+                zIndex: 9999,
+                minWidth: 180,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+              }}
+              onMouseLeave={() => setGroupContextMenu(null)}
+            >
+              <div style={{
+                fontSize: 9,
+                color: COLORS.textDim,
+                fontFamily: FONTS.mono,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                padding: "4px 14px 6px",
+              }}>
+                Add to Group
+              </div>
+              {screenGroups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    addScreenToGroup(g.id, groupContextMenu.screenId);
+                    setGroupContextMenu(null);
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "6px 14px",
+                    background: "none",
+                    border: "none",
+                    color: COLORS.text,
+                    fontFamily: FONTS.mono,
+                    fontSize: 12,
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  {g.name}
+                </button>
+              ))}
+              <div style={{ height: 1, background: COLORS.border, margin: "4px 0" }} />
+              <button
+                onClick={() => {
+                  const name = prompt("New group name:");
+                  if (!name?.trim()) return;
+                  const gid = addScreenGroup(name.trim(), [groupContextMenu.screenId]);
+                  setGroupContextMenu(null);
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "6px 14px",
+                  background: "none",
+                  border: "none",
+                  color: COLORS.accentLight,
+                  fontFamily: FONTS.mono,
+                  fontSize: 12,
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                + Create new group…
+              </button>
+              <button
+                onClick={() => {
+                  removeScreenFromGroup(groupContextMenu.screenId);
+                  setGroupContextMenu(null);
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "6px 14px",
+                  background: "none",
+                  border: "none",
+                  color: COLORS.textDim,
+                  fontFamily: FONTS.mono,
+                  fontSize: 12,
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                Remove from group
+              </button>
+            </div>
+          )}
+
           {/* Tool switcher */}
           <ToolBar activeTool={activeTool} onToolChange={setActiveTool} />
         </div>
@@ -551,6 +768,8 @@ export default function Drawd() {
             onSelectScreen={setSelectedScreen}
             onUpdateStateName={updateStateName}
             onUpdateNotes={updateScreenNotes}
+            onUpdateTbd={updateScreenTbd}
+            onUpdateRoles={updateScreenRoles}
             onUpdateCodeRef={updateScreenCodeRef}
             onUpdateCriteria={updateScreenCriteria}
             onUpdateStatus={updateScreenStatus}
@@ -625,6 +844,14 @@ export default function Drawd() {
         <InstructionsPanel
           instructions={instructions}
           onClose={() => setShowInstructions(false)}
+        />
+      )}
+
+      {showPreview && (
+        <InstructionsPanel
+          instructions={instructions}
+          onClose={() => setShowPreview(false)}
+          isPreview
         />
       )}
 

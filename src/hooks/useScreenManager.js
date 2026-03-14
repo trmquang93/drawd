@@ -106,6 +106,9 @@ export function useScreenManager(pan, zoom, canvasRef) {
       hotspots: [],
       stateGroup: null,
       stateName: "",
+      tbd: false,
+      tbdNote: "",
+      roles: [],
     };
     setScreens((prev) => [...prev, newScreen]);
     setSelectedScreen(newScreen.id);
@@ -136,6 +139,9 @@ export function useScreenManager(pan, zoom, canvasRef) {
       hotspots: [],
       stateGroup: null,
       stateName: "",
+      tbd: false,
+      tbdNote: "",
+      roles: [],
     };
     setScreens((prev) => [...prev, newScreen]);
     setSelectedScreen(newScreen.id);
@@ -179,6 +185,15 @@ export function useScreenManager(pan, zoom, canvasRef) {
     pushHistory(screens, connections, documents);
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, notes } : s)));
   }, [screens, connections, documents, pushHistory]);
+
+  const updateScreenTbd = useCallback((id, tbd, tbdNote) => {
+    pushHistory(screens, connections, documents);
+    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, tbd, tbdNote } : s)));
+  }, [screens, connections, documents, pushHistory]);
+
+  const updateScreenRoles = useCallback((id, roles) => {
+    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, roles } : s)));
+  }, []);
 
   const updateScreenCodeRef = useCallback((id, codeRef) => {
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, codeRef } : s)));
@@ -305,6 +320,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
             label: hotspot.label || "",
             action: hotspot.action,
             connectionPath: "default",
+            transitionType: null,
+            transitionLabel: "",
           },
         ];
       });
@@ -331,6 +348,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
             label: hotspot.label ? `${hotspot.label} (success)` : "success",
             action: hotspot.onSuccessAction,
             connectionPath: "api-success",
+            transitionType: null,
+            transitionLabel: "",
           });
         }
 
@@ -344,6 +363,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
             label: hotspot.label ? `${hotspot.label} (error)` : "error",
             action: hotspot.onErrorAction,
             connectionPath: "api-error",
+            transitionType: null,
+            transitionLabel: "",
           });
         }
 
@@ -367,6 +388,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
               action: "navigate",
               connectionPath: `condition-${i}`,
               condition: cond.label || "",
+              transitionType: null,
+              transitionLabel: "",
             });
           }
         });
@@ -483,6 +506,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
           hotspotId,
           label: "",
           action: "navigate",
+          transitionType: null,
+          transitionLabel: "",
         },
       ];
     });
@@ -525,6 +550,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
           connectionPath: "default",
           condition: "",
           conditionGroupId: null,
+          transitionType: payload.transitionType || null,
+          transitionLabel: payload.transitionLabel || "",
         }];
       }
 
@@ -542,6 +569,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
             connectionPath: `condition-${i}`,
             condition: cond.label || "",
             conditionGroupId: groupId,
+            transitionType: payload.transitionType || null,
+            transitionLabel: payload.transitionLabel || "",
           }));
         return [...cleaned, ...newConns];
       }
@@ -574,6 +603,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
         connectionPath: "condition-1",
         condition: "",
         conditionGroupId: groupId,
+        transitionType: null,
+        transitionLabel: "",
       }];
     });
     return groupId;
@@ -597,6 +628,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
         connectionPath: `condition-${maxIndex + 1}`,
         condition: "",
         conditionGroupId,
+        transitionType: null,
+        transitionLabel: "",
       }];
     });
   }, [screens, connections, documents, pushHistory]);
@@ -615,6 +648,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
         hotspotId: null,
         label: "",
         action: "navigate",
+        transitionType: null,
+        transitionLabel: "",
       }];
     });
   }, [screens, connections, documents, pushHistory]);
@@ -655,6 +690,9 @@ export function useScreenManager(pan, zoom, canvasRef) {
       hotspots: [],
       stateGroup: groupId,
       stateName: `State ${stateNumber - 1}`,
+      tbd: false,
+      tbdNote: "",
+      roles: [],
     };
     setScreens((prev) => [...prev, newScreen]);
     setSelectedScreen(newScreen.id);
@@ -733,6 +771,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
     updateScreenDimensions,
     updateScreenDescription,
     updateScreenNotes,
+    updateScreenTbd,
+    updateScreenRoles,
     updateScreenCodeRef,
     updateScreenCriteria,
     updateScreenStatus,

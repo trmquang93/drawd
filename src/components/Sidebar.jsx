@@ -9,12 +9,16 @@ const STATUS_CONFIG = {
 };
 const STATUS_CYCLE = { new: "modify", modify: "existing", existing: "new" };
 
-export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus }) {
+export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles }) {
   const [draftNotes, setDraftNotes] = useState(screen.notes || "");
   const [notesScreenId, setNotesScreenId] = useState(screen.id);
   const [draftCodeRef, setDraftCodeRef] = useState(screen.codeRef || "");
   const [codeRefScreenId, setCodeRefScreenId] = useState(screen.id);
   const [newCriterion, setNewCriterion] = useState("");
+  const [draftTbdNote, setDraftTbdNote] = useState(screen.tbdNote || "");
+  const [tbdScreenId, setTbdScreenId] = useState(screen.id);
+  const [newRole, setNewRole] = useState("");
+  const [rolesScreenId, setRolesScreenId] = useState(screen.id);
 
   // Reset drafts when screen changes
   if (screen.id !== notesScreenId) {
@@ -24,6 +28,14 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
   if (screen.id !== codeRefScreenId) {
     setDraftCodeRef(screen.codeRef || "");
     setCodeRefScreenId(screen.id);
+  }
+  if (screen.id !== tbdScreenId) {
+    setDraftTbdNote(screen.tbdNote || "");
+    setTbdScreenId(screen.id);
+  }
+  if (screen.id !== rolesScreenId) {
+    setNewRole("");
+    setRolesScreenId(screen.id);
   }
 
   const incomingLinks = connections.filter((c) => c.toScreenId === screen.id);
@@ -98,6 +110,55 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
         </button>
       </div>
 
+      {/* TBD toggle */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: screen.tbd ? 8 : 0 }}>
+          <span style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.mono, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            TBD / Uncertain
+          </span>
+          <button
+            onClick={() => onUpdateTbd?.(screen.id, !screen.tbd, screen.tbdNote || "")}
+            style={{
+              padding: "3px 9px",
+              borderRadius: 4,
+              border: "none",
+              background: screen.tbd ? "rgba(240,147,43,0.18)" : "rgba(255,255,255,0.05)",
+              color: screen.tbd ? "#f0932b" : COLORS.textDim,
+              fontFamily: FONTS.mono,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              border: `1px solid ${screen.tbd ? "rgba(240,147,43,0.35)" : COLORS.border}`,
+            }}
+          >
+            {screen.tbd ? "? TBD" : "Mark TBD"}
+          </button>
+        </div>
+        {screen.tbd && (
+          <textarea
+            value={draftTbdNote}
+            onChange={(e) => setDraftTbdNote(e.target.value)}
+            onBlur={() => onUpdateTbd?.(screen.id, true, draftTbdNote)}
+            placeholder="What's uncertain? e.g. 'Not sure if we need a separate checkout screen'"
+            rows={2}
+            style={{
+              width: "100%",
+              padding: "6px 8px",
+              background: "rgba(240,147,43,0.06)",
+              border: "1px solid rgba(240,147,43,0.25)",
+              borderRadius: 6,
+              color: COLORS.text,
+              fontSize: 11,
+              fontFamily: FONTS.mono,
+              outline: "none",
+              boxSizing: "border-box",
+              resize: "vertical",
+              lineHeight: 1.5,
+            }}
+          />
+        )}
+      </div>
+
       {/* Build status chip */}
       <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.mono, textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -122,6 +183,85 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
           {statusCfg.label}
         </button>
       </div>
+      {/* Roles */}
+      <div
+        style={{
+          padding: "10px 12px",
+          background: COLORS.bg,
+          borderRadius: 8,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{
+          fontSize: 10,
+          color: COLORS.textMuted,
+          fontFamily: FONTS.mono,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: 6,
+        }}>
+          Access Roles
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: (screen.roles || []).length > 0 ? 6 : 0 }}>
+          {(screen.roles || []).map((role, i) => (
+            <span
+              key={i}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                background: "rgba(108,92,231,0.12)",
+                border: "1px solid rgba(108,92,231,0.25)",
+                borderRadius: 12,
+                color: COLORS.accentLight,
+                fontSize: 10,
+                fontFamily: FONTS.mono,
+              }}
+            >
+              {role}
+              <button
+                onClick={() => onUpdateRoles?.(screen.id, (screen.roles || []).filter((_, j) => j !== i))}
+                style={{
+                  background: "none", border: "none", color: COLORS.danger,
+                  cursor: "pointer", fontSize: 11, padding: 0, lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            type="text"
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newRole.trim()) {
+                const trimmed = newRole.trim().toLowerCase();
+                if (!(screen.roles || []).includes(trimmed)) {
+                  onUpdateRoles?.(screen.id, [...(screen.roles || []), trimmed]);
+                }
+                setNewRole("");
+              }
+            }}
+            placeholder="e.g. admin, authenticated…"
+            style={{
+              flex: 1,
+              padding: "4px 8px",
+              background: "rgba(255,255,255,0.05)",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              color: COLORS.text,
+              fontSize: 11,
+              fontFamily: FONTS.mono,
+              outline: "none",
+            }}
+          />
+        </div>
+      </div>
+
       <div
         style={{
           padding: "10px 12px",

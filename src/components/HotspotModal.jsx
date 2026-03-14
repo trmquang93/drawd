@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, styles } from "../styles/theme";
+import { COLORS, FONTS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
 
 function FollowUpSection({ title, titleColor, action, setAction, targetId, setTargetId,
@@ -111,6 +111,19 @@ export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDo
       ? hotspot.conditions
       : [{ id: generateId(), label: "", targetScreenId: "" }]
   );
+
+  // TBD marker
+  const [tbd, setTbd] = useState(hotspot?.tbd || false);
+  const [tbdNote, setTbdNote] = useState(hotspot?.tbdNote || "");
+
+  // Input validation (text-input only)
+  const [validationExpanded, setValidationExpanded] = useState(!!(hotspot?.validation));
+  const [validationRequired, setValidationRequired] = useState(hotspot?.validation?.required || false);
+  const [validationInputType, setValidationInputType] = useState(hotspot?.validation?.inputType || "text");
+  const [validationMinLength, setValidationMinLength] = useState(hotspot?.validation?.minLength ?? "");
+  const [validationMaxLength, setValidationMaxLength] = useState(hotspot?.validation?.maxLength ?? "");
+  const [validationPattern, setValidationPattern] = useState(hotspot?.validation?.pattern || "");
+  const [validationErrorMessage, setValidationErrorMessage] = useState(hotspot?.validation?.errorMessage || "");
 
   const otherScreens = screens.filter((s) => s.id !== screen.id);
   const selectedDoc = documents.find((d) => d.id === documentId) || null;
@@ -253,6 +266,16 @@ export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDo
             onErrorCustomDesc,
             conditions: action === "conditional" ? conditions : [],
             x, y, w, h,
+            tbd,
+            tbdNote: tbd ? tbdNote : "",
+            validation: elementType === "text-input" && validationExpanded ? {
+              required: validationRequired,
+              inputType: validationInputType,
+              minLength: validationMinLength !== "" ? Number(validationMinLength) : null,
+              maxLength: validationMaxLength !== "" ? Number(validationMaxLength) : null,
+              pattern: validationPattern,
+              errorMessage: validationErrorMessage,
+            } : null,
           });
         }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -551,6 +574,165 @@ export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDo
                 </select>
               </label>
             )}
+
+            {/* Validation rules (text-input only) */}
+            {elementType === "text-input" && (
+              <div style={{
+                border: `1px solid ${validationExpanded ? "rgba(0,210,211,0.25)" : COLORS.border}`,
+                borderRadius: 8,
+                overflow: "hidden",
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setValidationExpanded(!validationExpanded)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    background: validationExpanded ? "rgba(0,210,211,0.06)" : "rgba(255,255,255,0.02)",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: FONTS.mono,
+                  }}
+                >
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    color: validationExpanded ? COLORS.success : COLORS.textMuted,
+                    textTransform: "uppercase",
+                  }}>
+                    Validation Rules
+                  </span>
+                  <span style={{ color: COLORS.textDim, fontSize: 12 }}>{validationExpanded ? "▲" : "▼"}</span>
+                </button>
+                {validationExpanded && (
+                  <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                      <span style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.mono, textTransform: "uppercase", letterSpacing: "0.08em" }}>Required</span>
+                      <button
+                        type="button"
+                        onClick={() => setValidationRequired(!validationRequired)}
+                        style={{
+                          padding: "3px 9px",
+                          borderRadius: 4,
+                          border: `1px solid ${validationRequired ? "rgba(0,210,211,0.35)" : COLORS.border}`,
+                          background: validationRequired ? "rgba(0,210,211,0.12)" : "rgba(255,255,255,0.05)",
+                          color: validationRequired ? COLORS.success : COLORS.textDim,
+                          fontFamily: FONTS.mono,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {validationRequired ? "Required" : "Optional"}
+                      </button>
+                    </div>
+                    <label style={styles.monoLabel}>
+                      INPUT TYPE
+                      <select value={validationInputType} onChange={(e) => setValidationInputType(e.target.value)} style={styles.select}>
+                        <option value="text">Text</option>
+                        <option value="email">Email</option>
+                        <option value="phone">Phone</option>
+                        <option value="number">Number</option>
+                        <option value="password">Password</option>
+                        <option value="url">URL</option>
+                      </select>
+                    </label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <label style={styles.monoLabel}>
+                        MIN LENGTH
+                        <input
+                          type="number"
+                          min={0}
+                          value={validationMinLength}
+                          onChange={(e) => setValidationMinLength(e.target.value)}
+                          placeholder="—"
+                          style={styles.input}
+                        />
+                      </label>
+                      <label style={styles.monoLabel}>
+                        MAX LENGTH
+                        <input
+                          type="number"
+                          min={0}
+                          value={validationMaxLength}
+                          onChange={(e) => setValidationMaxLength(e.target.value)}
+                          placeholder="—"
+                          style={styles.input}
+                        />
+                      </label>
+                    </div>
+                    <label style={styles.monoLabel}>
+                      PATTERN
+                      <input
+                        value={validationPattern}
+                        onChange={(e) => setValidationPattern(e.target.value)}
+                        placeholder="e.g. ^\d{10}$ or 'US phone number format'"
+                        style={styles.input}
+                      />
+                    </label>
+                    <label style={styles.monoLabel}>
+                      ERROR MESSAGE
+                      <input
+                        value={validationErrorMessage}
+                        onChange={(e) => setValidationErrorMessage(e.target.value)}
+                        placeholder="e.g. Please enter a valid email address"
+                        style={styles.input}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TBD marker */}
+            <div style={{
+              padding: "10px 12px",
+              background: tbd ? "rgba(240,147,43,0.06)" : "rgba(255,255,255,0.02)",
+              border: `1px solid ${tbd ? "rgba(240,147,43,0.25)" : COLORS.border}`,
+              borderRadius: 8,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: tbd ? 8 : 0 }}>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: COLORS.textMuted,
+                  textTransform: "uppercase",
+                  flex: 1,
+                }}>
+                  TBD / Uncertain
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTbd(!tbd)}
+                  style={{
+                    padding: "3px 9px",
+                    borderRadius: 4,
+                    border: `1px solid ${tbd ? "rgba(240,147,43,0.35)" : COLORS.border}`,
+                    background: tbd ? "rgba(240,147,43,0.18)" : "rgba(255,255,255,0.05)",
+                    color: tbd ? "#f0932b" : COLORS.textDim,
+                    fontFamily: FONTS.mono,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {tbd ? "? TBD" : "Mark TBD"}
+                </button>
+              </div>
+              {tbd && (
+                <input
+                  value={tbdNote}
+                  onChange={(e) => setTbdNote(e.target.value)}
+                  placeholder="What's uncertain about this element?"
+                  style={{ ...styles.input, marginTop: 0 }}
+                />
+              )}
+            </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {[

@@ -139,7 +139,7 @@ const PLATFORM_TERMINOLOGY = {
 
 // --- Sub-generators ---
 
-function generateMainMd(screens, connections, options, navAnalysis, images, documents = []) {
+function generateMainMd(screens, connections, options, navAnalysis, images, documents = [], screenGroups = []) {
   const sorted = sortedScreens(screens);
   const platform = options.platform || "auto";
   const platformLabel = platform === "auto"
@@ -219,8 +219,23 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
 
   md += `## Screen Roster\n\n`;
   md += `Use this inventory to plan your delegation. Each sub-agent will implement one screen.\n\n`;
-  md += `| # | Screen | Image | Status | Role |\n`;
-  md += `|---|--------|-------|--------|------|\n`;
+
+  // Build screenId → group lookup
+  const screenGroupMap = {};
+  for (const g of screenGroups) {
+    for (const sid of g.screenIds) {
+      screenGroupMap[sid] = g;
+    }
+  }
+  const hasGroups = screenGroups.length > 0;
+
+  if (hasGroups) {
+    md += `| # | Screen | Image | Group | Status | TBD | Access | Role |\n`;
+    md += `|---|--------|-------|-------|--------|-----|--------|------|\n`;
+  } else {
+    md += `| # | Screen | Image | Status | TBD | Access | Role |\n`;
+    md += `|---|--------|-------|--------|-----|--------|------|\n`;
+  }
 
   sorted.forEach((s, i) => {
     const imgRef = imageRefForScreen(s, images) || "—";
@@ -228,16 +243,36 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     const isModal = navAnalysis.modalScreens.some(m => m.id === s.id);
     const isTab = navAnalysis.tabBarPatterns.some(p => p.tabs.some(t => t.id === s.id));
     const isHub = navAnalysis.tabBarPatterns.some(p => p.hubScreenId === s.id);
-    const roles = [];
-    if (isEntry) roles.push("entry");
-    if (isHub) roles.push("tab hub");
-    if (isTab) roles.push("tab");
-    if (isModal) roles.push("modal");
+    const navRoles = [];
+    if (isEntry) navRoles.push("entry");
+    if (isHub) navRoles.push("tab hub");
+    if (isTab) navRoles.push("tab");
+    if (isModal) navRoles.push("modal");
     const stateLabel = (s.stateGroup && s.stateName) ? ` (${s.stateName})` : "";
     const statusLabel = s.status === "existing" ? "⬜ Existing" : s.status === "modify" ? "🔶 Modify" : "🟢 New";
-    md += `| ${i + 1} | ${s.name}${stateLabel} | \`${imgRef}\` | ${statusLabel} | ${roles.length > 0 ? roles.join(", ") : "screen"} |\n`;
+    const tbdLabel = s.tbd ? "⚠️" : "—";
+    const accessLabel = (s.roles && s.roles.length > 0) ? s.roles.join(", ") : "—";
+    const groupLabel = screenGroupMap[s.id] ? screenGroupMap[s.id].name : "—";
+    if (hasGroups) {
+      md += `| ${i + 1} | ${s.name}${stateLabel} | \`${imgRef}\` | ${groupLabel} | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
+    } else {
+      md += `| ${i + 1} | ${s.name}${stateLabel} | \`${imgRef}\` | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
+    }
   });
   md += `\n`;
+
+  // Feature Areas summary (if groups exist)
+  if (hasGroups) {
+    md += `### Feature Areas\n\n`;
+    for (const g of screenGroups) {
+      const memberNames = g.screenIds
+        .map(id => screens.find(s => s.id === id)?.name)
+        .filter(Boolean)
+        .join(", ");
+      md += `- **${g.name}**${g.folderHint ? ` (\`${g.folderHint}\`)` : ""}: ${memberNames || "no screens"}\n`;
+    }
+    md += `\n`;
+  }
 
   // Context-only screens (existing)
   if (existingScreens.length > 0) {
@@ -313,6 +348,30 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   md += `4. **Final check** — confirm the navigation graph matches \`navigation.md\` and that all\n`;
   md += `   connections between screens work end-to-end\n\n`;
 
+  // Open Questions (TBD items)
+  const tbdScreens = sorted.filter(s => s.tbd);
+  const tbdHotspots = sorted.flatMap(s =>
+    (s.hotspots || []).filter(h => h.tbd).map(h => ({ screen: s, hotspot: h }))
+  );
+  if (tbdScreens.length > 0 || tbdHotspots.length > 0) {
+    md += `## Open Questions\n\n`;
+    md += `> **Do NOT implement items marked TBD** — flag them as questions for the developer first.\n\n`;
+    if (tbdScreens.length > 0) {
+      md += `### Screens\n\n`;
+      tbdScreens.forEach(s => {
+        md += `- **${s.name}**${s.tbdNote ? ` — ${s.tbdNote}` : ""}\n`;
+      });
+      md += `\n`;
+    }
+    if (tbdHotspots.length > 0) {
+      md += `### Hotspots\n\n`;
+      tbdHotspots.forEach(({ screen: s, hotspot: h }) => {
+        md += `- **${s.name} / ${h.label || "Unnamed"}**${h.tbdNote ? ` — ${h.tbdNote}` : ""}\n`;
+      });
+      md += `\n`;
+    }
+  }
+
   md += `## File Reference\n\n`;
   md += `- **screens.md** — Detailed screen specifications, hotspots, and element descriptions\n`;
   md += `- **navigation.md** — Navigation architecture, flow connections, and graph analysis\n`;
@@ -380,6 +439,7 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
       const gesture = h.interactionType || "tap";
       const pos = `(${h.x}%, ${h.y}%, ${h.w}%x${h.h}%)`;
       let actionStr = h.action;
+      const tbdMarker = h.tbd ? " ⚠️" : "";
       let target = "\u2014";
 
       if (h.targetScreenId) {
@@ -387,7 +447,7 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
         target = targetScreen?.name || "Unknown";
       }
 
-      md += `| ${j + 1} | ${label} | ${type} | ${gesture} | ${pos} | ${actionStr} | ${target} |\n`;
+      md += `| ${j + 1} | ${label}${tbdMarker} | ${type} | ${gesture} | ${pos} | ${actionStr} | ${target} |\n`;
     });
     md += `\n`;
 
@@ -446,6 +506,22 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
       if (h.action === "custom" && h.customDescription) {
         md += `**${h.label || "Unnamed"}** \u2014 Custom: ${h.customDescription}\n\n`;
       }
+      if (h.elementType === "text-input" && h.validation) {
+        const v = h.validation;
+        const parts = [];
+        if (v.required) parts.push("required");
+        if (v.inputType && v.inputType !== "text") parts.push(`type: ${v.inputType}`);
+        if (v.minLength != null) parts.push(`min: ${v.minLength} chars`);
+        if (v.maxLength != null) parts.push(`max: ${v.maxLength} chars`);
+        if (v.pattern) parts.push(`pattern: "${v.pattern}"`);
+        if (parts.length > 0) {
+          md += `**${h.label || "Unnamed"}** (text-input) \u2014 ${parts.join(", ")}\n`;
+          if (v.errorMessage) {
+            md += `  Validation error: "${v.errorMessage}"\n`;
+          }
+          md += `\n`;
+        }
+      }
     }
   } else {
     md += `*No interactive elements defined*\n\n`;
@@ -498,10 +574,19 @@ function generateScreensMd(screens, connections, images, documents = []) {
     screenNum++;
 
     const statusTag = s.status === "modify" ? " *(modify existing)*" : s.status === "existing" ? " *(existing — context only)*" : "";
+    const tbdTag = s.tbd ? " ⚠️ TBD" : "";
+    const rolesTag = (s.roles && s.roles.length > 0)
+      ? ` — ${s.roles.map(r => {
+          if (r === "admin") return "🛡️ Admin";
+          if (r === "authenticated" || r === "auth") return "🔐 Authenticated";
+          if (r === "guest" || r === "unauthenticated") return "🔓 Guest";
+          return `🔑 ${r}`;
+        }).join(", ")}`
+      : "";
 
     if (s.stateGroup && stateGroups[s.stateGroup]?.length >= 2) {
       const group = stateGroups[s.stateGroup];
-      md += `## Screen ${screenNum}: ${s.name}${statusTag}\n\n`;
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}\n\n`;
       md += `*This screen has ${group.length} states:*\n\n`;
 
       group.forEach((gs) => {
@@ -513,7 +598,10 @@ function generateScreensMd(screens, connections, images, documents = []) {
       md += `---\n\n`;
     } else {
       output.add(s.id);
-      md += `## Screen ${screenNum}: ${s.name}${statusTag}\n\n`;
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}\n\n`;
+      if (s.tbd && s.tbdNote) {
+        md += `> ⚠️ **TBD:** ${s.tbdNote}\n\n`;
+      }
       md += generateScreenDetailMd(s, screens, images, documents);
       md += `---\n\n`;
     }
@@ -587,8 +675,8 @@ function generateNavigationMd(screens, connections, navAnalysis) {
   if (connections.length === 0) {
     md += `No connections defined yet.\n\n`;
   } else {
-    md += `| # | From | To | Trigger | Action | Condition |\n`;
-    md += `|---|------|----|---------|--------|-----------|\n`;
+    md += `| # | From | To | Trigger | Action | Transition | Condition |\n`;
+    md += `|---|------|----|---------|--------|------------|-----------|\n`;
     connections.forEach((c, i) => {
       const from = screens.find(s => s.id === c.fromScreenId);
       const to = screens.find(s => s.id === c.toScreenId);
@@ -597,8 +685,11 @@ function generateNavigationMd(screens, connections, navAnalysis) {
       if (c.connectionPath === "api-success") actionCol += " (success)";
       else if (c.connectionPath === "api-error") actionCol += " (error)";
       else if (c.connectionPath && c.connectionPath.startsWith("condition-")) actionCol += " (conditional)";
+      const transitionCol = c.transitionType
+        ? (c.transitionType === "custom" ? (c.transitionLabel || "custom") : c.transitionType)
+        : "\u2014";
       const conditionCol = c.condition || "\u2014";
-      md += `| ${i + 1} | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${conditionCol} |\n`;
+      md += `| ${i + 1} | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${transitionCol} | ${conditionCol} |\n`;
     });
     md += `\n`;
   }
@@ -606,11 +697,29 @@ function generateNavigationMd(screens, connections, navAnalysis) {
   return md;
 }
 
-function generateBuildGuideMd(screens, connections, options) {
+function generateBuildGuideMd(screens, connections, options, screenGroups = []) {
   const platform = options.platform || "auto";
   const techStack = options.techStack || {};
   const hasTechStack = Object.values(techStack).some(Boolean);
   let md = `# Build Guide\n\n`;
+
+  // Folder structure hints from screen groups
+  const groupsWithHints = screenGroups.filter(g => g.folderHint);
+  if (groupsWithHints.length > 0) {
+    md += `## Suggested Folder Structure\n\n`;
+    md += `Based on feature areas defined in the design:\n\n`;
+    md += `\`\`\`\n`;
+    for (const g of groupsWithHints) {
+      const memberNames = g.screenIds
+        .map(id => screens.find(s => s.id === id)?.name)
+        .filter(Boolean);
+      md += `${g.folderHint}\n`;
+      for (const name of memberNames) {
+        md += `  ${name.replace(/\s+/g, "")}.swift  # or equivalent\n`;
+      }
+    }
+    md += `\`\`\`\n\n`;
+  }
 
   if (hasTechStack) {
     md += `## Project Tech Stack\n\n`;
@@ -762,14 +871,15 @@ function generateTypesMd(dataModels) {
 export function generateInstructionFiles(screens, connections, options = {}) {
   const documents = options.documents || [];
   const dataModels = options.dataModels || [];
+  const screenGroups = options.screenGroups || [];
   const navAnalysis = analyzeNavGraph(screens, connections);
   const images = extractImages(screens);
 
   const files = [
-    { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, images, documents) },
+    { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, images, documents, screenGroups) },
     { name: "screens.md", content: generateScreensMd(screens, connections, images, documents) },
     { name: "navigation.md", content: generateNavigationMd(screens, connections, navAnalysis) },
-    { name: "build-guide.md", content: generateBuildGuideMd(screens, connections, options) },
+    { name: "build-guide.md", content: generateBuildGuideMd(screens, connections, options, screenGroups) },
   ];
 
   const documentsMd = generateDocumentsMd(documents);

@@ -79,7 +79,7 @@ function renderMarkdown(text) {
   return html;
 }
 
-export function InstructionsPanel({ instructions, onClose }) {
+export function InstructionsPanel({ instructions, onClose, isPreview = false }) {
   const [activeTab, setActiveTab] = useState(0);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState("rendered");
@@ -158,27 +158,29 @@ export function InstructionsPanel({ instructions, onClose }) {
                   fontWeight: 600,
                 }}
               >
-                AI Build Instructions
+                {isPreview ? "Preview — AI Build Instructions" : "AI Build Instructions"}
               </h3>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={onDownloadZip}
-                style={{
-                  padding: "7px 16px",
-                  background: "rgba(0,210,211,0.12)",
-                  border: "1px solid rgba(0,210,211,0.3)",
-                  borderRadius: 8,
-                  color: COLORS.success,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: FONTS.mono,
-                  transition: "all 0.2s",
-                }}
-              >
-                Download ZIP
-              </button>
+              {!isPreview && (
+                <button
+                  onClick={onDownloadZip}
+                  style={{
+                    padding: "7px 16px",
+                    background: "rgba(0,210,211,0.12)",
+                    border: "1px solid rgba(0,210,211,0.3)",
+                    borderRadius: 8,
+                    color: COLORS.success,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: FONTS.mono,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  Download ZIP
+                </button>
+              )}
               <button
                 onClick={copyAll}
                 style={{

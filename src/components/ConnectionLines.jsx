@@ -216,6 +216,39 @@ export function ConnectionLines({
                 {conn.condition || conn.label}
               </text>
             )}
+            {/* Transition type badge */}
+            {conn.transitionType && (() => {
+              const mx = (fromX + toX) / 2;
+              const my = (fromY + toY) / 2 + (conn.label || conn.condition ? 12 : 0);
+              const badgeLabel = conn.transitionType === "custom"
+                ? (conn.transitionLabel || "custom")
+                : conn.transitionType;
+              const badgeW = badgeLabel.length * 5.5 + 10;
+              return (
+                <g>
+                  <rect
+                    x={mx - badgeW / 2}
+                    y={my - 8}
+                    width={badgeW}
+                    height={14}
+                    rx={4}
+                    fill="rgba(108,92,231,0.18)"
+                    stroke="rgba(108,92,231,0.35)"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={mx}
+                    y={my + 2}
+                    fill={COLORS.accentLight}
+                    fontSize={9}
+                    fontFamily={FONTS.mono}
+                    textAnchor="middle"
+                  >
+                    {badgeLabel}
+                  </text>
+                </g>
+              );
+            })()}
             {/* Endpoint handles when selected */}
             {isSelected && (
               <>

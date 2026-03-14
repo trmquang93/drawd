@@ -8,7 +8,7 @@ export function ScreenNode({
   onHotspotDragHandleMouseDown,
   onResizeHandleMouseDown, onScreenDimensions, drawRect, isHotspotDragging,
   onUpdateDescription, isSpaceHeld, onAddState, onDropImage, activeTool,
-  scopeRoot, isInScope,
+  scopeRoot, isInScope, onContextMenu,
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -44,9 +44,11 @@ export function ScreenNode({
     ? COLORS.success
     : selected
       ? COLORS.borderActive
-      : isScopeRoot
-        ? COLORS.accent
-        : STATUS_BORDER[status];
+      : screen.tbd
+        ? "#f0932b"
+        : isScopeRoot
+          ? COLORS.accent
+          : STATUS_BORDER[status];
 
   const handleImgLoad = useCallback(() => {
     setImgLoaded(true);
@@ -80,6 +82,7 @@ export function ScreenNode({
         if (isHotspotDragging) onHoverTarget?.(null);
         if (!screen.imageData) setIsDragOver(false);
       }}
+      onContextMenu={onContextMenu}
       onDragOver={!screen.imageData ? (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -170,10 +173,49 @@ export function ScreenNode({
               {screen.stateName}
             </span>
           )}
+          {(screen.roles || []).length > 0 && (
+            <span
+              style={{
+                fontSize: 8,
+                color: COLORS.textDim,
+                background: "rgba(255,255,255,0.06)",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 4,
+                padding: "1px 5px",
+                marginLeft: 2,
+                whiteSpace: "nowrap",
+                maxWidth: 70,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontFamily: FONTS.mono,
+              }}
+              title={screen.roles.join(", ")}
+            >
+              {screen.roles[0]}{screen.roles.length > 1 ? ` +${screen.roles.length - 1}` : ""}
+            </span>
+          )}
         </span>
 
         {/* Status chip + scope root badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          {screen.tbd && (
+            <span
+              title={screen.tbdNote || "Marked as TBD — not yet decided"}
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: "#f0932b",
+                background: "rgba(240,147,43,0.18)",
+                border: "1px solid rgba(240,147,43,0.35)",
+                borderRadius: 4,
+                padding: "1px 5px",
+                fontFamily: FONTS.mono,
+                whiteSpace: "nowrap",
+              }}
+            >
+              ? TBD
+            </span>
+          )}
           {isScopeRoot && (
             <span
               title="Scope root — instructions generated from here"

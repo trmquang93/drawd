@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { COLORS, FONTS } from "../styles/theme";
 
-export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0 }) {
+export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, onPreview, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0 }) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef(null);
 
@@ -376,6 +376,25 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
           )}
         </div>
 
+        <button
+          onClick={onPreview}
+          disabled={screenCount === 0}
+          style={{
+            padding: "8px 16px",
+            background: "transparent",
+            border: `1px solid ${screenCount === 0 ? COLORS.border : "rgba(108,92,231,0.4)"}`,
+            borderRadius: 8,
+            color: screenCount === 0 ? COLORS.textDim : COLORS.accentLight,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: screenCount === 0 ? "not-allowed" : "pointer",
+            fontFamily: FONTS.mono,
+            transition: "all 0.2s",
+            letterSpacing: "0.02em",
+          }}
+        >
+          Preview
+        </button>
         <button
           onClick={onGenerate}
           disabled={screenCount === 0}

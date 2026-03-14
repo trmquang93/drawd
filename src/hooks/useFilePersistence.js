@@ -11,7 +11,7 @@ const DRAWD_FILE_TYPES = [
   },
 ];
 
-export function useFilePersistence(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = []) {
+export function useFilePersistence(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = []) {
   const fileHandleRef = useRef(null);
   const [connectedFileName, setConnectedFileName] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
@@ -37,7 +37,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
 
     setSaveStatus("saving");
     try {
-      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels);
+      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups);
       const json = JSON.stringify(payload, null, 2);
       const writable = await handle.createWritable();
       await writable.write(json);
@@ -110,7 +110,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       skipNextSaveRef.current = false;
 
       // Write immediately
-      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels);
+      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups);
       const json = JSON.stringify(payload, null, 2);
       const writable = await handle.createWritable();
       await writable.write(json);
