@@ -1,4 +1,6 @@
 import { L_COLORS, L_FONTS } from "./landingTheme";
+import { TOPBAR_HEIGHT, ICON_PATH, APP_NAME } from "../../constants";
+import { Z_INDEX } from "../../styles/theme";
 
 function scrollToSection(id) {
   const el = document.getElementById(id);
@@ -26,7 +28,7 @@ export default function NavBar({ mode = "landing" }) {
         top: 0,
         left: 0,
         right: 0,
-        height: 56,
+        height: TOPBAR_HEIGHT,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -35,7 +37,7 @@ export default function NavBar({ mode = "landing" }) {
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
         boxShadow: `0 1px 0 ${L_COLORS.borderSubtle}, 0 4px 20px rgba(0,0,0,0.25)`,
-        zIndex: 100,
+        zIndex: Z_INDEX.toolbar,
         boxSizing: "border-box",
       }}
     >
@@ -44,7 +46,7 @@ export default function NavBar({ mode = "landing" }) {
         style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}
         onClick={() => { window.location.hash = ""; window.location.href = "/"; }}
       >
-        <img src="/icon.svg" alt="Drawd" width={26} height={26} />
+        <img src={ICON_PATH} alt={APP_NAME} width={26} height={26} />
         <span
           style={{
             fontFamily: L_FONTS.heading,
@@ -54,7 +56,7 @@ export default function NavBar({ mode = "landing" }) {
             letterSpacing: "-0.03em",
           }}
         >
-          Drawd
+          {APP_NAME}
         </span>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { COLORS, FONTS } from "../styles/theme";
+import { COLORS, FONTS, Z_INDEX } from "../styles/theme";
+import { TOPBAR_HEIGHT, ICON_PATH, APP_NAME } from "../constants";
 
 export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onExport, onImport, onGenerate, onPreview, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0 }) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
@@ -54,7 +55,7 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
     `}</style>
     <div
       style={{
-        height: 56,
+        height: TOPBAR_HEIGHT,
         background: COLORS.surface,
         borderBottom: `1px solid ${COLORS.border}`,
         display: "flex",
@@ -66,8 +67,8 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <img
-          src="/icon.svg"
-          alt="Drawd"
+          src={ICON_PATH}
+          alt={APP_NAME}
           style={{
             width: 32,
             height: 32,
@@ -318,7 +319,7 @@ export function TopBar({ screenCount, connectionCount, onUpload, onAddBlank, onE
                 padding: "6px",
                 minWidth: 210,
                 boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                zIndex: 100,
+                zIndex: Z_INDEX.toolbar,
               }}
             >
               <button

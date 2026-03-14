@@ -1,4 +1,5 @@
 import { L_COLORS, L_FONTS } from "../landing/landingTheme";
+import { DOMAIN } from "../../constants";
 
 // Shared prose style helpers
 const P = ({ children, style }) => (
@@ -102,7 +103,7 @@ export const DOC_SECTIONS = [
         </P>
         <H3>Quick start</H3>
         <UL items={[
-          "Open the editor at drawd.app",
+          `Open the editor at ${DOMAIN}`,
           'Click "Upload Screens" in the top toolbar, or drag image files directly onto the canvas',
           "Arrange screens by dragging them around the canvas",
           "Draw hotspot tap areas on screens to define interactive elements",

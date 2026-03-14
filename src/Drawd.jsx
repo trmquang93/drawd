@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
+import { COLORS, FONTS, FONT_LINK, Z_INDEX } from "./styles/theme";
+import { HEADER_HEIGHT, DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, FILE_EXTENSION, LEGACY_FILE_EXTENSION } from "./constants";
 import { generateInstructionFiles } from "./utils/generateInstructionFiles";
 import { validateInstructions } from "./utils/validateInstructions";
 import { useCanvas } from "./hooks/useCanvas";
@@ -32,7 +33,6 @@ import { StickyNote } from "./components/StickyNote";
 import { ScreenGroup } from "./components/ScreenGroup";
 import { generateId } from "./utils/generateId";
 
-const HEADER_HEIGHT = 37;
 
 export default function Drawd() {
   // ── Active tool ──────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export default function Drawd() {
   }, []);
 
   const addStickyNote = useCallback((x, y) => {
-    const note = { id: generateId(), x, y, width: 220, content: "", color: "yellow", author: "" };
+    const note = { id: generateId(), x, y, width: DEFAULT_SCREEN_WIDTH, content: "", color: "yellow", author: "" };
     setStickyNotes((prev) => [...prev, note]);
   }, []);
 
@@ -286,7 +286,7 @@ export default function Drawd() {
       const isDuplicate = existingPlain.some((c) => c.toScreenId === targetScreenId);
       if (isDuplicate) { cancelConnecting(); return; }
       const fromScreen = screens.find((s) => s.id === fromId);
-      const promptX = fromScreen ? fromScreen.x + (fromScreen.width || 220) + 20 : 0;
+      const promptX = fromScreen ? fromScreen.x + (fromScreen.width || DEFAULT_SCREEN_WIDTH) + 20 : 0;
       const promptY = fromScreen ? fromScreen.y : 0;
       setConditionalPrompt({ fromId, targetScreenId, existingConnId: existingPlain[0].id, x: promptX, y: promptY });
       cancelConnecting();
@@ -421,8 +421,8 @@ export default function Drawd() {
     if (!screen || !canvasRef.current) return;
     const vw = canvasRef.current.clientWidth;
     const vh = canvasRef.current.clientHeight;
-    const screenW = screen.width || 220;
-    const screenH = screen.imageHeight ? screen.imageHeight + HEADER_HEIGHT : 200;
+    const screenW = screen.width || DEFAULT_SCREEN_WIDTH;
+    const screenH = screen.imageHeight ? screen.imageHeight + HEADER_HEIGHT : DEFAULT_SCREEN_HEIGHT;
     const centerX = screen.x + screenW / 2;
     const centerY = screen.y + screenH / 2;
     setPan({ x: vw / 2 - centerX * zoom, y: vh / 2 - centerY * zoom });
@@ -679,7 +679,7 @@ export default function Drawd() {
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: 8,
                 padding: "6px 0",
-                zIndex: 9999,
+                zIndex: Z_INDEX.contextMenu,
                 minWidth: 180,
                 boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
               }}
@@ -791,7 +791,7 @@ export default function Drawd() {
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFileChange} />
-      <input ref={importFileRef} type="file" accept=".drawd,.flowforge" style={{ display: "none" }} onChange={onImportFileChange} />
+      <input ref={importFileRef} type="file" accept={`${FILE_EXTENSION},${LEGACY_FILE_EXTENSION}`} style={{ display: "none" }} onChange={onImportFileChange} />
 
       {hotspotModal && (
         <HotspotModal

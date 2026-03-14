@@ -1,6 +1,4 @@
-const MIN_HOTSPOT_SIZE = 2;
-const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 2.0;
+import { MIN_HOTSPOT_SIZE, MIN_ZOOM, MAX_ZOOM } from "../constants";
 
 const round1 = (v) => Math.round(v * 10) / 10;
 

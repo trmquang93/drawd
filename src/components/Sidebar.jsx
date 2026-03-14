@@ -1,13 +1,6 @@
-import { COLORS, FONTS } from "../styles/theme";
-
+import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE } from "../styles/theme";
 import { useState } from "react";
-
-const STATUS_CONFIG = {
-  new:      { label: "New",      color: "#00b894", bg: "rgba(0,184,148,0.15)" },
-  modify:   { label: "Modify",   color: "#fdcb6e", bg: "rgba(253,203,110,0.15)" },
-  existing: { label: "Existing", color: "#636e72", bg: "rgba(99,110,114,0.15)" },
-};
-const STATUS_CYCLE = { new: "modify", modify: "existing", existing: "new" };
+import { SIDEBAR_WIDTH } from "../constants";
 
 export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles }) {
   const [draftNotes, setDraftNotes] = useState(screen.notes || "");
@@ -45,7 +38,7 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
   return (
     <div
       style={{
-        width: 280,
+        width: SIDEBAR_WIDTH,
         background: COLORS.surface,
         borderLeft: `1px solid ${COLORS.border}`,
         overflow: "auto",

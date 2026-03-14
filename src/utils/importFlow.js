@@ -1,4 +1,5 @@
 import { generateId } from "./generateId";
+import { FILE_VERSION, APP_NAME } from "../constants";
 
 export function importFlow(fileText) {
   let data;
@@ -12,9 +13,9 @@ export function importFlow(fileText) {
     throw new Error("Invalid file: missing version field.");
   }
 
-  if (data.version > 10) {
+  if (data.version > FILE_VERSION) {
     throw new Error(
-      `Unsupported file version ${data.version}. Please update Drawd to open this file.`
+      `Unsupported file version ${data.version}. Please update ${APP_NAME} to open this file.`
     );
   }
 

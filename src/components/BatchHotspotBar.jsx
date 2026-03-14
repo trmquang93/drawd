@@ -1,4 +1,4 @@
-import { COLORS, FONTS } from "../styles/theme";
+import { COLORS, FONTS, Z_INDEX } from "../styles/theme";
 
 const barBtn = {
   padding: "6px 14px",
@@ -26,7 +26,7 @@ export function BatchHotspotBar({ count, hasClipboard, onCopy, onPaste, onDelete
         alignItems: "center",
         gap: 12,
         boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-        zIndex: 900,
+        zIndex: Z_INDEX.batchBar,
       }}
     >
       <span style={{ fontSize: 12, color: COLORS.text, fontFamily: FONTS.mono, fontWeight: 600 }}>

@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { computeDrawRect, computeRepositionDelta, computeResize, hitTestScreen } from "../utils/canvasMath.js";
-
-const HEADER_HEIGHT = 37;
+import { HEADER_HEIGHT } from "../constants";
 const resizeCursors = {
   nw: "nwse-resize", n: "ns-resize", ne: "nesw-resize", e: "ew-resize",
   se: "nwse-resize", s: "ns-resize", sw: "nesw-resize", w: "ew-resize",

@@ -1,5 +1,20 @@
 import { useState, useRef, useCallback } from "react";
 import { generateId } from "../utils/generateId";
+import {
+  DEFAULT_SCREEN_WIDTH,
+  CENTER_HEIGHT_ESTIMATE,
+  GRID_COLUMNS,
+  GRID_COL_WIDTH,
+  GRID_ROW_HEIGHT,
+  GRID_MARGIN,
+  PASTE_STAGGER,
+  STATE_VARIANT_OFFSET,
+  HOTSPOT_PASTE_OFFSET,
+  VIEWPORT_FALLBACK_WIDTH,
+  VIEWPORT_FALLBACK_HEIGHT,
+  DEFAULT_STATE_NAME,
+  SCREEN_NAME_TEMPLATE,
+} from "../constants";
 
 export function useScreenManager(pan, zoom, canvasRef) {
   const [screens, setScreens] = useState([]);
@@ -89,14 +104,14 @@ export function useScreenManager(pan, zoom, canvasRef) {
   const addScreen = useCallback((imageData = null, name = null) => {
     pushHistory(screens, connections, documents);
     const count = screenCounter.current++;
-    const offsetX = (screens.length % 4) * 280 + 60;
-    const offsetY = Math.floor(screens.length / 4) * 420 + 60;
+    const offsetX = (screens.length % GRID_COLUMNS) * GRID_COL_WIDTH + GRID_MARGIN;
+    const offsetY = Math.floor(screens.length / GRID_COLUMNS) * GRID_ROW_HEIGHT + GRID_MARGIN;
     const newScreen = {
       id: generateId(),
-      name: name || `Screen ${count}`,
+      name: name || SCREEN_NAME_TEMPLATE(count),
       x: (-pan.x + offsetX) / zoom,
       y: (-pan.y + offsetY) / zoom,
-      width: 220,
+      width: DEFAULT_SCREEN_WIDTH,
       imageData,
       description: "",
       notes: "",
@@ -117,19 +132,17 @@ export function useScreenManager(pan, zoom, canvasRef) {
   const addScreenAtCenter = useCallback((imageData = null, name = null, offset = 0) => {
     pushHistory(screens, connections, documents);
     const count = screenCounter.current++;
-    const screenWidth = 220;
-    const screenHeight = 160;
     const el = canvasRef?.current;
-    const vw = el ? el.clientWidth : 800;
-    const vh = el ? el.clientHeight : 600;
-    const cx = (-pan.x + vw / 2) / zoom - screenWidth / 2 + offset * 30;
-    const cy = (-pan.y + vh / 2) / zoom - screenHeight / 2 + offset * 30;
+    const vw = el ? el.clientWidth : VIEWPORT_FALLBACK_WIDTH;
+    const vh = el ? el.clientHeight : VIEWPORT_FALLBACK_HEIGHT;
+    const cx = (-pan.x + vw / 2) / zoom - DEFAULT_SCREEN_WIDTH / 2 + offset * PASTE_STAGGER;
+    const cy = (-pan.y + vh / 2) / zoom - CENTER_HEIGHT_ESTIMATE / 2 + offset * PASTE_STAGGER;
     const newScreen = {
       id: generateId(),
-      name: name || `Screen ${count}`,
+      name: name || SCREEN_NAME_TEMPLATE(count),
       x: cx,
       y: cy,
-      width: screenWidth,
+      width: DEFAULT_SCREEN_WIDTH,
       imageData,
       description: "",
       notes: "",
@@ -432,8 +445,8 @@ export function useScreenManager(pan, zoom, canvasRef) {
       ...hs,
       id: generateId(),
       targetScreenId: null,
-      x: Math.min(hs.x + 5, 100 - hs.w),
-      y: Math.min(hs.y + 5, 100 - hs.h),
+      x: Math.min(hs.x + HOTSPOT_PASTE_OFFSET, 100 - hs.w),
+      y: Math.min(hs.y + HOTSPOT_PASTE_OFFSET, 100 - hs.h),
     }));
     setScreens((prev) =>
       prev.map((s) =>
@@ -668,7 +681,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
       setScreens((prev) =>
         prev.map((s) =>
           s.id === parentScreenId
-            ? { ...s, stateGroup: groupId, stateName: "Default" }
+            ? { ...s, stateGroup: groupId, stateName: DEFAULT_STATE_NAME }
             : s
         )
       );
@@ -678,9 +691,9 @@ export function useScreenManager(pan, zoom, canvasRef) {
     const newScreen = {
       id: generateId(),
       name: parent.name,
-      x: parent.x + 250,
+      x: parent.x + STATE_VARIANT_OFFSET,
       y: parent.y,
-      width: parent.width || 220,
+      width: parent.width || DEFAULT_SCREEN_WIDTH,
       imageData: null,
       description: "",
       notes: "",

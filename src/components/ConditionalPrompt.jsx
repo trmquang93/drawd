@@ -1,4 +1,4 @@
-import { COLORS, FONTS, styles } from "../styles/theme";
+import { COLORS, FONTS, styles, Z_INDEX } from "../styles/theme";
 
 export function ConditionalPrompt({ x, y, onConfirm, onCancel }) {
   return (
@@ -12,7 +12,7 @@ export function ConditionalPrompt({ x, y, onConfirm, onCancel }) {
         borderRadius: 10,
         padding: "14px 18px",
         boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 12px rgba(240,147,43,0.15)`,
-        zIndex: 50,
+        zIndex: Z_INDEX.canvasPrompt,
         minWidth: 200,
         pointerEvents: "all",
       }}

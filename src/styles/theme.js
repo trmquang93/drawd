@@ -32,6 +32,13 @@ export const COLORS = {
   accent03:  "rgba(97,175,239,0.3)",
   accent035: "rgba(97,175,239,0.35)",
   accent04:  "rgba(97,175,239,0.4)",
+  // Status colors
+  statusNew: "#00b894",
+  statusModify: "#fdcb6e",
+  statusExisting: "#636e72",
+  statusExistingBorder: "#444",
+  statusTbd: "#f0932b",
+  imageAreaBg: "#0d0d15",
 };
 
 export const FONTS = {
@@ -42,6 +49,28 @@ export const FONTS = {
 
 export const FONT_LINK =
   "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap";
+
+export const Z_INDEX = {
+  screenGroup: 0,
+  hotspotHandle: 2,
+  resizeHandle: 3,
+  dragOverlay: 5,
+  stickyNote: 5,
+  canvasPrompt: 50,
+  toolbar: 100,
+  batchBar: 900,
+  modal: 1000,
+  contextMenu: 9999,
+};
+
+export const STATUS_CONFIG = {
+  new:      { label: "New",      color: COLORS.statusNew,      bg: "rgba(0,184,148,0.15)" },
+  modify:   { label: "Modify",   color: COLORS.statusModify,   bg: "rgba(253,203,110,0.15)" },
+  existing: { label: "Existing", color: COLORS.statusExisting, bg: "rgba(99,110,114,0.15)" },
+};
+
+// Maps each status to the next in the cycle
+export const STATUS_CYCLE = { new: "modify", modify: "existing", existing: "new" };
 
 export const styles = {
   monoLabel: {

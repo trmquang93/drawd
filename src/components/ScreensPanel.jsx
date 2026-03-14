@@ -1,13 +1,6 @@
 import { useState } from "react";
-import { COLORS, FONTS } from "../styles/theme";
-
-const STATUS_CONFIG = {
-  new:      { label: "New",      color: "#00b894", bg: "rgba(0,184,148,0.15)" },
-  modify:   { label: "Modify",   color: "#fdcb6e", bg: "rgba(253,203,110,0.15)" },
-  existing: { label: "Existing", color: "#636e72", bg: "rgba(99,110,114,0.15)" },
-};
-
-const STATUS_CYCLE = { new: "modify", modify: "existing", existing: "new" };
+import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, Z_INDEX } from "../styles/theme";
+import { SCREENS_PANEL_WIDTH } from "../constants";
 
 export function ScreensPanel({
   screens,
@@ -45,7 +38,7 @@ export function ScreensPanel({
   return (
     <div
       style={{
-        width: 220,
+        width: SCREENS_PANEL_WIDTH,
         background: COLORS.surface,
         borderRight: `1px solid ${COLORS.border}`,
         overflow: "hidden",
@@ -464,7 +457,7 @@ export function ScreensPanel({
             border: `1px solid ${COLORS.border}`,
             borderRadius: 6,
             boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-            zIndex: 9999,
+            zIndex: Z_INDEX.contextMenu,
             minWidth: 160,
             overflow: "hidden",
           }}

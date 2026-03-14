@@ -1,10 +1,10 @@
 import { COLORS, FONTS } from "../styles/theme";
+import { HEADER_HEIGHT, BORDER_WIDTH, DEFAULT_SCREEN_WIDTH, DEFAULT_IMAGE_HEIGHT, BEZIER_FACTOR, BEZIER_MIN_CP } from "../constants";
 
-const HEADER_HEIGHT = 37;
-const BORDER = 2;
+const BORDER = BORDER_WIDTH;
 
 function getScreenCenterY(screen) {
-  const imageAreaHeight = screen.imageHeight || 120;
+  const imageAreaHeight = screen.imageHeight || DEFAULT_IMAGE_HEIGHT;
   return screen.y + (HEADER_HEIGHT + imageAreaHeight) / 2;
 }
 
@@ -13,7 +13,7 @@ export function computePoints(conn, screens) {
   const to = screens.find((s) => s.id === conn.toScreenId);
   if (!from || !to) return null;
 
-  const screenW = from.width || 220;
+  const screenW = from.width || DEFAULT_SCREEN_WIDTH;
   const hs = conn.hotspotId && from.hotspots
     ? from.hotspots.find((h) => h.id === conn.hotspotId)
     : null;
@@ -30,7 +30,7 @@ export function computePoints(conn, screens) {
   const toY = getScreenCenterY(to);
 
   const dx = toX - fromX;
-  const cp = Math.max(80, Math.abs(dx) * 0.4);
+  const cp = Math.max(BEZIER_MIN_CP, Math.abs(dx) * BEZIER_FACTOR);
 
   return { fromX, fromY, toX, toY, cp };
 }
@@ -287,7 +287,7 @@ export function ConnectionLines({
         const hs = hotspotPreviewLine.hotspotId && from.hotspots
           ? from.hotspots.find((h) => h.id === hotspotPreviewLine.hotspotId)
           : null;
-        const screenW = from.width || 220;
+        const screenW = from.width || DEFAULT_SCREEN_WIDTH;
         let fromX, fromY;
         if (hs && from.imageHeight) {
           fromX = from.x + BORDER + (hs.x + hs.w / 2) / 100 * screenW;
@@ -299,7 +299,7 @@ export function ConnectionLines({
         const toX = hotspotPreviewLine.toX;
         const toY = hotspotPreviewLine.toY;
         const dx = toX - fromX;
-        const cp = Math.max(80, Math.abs(dx) * 0.4);
+        const cp = Math.max(BEZIER_MIN_CP, Math.abs(dx) * BEZIER_FACTOR);
         return (
           <g>
             <circle cx={fromX} cy={fromY} r={5} fill={COLORS.success} opacity={0.8} />
@@ -323,7 +323,7 @@ export function ConnectionLines({
         const toX = previewLine.toX;
         const toY = previewLine.toY;
         const dx = toX - fromX;
-        const cp = Math.max(80, Math.abs(dx) * 0.4);
+        const cp = Math.max(BEZIER_MIN_CP, Math.abs(dx) * BEZIER_FACTOR);
         return (
           <g>
             <circle cx={fromX} cy={fromY} r={5} fill={COLORS.connectionLine} opacity={0.6} />

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { DEFAULT_SCREEN_WIDTH } from "../constants";
 
 export function useConnectionInteraction({
   screens,
@@ -32,7 +33,7 @@ export function useConnectionInteraction({
   const onStartConnect = useCallback((screenId) => {
     const screen = screens.find((s) => s.id === screenId);
     if (!screen) return;
-    const mouseX = screen.x + (screen.width || 220) + 40;
+    const mouseX = screen.x + (screen.width || DEFAULT_SCREEN_WIDTH) + 40;
     const mouseY = screen.y + 100;
     setConnecting({ fromScreenId: screenId, mode: "click", mouseX, mouseY });
   }, [screens]);

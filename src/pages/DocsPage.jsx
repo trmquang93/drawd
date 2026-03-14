@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { L_COLORS, L_FONTS } from "./landing/landingTheme";
+import { TOPBAR_HEIGHT } from "../constants";
 import GLOBAL_CSS from "./landing/globalCss";
 import NavBar from "./landing/NavBar";
 import Footer from "./landing/Footer";
@@ -76,7 +77,7 @@ const DOCS_CSS = `
   }
 `;
 
-const NAV_HEIGHT = 56;
+const NAV_HEIGHT = TOPBAR_HEIGHT;
 
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState(DOC_SECTIONS[0].id);

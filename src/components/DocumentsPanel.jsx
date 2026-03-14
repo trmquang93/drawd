@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { COLORS, FONTS, styles } from "../styles/theme";
+import { DEFAULT_DOCUMENT_NAME, TOPBAR_HEIGHT } from "../constants";
 
 export function DocumentsPanel({ documents, onAddDocument, onUpdateDocument, onDeleteDocument, onClose }) {
   const [selectedDocId, setSelectedDocId] = useState(documents[0]?.id || null);
@@ -8,7 +9,7 @@ export function DocumentsPanel({ documents, onAddDocument, onUpdateDocument, onD
   const selectedDoc = documents.find((d) => d.id === selectedDocId) || null;
 
   const handleNew = () => {
-    const id = onAddDocument("Untitled Document", "");
+    const id = onAddDocument(DEFAULT_DOCUMENT_NAME, "");
     setSelectedDocId(id);
     setConfirmDelete(false);
   };
@@ -49,7 +50,7 @@ export function DocumentsPanel({ documents, onAddDocument, onUpdateDocument, onD
         {/* Header */}
         <div
           style={{
-            height: 56,
+            height: TOPBAR_HEIGHT,
             background: COLORS.surface,
             borderBottom: `1px solid ${COLORS.border}`,
             display: "flex",

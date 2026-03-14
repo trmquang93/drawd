@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { COLORS, FONTS } from "../styles/theme";
+import { DEFAULT_SCREEN_WIDTH, DEFAULT_IMAGE_HEIGHT, HEADER_HEIGHT, DESCRIPTION_MAX_LENGTH } from "../constants";
 
 export function ScreenNode({
   screen, selected, onSelect, onDragStart, onAddHotspot, onRemoveScreen,
@@ -29,11 +30,11 @@ export function ScreenNode({
   }, []);
 
   const status = screen.status || "new";
-  const STATUS_BORDER = { new: COLORS.border, modify: "#fdcb6e", existing: "#444" };
+  const STATUS_BORDER = { new: COLORS.border, modify: COLORS.statusModify, existing: COLORS.statusExistingBorder };
   const STATUS_CHIP = {
-    new:      { label: "New",      color: "#00b894", bg: "rgba(0,184,148,0.18)" },
-    modify:   { label: "Modify",   color: "#fdcb6e", bg: "rgba(253,203,110,0.18)" },
-    existing: { label: "Existing", color: "#636e72", bg: "rgba(99,110,114,0.18)" },
+    new:      { label: "New",      color: COLORS.statusNew,      bg: "rgba(0,184,148,0.18)" },
+    modify:   { label: "Modify",   color: COLORS.statusModify,   bg: "rgba(253,203,110,0.18)" },
+    existing: { label: "Existing", color: COLORS.statusExisting, bg: "rgba(99,110,114,0.18)" },
   };
 
   const isScopeRoot = scopeRoot != null && screen.id === scopeRoot;
@@ -45,7 +46,7 @@ export function ScreenNode({
     : selected
       ? COLORS.borderActive
       : screen.tbd
-        ? "#f0932b"
+        ? COLORS.statusTbd
         : isScopeRoot
           ? COLORS.accent
           : STATUS_BORDER[status];
@@ -105,7 +106,7 @@ export function ScreenNode({
         position: "absolute",
         left: screen.x,
         top: screen.y,
-        width: screen.width || 220,
+        width: screen.width || DEFAULT_SCREEN_WIDTH,
         minHeight: 80,
         background: isDragOver
           ? "rgba(0,210,211,0.05)"
@@ -311,7 +312,7 @@ export function ScreenNode({
       {/* Image */}
       <div
         className="screen-image-area"
-        style={{ position: "relative", minHeight: 120, background: "#0d0d15" }}
+        style={{ position: "relative", minHeight: DEFAULT_IMAGE_HEIGHT, background: COLORS.imageAreaBg }}
         onMouseDown={(e) => {
           if (isSpaceHeld?.current) return;
           if (e.target.closest(".hotspot-area") || e.target.closest(".hotspot-drag-handle") || e.target.closest(".resize-handle")) return;
@@ -504,7 +505,7 @@ export function ScreenNode({
               <div style={{ width: "100%", textAlign: "left" }}>
                 <textarea
                   autoFocus
-                  maxLength={500}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
                   value={draftDesc}
                   onChange={(e) => setDraftDesc(e.target.value)}
                   onKeyDown={(e) => {
@@ -545,7 +546,7 @@ export function ScreenNode({
                   marginTop: 6,
                 }}>
                   <span style={{ fontSize: 9, color: COLORS.textDim }}>
-                    {draftDesc.length}/500
+                    {draftDesc.length}/{DESCRIPTION_MAX_LENGTH}
                   </span>
                   <div style={{ display: "flex", gap: 4 }}>
                     <button

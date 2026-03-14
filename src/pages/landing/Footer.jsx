@@ -1,9 +1,10 @@
 import { L_COLORS, L_FONTS } from "./landingTheme";
+import { GITHUB_URL } from "../../constants";
 
 const PRODUCT_LINKS = [
   { label: "Editor", href: "#/editor" },
   { label: "Features", href: "#features" },
-  { label: "GitHub", href: "https://github.com" },
+  { label: "GitHub", href: GITHUB_URL },
 ];
 
 const RESOURCE_LINKS = [

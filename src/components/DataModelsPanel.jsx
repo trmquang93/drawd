@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { COLORS, FONTS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
+import { DEFAULT_MODEL_NAME, TOPBAR_HEIGHT } from "../constants";
 
 export function DataModelsPanel({ dataModels, onAddModel, onUpdateModel, onDeleteModel, onClose }) {
   const [selectedId, setSelectedId] = useState(dataModels[0]?.id || null);
@@ -9,7 +10,7 @@ export function DataModelsPanel({ dataModels, onAddModel, onUpdateModel, onDelet
   const selected = dataModels.find((m) => m.id === selectedId) || null;
 
   const handleNew = () => {
-    const id = onAddModel("Untitled Model", "");
+    const id = onAddModel(DEFAULT_MODEL_NAME, "");
     setSelectedId(id);
     setConfirmDelete(false);
   };
@@ -45,7 +46,7 @@ export function DataModelsPanel({ dataModels, onAddModel, onUpdateModel, onDelet
         {/* Header */}
         <div
           style={{
-            height: 56,
+            height: TOPBAR_HEIGHT,
             background: COLORS.surface,
             borderBottom: `1px solid ${COLORS.border}`,
             display: "flex",
@@ -111,7 +112,7 @@ export function DataModelsPanel({ dataModels, onAddModel, onUpdateModel, onDelet
                     transition: "background 0.1s",
                   }}
                 >
-                  {m.name || "Untitled Model"}
+                  {m.name || DEFAULT_MODEL_NAME}
                 </div>
               ))}
               {dataModels.length === 0 && (

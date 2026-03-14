@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-import { COLORS, FONTS } from "../styles/theme";
+import { COLORS, FONTS, Z_INDEX } from "../styles/theme";
 import { computePoints } from "./ConnectionLines";
 
 export function InlineConditionLabels({ connections, screens, conditionGroupId, onUpdateLabel, onDone }) {
@@ -58,7 +58,7 @@ export function InlineConditionLabels({ connections, screens, conditionGroupId, 
               position: "absolute",
               left: midX - 60,
               top: midY - 12,
-              zIndex: 50,
+              zIndex: Z_INDEX.canvasPrompt,
               pointerEvents: "all",
             }}
             onMouseDown={(e) => e.stopPropagation()}

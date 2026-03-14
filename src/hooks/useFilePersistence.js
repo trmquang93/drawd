@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { buildPayload } from "../utils/buildPayload";
 import { importFlow } from "../utils/importFlow";
+import { FILE_EXTENSION, LEGACY_FILE_EXTENSION, DEFAULT_EXPORT_FILENAME, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "../constants";
 
 const isFileSystemSupported = typeof window !== "undefined" && "showOpenFilePicker" in window;
 
 const DRAWD_FILE_TYPES = [
   {
     description: "Drawd files",
-    accept: { "application/json": [".drawd", ".flowforge"] },
+    accept: { "application/json": [FILE_EXTENSION, LEGACY_FILE_EXTENSION] },
   },
 ];
 
@@ -45,7 +46,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
 
       setSaveStatus("saved");
       if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
-      statusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+      statusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
     } catch (err) {
       if (err.name === "AbortError") return;
       console.error("Auto-save failed:", err);
@@ -67,7 +68,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       writeToDisk();
-    }, 1500);
+    }, AUTOSAVE_DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -102,7 +103,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
     try {
       const handle = await window.showSaveFilePicker({
         types: DRAWD_FILE_TYPES,
-        suggestedName: "flow-export.drawd",
+        suggestedName: `${DEFAULT_EXPORT_FILENAME}${FILE_EXTENSION}`,
       });
 
       fileHandleRef.current = handle;
@@ -118,7 +119,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
 
       setSaveStatus("saved");
       if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
-      statusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+      statusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
     } catch (err) {
       if (err.name === "AbortError") return;
       console.error("Save As failed:", err);

@@ -1,10 +1,11 @@
 import { generateId } from "./generateId";
+import { MERGE_GAP } from "../constants";
 
 export function mergeFlow(importedScreens, importedConnections, existingScreens, importedDocuments = []) {
   const maxX = existingScreens.length > 0
     ? Math.max(...existingScreens.map((s) => s.x + s.width))
     : 0;
-  const offsetX = existingScreens.length > 0 ? maxX + 300 : 0;
+  const offsetX = existingScreens.length > 0 ? maxX + MERGE_GAP : 0;
 
   const screenIdMap = {};
   const hotspotIdMap = {};

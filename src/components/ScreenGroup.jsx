@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { COLORS, FONTS } from "../styles/theme";
+import { COLORS, FONTS, Z_INDEX } from "../styles/theme";
+import { HEADER_HEIGHT, DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT } from "../constants";
 
 const PADDING = 30;
-const HEADER_HEIGHT = 37;
 
 function computeBounds(groupScreenIds, screens) {
   const members = screens.filter((s) => groupScreenIds.includes(s.id));
@@ -10,8 +10,8 @@ function computeBounds(groupScreenIds, screens) {
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const s of members) {
-    const w = s.width || 220;
-    const h = s.imageHeight ? s.imageHeight + HEADER_HEIGHT : 200;
+    const w = s.width || DEFAULT_SCREEN_WIDTH;
+    const h = s.imageHeight ? s.imageHeight + HEADER_HEIGHT : DEFAULT_SCREEN_HEIGHT;
     minX = Math.min(minX, s.x);
     minY = Math.min(minY, s.y);
     maxX = Math.max(maxX, s.x + w);
@@ -50,7 +50,7 @@ export function ScreenGroup({ group, screens, onUpdate, onDelete, onMoveScreens 
         border: `1.5px dashed ${borderColor}`,
         borderRadius: 14,
         pointerEvents: "none",
-        zIndex: 0,
+        zIndex: Z_INDEX.screenGroup,
       }}
     >
       {/* Label + controls */}

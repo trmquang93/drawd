@@ -1,8 +1,10 @@
+import { FILE_VERSION, DEFAULT_FLOW_NAME } from "../constants";
+
 export function buildPayload(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = []) {
   return {
-    version: 10,
+    version: FILE_VERSION,
     metadata: {
-      name: "Untitled Flow",
+      name: DEFAULT_FLOW_NAME,
       exportedAt: new Date().toISOString(),
       screenCount: screens.length,
       connectionCount: connections.length,

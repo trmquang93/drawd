@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
-import { COLORS, FONTS } from "../styles/theme";
+import { COLORS, FONTS, Z_INDEX } from "../styles/theme";
 import { buildZip, downloadZip } from "../utils/zipBuilder";
+import { COPY_FEEDBACK_MS } from "../constants";
 
 function renderMarkdown(text) {
   const lines = text.split("\n");
@@ -92,14 +93,14 @@ export function InstructionsPanel({ instructions, onClose, isPreview = false }) 
     if (!activeFile) return;
     navigator.clipboard.writeText(activeFile.content);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
   }, [activeFile]);
 
   const copyAll = useCallback(() => {
     const all = files.map(f => f.content).join("\n\n---\n\n");
     navigator.clipboard.writeText(all);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
   }, [files]);
 
   const onDownloadZip = useCallback(() => {
@@ -121,7 +122,7 @@ export function InstructionsPanel({ instructions, onClose, isPreview = false }) 
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 1000,
+        zIndex: Z_INDEX.modal,
       }}
       onClick={onClose}
     >

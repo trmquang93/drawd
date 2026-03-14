@@ -1,4 +1,5 @@
 import { L_COLORS, L_FONTS } from "./landingTheme";
+import { DOMAIN } from "../../constants";
 
 // Floating annotation callouts over the screenshot
 function Callout({ text, style }) {
@@ -130,7 +131,7 @@ export default function DemoPreview() {
               textAlign: "center",
             }}
           >
-            drawd.app
+            {DOMAIN}
           </div>
           <div style={{ width: 72 }} />
         </div>
