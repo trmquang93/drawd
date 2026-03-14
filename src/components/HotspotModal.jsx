@@ -78,7 +78,7 @@ function savePresetsToStorage(presets) {
   }
 }
 
-export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDocument, prefilledTarget, prefilledRect, onSave, onDelete, onClose }) {
+export function HotspotModal({ screen, hotspot, connection, screens, documents = [], onAddDocument, prefilledTarget, prefilledRect, onSave, onDelete, onClose }) {
   const [presets, setPresets] = useState(loadPresets);
   const [label, setLabel] = useState(hotspot?.label || "");
   const [elementType, setElementType] = useState(hotspot?.elementType || "button");
@@ -111,6 +111,10 @@ export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDo
       ? hotspot.conditions
       : [{ id: generateId(), label: "", targetScreenId: "" }]
   );
+
+  // Transition (read from associated connection when opened via double-click)
+  const [transitionType, setTransitionType] = useState(connection?.transitionType || "");
+  const [transitionLabel, setTransitionLabel] = useState(connection?.transitionLabel || "");
 
   // TBD marker
   const [tbd, setTbd] = useState(hotspot?.tbd || false);
@@ -266,6 +270,8 @@ export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDo
             onErrorCustomDesc,
             conditions: action === "conditional" ? conditions : [],
             x, y, w, h,
+            transitionType,
+            transitionLabel: transitionType === "custom" ? transitionLabel : "",
             tbd,
             tbdNote: tbd ? tbdNote : "",
             validation: elementType === "text-input" && validationExpanded ? {
@@ -686,6 +692,40 @@ export function HotspotModal({ screen, hotspot, screens, documents = [], onAddDo
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Transition type — only visible when editing a connection-backed hotspot */}
+            {connection && (action === "navigate" || action === "back" || action === "modal" || action === "api") && (
+              <>
+                <label style={styles.monoLabel}>
+                  TRANSITION
+                  <select
+                    value={transitionType}
+                    onChange={(e) => setTransitionType(e.target.value)}
+                    style={styles.select}
+                  >
+                    <option value="">— Unspecified —</option>
+                    <option value="push">Push (stack navigation)</option>
+                    <option value="modal">Modal sheet</option>
+                    <option value="replace">Replace stack</option>
+                    <option value="pop">Pop (go back)</option>
+                    <option value="tab">Tab switch</option>
+                    <option value="custom">Custom…</option>
+                  </select>
+                </label>
+
+                {transitionType === "custom" && (
+                  <label style={styles.monoLabel}>
+                    CUSTOM TRANSITION
+                    <input
+                      value={transitionLabel}
+                      onChange={(e) => setTransitionLabel(e.target.value)}
+                      placeholder="e.g. fade-in overlay"
+                      style={styles.input}
+                    />
+                  </label>
+                )}
+              </>
             )}
 
             {/* TBD marker */}

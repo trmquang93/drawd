@@ -245,7 +245,7 @@ export default function Drawd() {
     if (!screen) return;
     if (conn.hotspotId) {
       const hotspot = screen.hotspots.find((h) => h.id === conn.hotspotId);
-      if (hotspot) setHotspotModal({ screen, hotspot });
+      if (hotspot) setHotspotModal({ screen, hotspot, connection: conn });
     } else {
       const groupConns = conn.conditionGroupId
         ? connections.filter((c) => c.conditionGroupId === conn.conditionGroupId)
@@ -787,9 +787,19 @@ export default function Drawd() {
           screens={screens}
           documents={documents}
           onAddDocument={addDocument}
+          connection={hotspotModal.connection || null}
           prefilledTarget={hotspotModal.prefilledTarget || null}
           prefilledRect={hotspotModal.prefilledRect || null}
-          onSave={(hs) => { saveHotspot(hotspotModal.screen.id, hs); setHotspotModal(null); }}
+          onSave={(hs) => {
+            saveHotspot(hotspotModal.screen.id, hs);
+            if (hotspotModal.connection) {
+              updateConnection(hotspotModal.connection.id, {
+                transitionType: hs.transitionType ?? "",
+                transitionLabel: hs.transitionLabel ?? "",
+              });
+            }
+            setHotspotModal(null);
+          }}
           onDelete={(id) => { deleteHotspot(hotspotModal.screen.id, id); setHotspotModal(null); }}
           onClose={() => setHotspotModal(null)}
         />
