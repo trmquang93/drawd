@@ -80,7 +80,7 @@ function renderMarkdown(text) {
   return html;
 }
 
-export function InstructionsPanel({ instructions, onClose, isPreview = false }) {
+export function InstructionsPanel({ instructions, onClose }) {
   const [activeTab, setActiveTab] = useState(0);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState("rendered");
@@ -159,29 +159,27 @@ export function InstructionsPanel({ instructions, onClose, isPreview = false }) 
                   fontWeight: 600,
                 }}
               >
-                {isPreview ? "Preview — AI Build Instructions" : "AI Build Instructions"}
+                AI Build Instructions
               </h3>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              {!isPreview && (
-                <button
-                  onClick={onDownloadZip}
-                  style={{
-                    padding: "7px 16px",
-                    background: "rgba(152,195,121,0.12)",
-                    border: "1px solid rgba(152,195,121,0.3)",
-                    borderRadius: 8,
-                    color: COLORS.success,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: FONTS.mono,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  Download ZIP
-                </button>
-              )}
+              <button
+                onClick={onDownloadZip}
+                style={{
+                  padding: "7px 16px",
+                  background: "rgba(152,195,121,0.12)",
+                  border: "1px solid rgba(152,195,121,0.3)",
+                  borderRadius: 8,
+                  color: COLORS.success,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: FONTS.mono,
+                  transition: "all 0.2s",
+                }}
+              >
+                Download ZIP
+              </button>
               <button
                 onClick={copyAll}
                 style={{

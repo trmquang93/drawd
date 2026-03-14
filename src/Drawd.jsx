@@ -193,7 +193,6 @@ export default function Drawd() {
   const [connectionEditModal, setConnectionEditModal] = useState(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [groupContextMenu, setGroupContextMenu] = useState(null); // { screenId, x, y }
   const [instructions, setInstructions] = useState(null);
   const [renameModal, setRenameModal] = useState(null);
@@ -333,7 +332,7 @@ export default function Drawd() {
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────────────
   useKeyboardShortcuts({
     hotspotModal, connectionEditModal, renameModal, importConfirm,
-    showInstructions, showPreview, showDocuments, showShortcuts, setShowShortcuts,
+    showInstructions, showDocuments, showShortcuts, setShowShortcuts,
     conditionalPrompt, editingConditionGroup,
     connecting, cancelConnecting,
     hotspotInteraction, cancelHotspotInteraction,
@@ -408,13 +407,6 @@ export default function Drawd() {
     setShowInstructions(true);
   }, [screens, connections, documents, scopeScreenIds, buildInstructionResult]);
 
-  const onPreview = useCallback(() => {
-    if (screens.length === 0) return;
-    const result = buildInstructionResult();
-    setInstructions(result);
-    setShowPreview(true);
-  }, [screens, buildInstructionResult]);
-
   const onScreensPanelClick = useCallback((screenId) => {
     setSelectedScreen(screenId);
     const screen = screens.find((s) => s.id === screenId);
@@ -471,7 +463,6 @@ export default function Drawd() {
         onExport={onExport}
         onImport={onImport}
         onGenerate={onGenerate}
-        onPreview={onPreview}
         onDocuments={() => setShowDocuments(true)}
         onDataModels={() => setShowDataModels(true)}
         canUndo={canUndo}
@@ -867,14 +858,6 @@ export default function Drawd() {
         <InstructionsPanel
           instructions={instructions}
           onClose={() => setShowInstructions(false)}
-        />
-      )}
-
-      {showPreview && (
-        <InstructionsPanel
-          instructions={instructions}
-          onClose={() => setShowPreview(false)}
-          isPreview
         />
       )}
 
