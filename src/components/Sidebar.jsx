@@ -121,14 +121,13 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
             style={{
               padding: "3px 9px",
               borderRadius: 4,
-              border: "none",
+              border: `1px solid ${screen.tbd ? "rgba(240,147,43,0.35)" : COLORS.border}`,
               background: screen.tbd ? "rgba(240,147,43,0.18)" : "rgba(255,255,255,0.05)",
               color: screen.tbd ? "#f0932b" : COLORS.textDim,
               fontFamily: FONTS.mono,
               fontSize: 11,
               fontWeight: 600,
               cursor: "pointer",
-              border: `1px solid ${screen.tbd ? "rgba(240,147,43,0.35)" : COLORS.border}`,
             }}
           >
             {screen.tbd ? "? TBD" : "Mark TBD"}

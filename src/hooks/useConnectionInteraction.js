@@ -2,12 +2,12 @@ import { useState, useCallback } from "react";
 
 export function useConnectionInteraction({
   screens,
-  connections,
+  connections: _connections,
   canvasRef,
   pan,
   zoom,
   addConnection,
-  addToConditionalGroup,
+  addToConditionalGroup: _addToConditionalGroup,
   convertToConditionalGroup,
 }) {
   const [connecting, setConnecting] = useState(null);

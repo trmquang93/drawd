@@ -53,7 +53,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       fileHandleRef.current = null;
       setConnectedFileName(null);
     }
-  }, [screens, connections, documents, dataModels]);
+  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups]);
 
   // Auto-save when screens, connections, or documents change
   useEffect(() => {
@@ -124,7 +124,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       console.error("Save As failed:", err);
       setSaveStatus("error");
     }
-  }, [screens, connections, documents]);
+  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups]);
 
   const disconnect = useCallback(() => {
     fileHandleRef.current = null;

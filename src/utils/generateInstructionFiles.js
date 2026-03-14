@@ -104,7 +104,6 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     : (PLATFORM_TERMINOLOGY[platform]?.name || platform);
   const featureBrief = options.featureBrief || "";
   const taskLink = options.taskLink || "";
-  const techStack = options.techStack || {};
   const allScreens = options.allScreens || screens;
 
   // Detect dominant device type
@@ -119,8 +118,6 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   const newScreens = allScreens.filter(s => !s.status || s.status === "new");
   const modifyScreens = allScreens.filter(s => s.status === "modify");
   const existingScreens = allScreens.filter(s => s.status === "existing");
-  const hasStatusInfo = newScreens.length + modifyScreens.length + existingScreens.length > 0 &&
-    (modifyScreens.length > 0 || existingScreens.length > 0);
 
   let md = `# AI Build Instructions\n\n`;
 

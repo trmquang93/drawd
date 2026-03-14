@@ -18,7 +18,7 @@ export function analyzeNavGraph(screens, connections) {
   return { entryScreens, tabBarPatterns, modalScreens, backLoops, navigationSummary };
 }
 
-function findEntryScreens(screens, connections, screenMap) {
+function findEntryScreens(screens, connections, _screenMap) {
   const incomingTargets = new Set();
   for (const conn of connections) {
     if (conn.action === 'navigate' || conn.action === 'modal') {

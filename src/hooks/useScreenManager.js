@@ -674,7 +674,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
       );
     }
 
-    const count = screenCounter.current++;
+    screenCounter.current++;
     const newScreen = {
       id: generateId(),
       name: parent.name,

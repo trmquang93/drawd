@@ -1,4 +1,4 @@
 import { createRoot } from "react-dom/client";
-import Drawd from "./Drawd";
+import App from "./App";
 
-createRoot(document.getElementById("root")).render(<Drawd />);
+createRoot(document.getElementById("root")).render(<App />);
