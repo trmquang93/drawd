@@ -112,7 +112,9 @@ export default function DocsPage() {
     const container = contentRef.current;
     const el = document.getElementById(`section-${id}`);
     if (!container || !el) return;
-    const top = el.offsetTop - 32;
+    const elRect = el.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const top = container.scrollTop + (elRect.top - containerRect.top) - 32;
     container.scrollTo({ top, behavior: "smooth" });
   }
 
