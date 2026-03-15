@@ -33,6 +33,7 @@ import { BatchSelectionBar } from "./components/BatchSelectionBar";
 import { SelectionOverlay } from "./components/SelectionOverlay";
 import { ToolBar } from "./components/ToolBar";
 import { StickyNote } from "./components/StickyNote";
+import { StickyNoteSidebar } from "./components/StickyNoteSidebar";
 import { ScreenGroup } from "./components/ScreenGroup";
 import { generateId } from "./utils/generateId";
 
@@ -466,6 +467,7 @@ export default function Drawd() {
 
   // ── Derived values ──────────────────────────────────────────────────────────────────
   const selectedScreenData = screens.find((s) => s.id === selectedScreen);
+  const selectedStickyNoteData = stickyNotes.find((n) => n.id === selectedStickyNote);
 
   const previewLine = connecting
     ? { fromScreenId: connecting.fromScreenId, toX: connecting.mouseX, toY: connecting.mouseY }
@@ -597,7 +599,7 @@ export default function Drawd() {
                 key={screen.id}
                 screen={screen}
                 selected={selectedScreen === screen.id}
-                onSelect={(id) => { clearSelection(); setSelectedScreen(id); }}
+                onSelect={(id) => { clearSelection(); setSelectedScreen(id); setSelectedStickyNote(null); }}
                 onDragStart={onDragStart}
                 isSpaceHeld={isSpaceHeld}
                 onAddHotspot={addHotspotViaConnect}
@@ -642,6 +644,14 @@ export default function Drawd() {
                 zoom={zoom}
                 onUpdate={updateStickyNote}
                 onDelete={deleteStickyNote}
+                selected={selectedStickyNote === note.id}
+                onSelect={(id) => {
+                  setSelectedStickyNote(id);
+                  setSelectedScreen(null);
+                  setSelectedConnection(null);
+                  setHotspotInteraction(null);
+                  setSelectedScreenGroup(null);
+                }}
                 isMultiSelected={canvasSelection.some((i) => i.type === "sticky" && i.id === note.id)}
                 onToggleSelect={toggleSelection}
                 onMultiDragStart={onMultiDragStart}
@@ -846,6 +856,15 @@ export default function Drawd() {
             onUpdateCodeRef={updateScreenCodeRef}
             onUpdateCriteria={updateScreenCriteria}
             onUpdateStatus={updateScreenStatus}
+          />
+        )}
+
+        {selectedStickyNoteData && (
+          <StickyNoteSidebar
+            note={selectedStickyNoteData}
+            onUpdate={updateStickyNote}
+            onDelete={deleteStickyNote}
+            onClose={() => setSelectedStickyNote(null)}
           />
         )}
       </div>

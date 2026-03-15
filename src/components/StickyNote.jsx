@@ -10,7 +10,7 @@ const NOTE_COLORS = {
 
 const COLOR_OPTIONS = ["yellow", "blue", "red", "green"];
 
-export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMultiSelected, onToggleSelect, onMultiDragStart }) {
+export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMultiSelected, onToggleSelect, onMultiDragStart, selected, onSelect }) {
   const [isEditing, setIsEditing] = useState(!note.content);
   const [showMenu, setShowMenu] = useState(false);
   const textareaRef = useRef(null);
@@ -29,8 +29,9 @@ export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMult
       onMultiDragStart?.(e);
       return;
     }
+    onSelect?.(note.id);
     onDragStart?.(e, note.id);
-  }, [note.id, onDragStart, isMultiSelected, onMultiDragStart, onToggleSelect]);
+  }, [note.id, onDragStart, isMultiSelected, onMultiDragStart, onToggleSelect, onSelect]);
 
   return (
     <div
@@ -44,10 +45,14 @@ export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMult
         background: colors.bg,
         border: isMultiSelected
           ? `2px dashed ${COLORS.warning}`
-          : `1.5px solid ${colors.border}`,
+          : selected
+            ? `2px solid ${COLORS.accent}`
+            : `1.5px solid ${colors.border}`,
         boxShadow: isMultiSelected
           ? `0 0 16px rgba(229,192,123,0.35), 0 4px 20px rgba(0,0,0,0.5)`
-          : `0 4px 20px rgba(0,0,0,0.5), 0 0 12px ${colors.border}22`,
+          : selected
+            ? `0 0 30px ${COLORS.accentGlow}, 0 8px 32px rgba(0,0,0,0.5)`
+            : `0 4px 20px rgba(0,0,0,0.5), 0 0 12px ${colors.border}22`,
         borderRadius: 10,
         cursor: "grab",
         userSelect: "none",
@@ -61,8 +66,8 @@ export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMult
       <div
         style={{
           padding: "6px 10px",
-          background: `${colors.border}22`,
-          borderBottom: `1px solid ${colors.border}33`,
+          background: selected ? `${COLORS.accent}15` : `${colors.border}22`,
+          borderBottom: `1px solid ${selected ? `${COLORS.accent}33` : `${colors.border}33`}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -91,7 +96,7 @@ export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMult
         </div>
 
         {note.author && (
-          <span style={{ fontSize: 9, color: colors.text, opacity: 0.6, fontFamily: FONTS.mono, flex: 1, textAlign: "center" }}>
+          <span style={{ fontSize: 9, color: selected ? COLORS.accentLight : colors.text, opacity: 0.6, fontFamily: FONTS.mono, flex: 1, textAlign: "center" }}>
             {note.author}
           </span>
         )}
