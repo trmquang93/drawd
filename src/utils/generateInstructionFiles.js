@@ -167,32 +167,63 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
 
   md += `---\n\n`;
 
-  md += `## Your Role as Orchestrator\n\n`;
+  // Instruction Files table — prominent placement so the AI sees it before the roster
+  md += `## Instruction Files\n\n`;
+  md += `> **All instruction files are in the SAME DIRECTORY as this file (\`main.md\`).**\n`;
+  md += `> Use the full path of this file's directory to locate them. These files contain\n`;
+  md += `> detailed specs that this file intentionally omits — you MUST read them during implementation.\n\n`;
+  md += `| File | Contains | When to read |\n`;
+  md += `|------|----------|--------------|\n`;
+  md += `| \`screens.md\` | Element types, hotspot positions, action mappings, acceptance criteria | Before implementing each screen |\n`;
+  md += `| \`navigation.md\` | Connection graph, entry points, tab bars, modals, back navigation | Before wiring any navigation |\n`;
+  md += `| \`build-guide.md\` | Platform-specific code patterns and action type mappings | Before writing implementation code |\n`;
+  md += `| \`images/\` | Reference PNGs — the definitive visual design | Before implementing each screen |\n`;
+  if (documents.length > 0) {
+    md += `| \`documents.md\` | API specs, design guides, and project reference documents | When a hotspot references an API call or external document |\n`;
+  }
+  md += `\n`;
+
+  md += `## How to Use These Instructions\n\n`;
+  md += `> **This instruction package works for both single-agent and multi-agent workflows.**\n`;
+  md += `>\n`;
   if (existingScreens.length > 0 || modifyScreens.length > 0) {
     md += `> **You are implementing a feature in an existing codebase.** Screens marked "Existing" are\n`;
     md += `> already implemented — do NOT rebuild them. Screens marked "Modify" need targeted changes.\n`;
     md += `> Screens marked "New" need to be created from scratch.\n`;
     md += `>\n`;
-  } else {
-    md += `> **You are the project orchestrator.** Your responsibility is to ship the implemented\n`;
-    md += `> flow — whether it's a single feature, a partial user journey, or a complete app. You plan,\n`;
-    md += `> delegate, track, and integrate. Assess the scope from the Screen Roster and navigation\n`;
-    md += `> summary below: it may be a standalone product or a feature to wire into an existing codebase.\n`;
-    md += `>\n`;
   }
-  md += `> **What you work from:** This file (\`main.md\`) gives you everything you need to plan and\n`;
-  md += `> delegate. You do NOT need to read the detail files (\`screens.md\`, \`navigation.md\`,\n`;
-  md += `> \`build-guide.md\`) yourself — those are for your sub-agents. Trust the Screen Roster and\n`;
-  md += `> navigation summary below to form your delegation strategy.\n`;
+  md += `> - **Single agent?** Follow the Implementation Workflow below for each screen yourself.\n`;
+  md += `>   Read every referenced file before coding.\n`;
+  md += `> - **Multi-agent orchestrator?** Delegate screens to sub-agents, including the\n`;
+  md += `>   Implementation Workflow in each sub-agent's prompt.\n`;
   md += `>\n`;
-  md += `> **Your core loop:**\n`;
-  md += `> 1. Study the Screen Roster and navigation pattern → assess scope and form a delegation plan\n`;
-  md += `> 2. Spawn sub-agent teams to implement screens in parallel\n`;
-  md += `> 3. Track progress; handle failures with retries\n`;
-  md += `> 4. Once all screens are done, wire shared navigation and the entry point\n\n`;
+  md += `> **Critical rule:** Every screen MUST be implemented by reading its spec in \`screens.md\`,\n`;
+  md += `> its connections in \`navigation.md\`, and its reference image in \`images/\`. Do NOT\n`;
+  md += `> implement from this summary alone.\n\n`;
+
+  md += `## Planning Requirements\n\n`;
+  md += `> **When you create an implementation plan, your plan MUST include these references\n`;
+  md += `> for EACH screen.** Plans that omit these references will drift from the spec.\n\n`;
+  md += `For every screen in your plan, include:\n\n`;
+  md += `1. **Screen ID** — the \`SCR-XXXXXXXX\` identifier from the Roster below\n`;
+  md += `2. **Image path** — full path to the reference image (same directory as this file + \`images/XX-name.png\`)\n`;
+  md += `3. **Spec reference** — full path to \`screens.md\` + section anchor \`SCR-XXXXXXXX\`\n`;
+  md += `4. **Connections** — list the navigation connections from \`navigation.md\` involving this screen\n`;
+  md += `5. **Key interactions** — summarize the hotspot actions from the Screen Roster (navigate, api, modal, etc.)\n\n`;
+  md += `**Example plan entry** (assuming this file is at \`/path/to/instructions/main.md\`):\n\n`;
+  md += `    Screen: Login (\`SCR-a1b2c3d4\`)\n`;
+  md += `    - Reference image: \`/path/to/instructions/images/01-login.png\`\n`;
+  md += `    - Spec: Read \`/path/to/instructions/screens.md\` > \`SCR-a1b2c3d4\` before implementing\n`;
+  md += `    - Navigation: Read \`/path/to/instructions/navigation.md\` for connections\n`;
+  md += `    - Connections: Login → Dashboard (navigate), Login → Forgot Password (navigate)\n`;
+  md += `    - Interactions: 2 buttons (Login → navigate, Forgot Password → navigate), 2 text inputs\n`;
+  md += `    - Status: New\n\n`;
+  md += `This ensures that when you move from planning to implementation, you still have\n`;
+  md += `the exact file paths needed to read the detailed specs — even when the instructions\n`;
+  md += `are not in the project folder.\n\n`;
 
   md += `## Screen Roster\n\n`;
-  md += `Use this inventory to plan your delegation. Each sub-agent will implement one screen.\n\n`;
+  md += `Use this inventory to plan implementation. Each screen must be implemented following the Implementation Workflow below.\n\n`;
 
   // Build screenId → group lookup
   const screenGroupMap = {};
@@ -204,11 +235,11 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   const hasGroups = screenGroups.length > 0;
 
   if (hasGroups) {
-    md += `| # | ID | Screen | Image | Group | Status | TBD | Access | Role |\n`;
-    md += `|---|-------|--------|-------|-------|--------|-----|--------|------|\n`;
+    md += `| # | ID | Screen | Image | Spec | Group | Status | TBD | Access | Role |\n`;
+    md += `|---|-------|--------|-------|------|-------|--------|-----|--------|------|\n`;
   } else {
-    md += `| # | ID | Screen | Image | Status | TBD | Access | Role |\n`;
-    md += `|---|-------|--------|-------|--------|-----|--------|------|\n`;
+    md += `| # | ID | Screen | Image | Spec | Status | TBD | Access | Role |\n`;
+    md += `|---|-------|--------|-------|------|--------|-----|--------|------|\n`;
   }
 
   sorted.forEach((s, i) => {
@@ -228,10 +259,11 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     const tbdLabel = s.tbd ? "⚠️" : "—";
     const accessLabel = (s.roles && s.roles.length > 0) ? s.roles.join(", ") : "—";
     const groupLabel = screenGroupMap[s.id] ? screenGroupMap[s.id].name : "—";
+    const specRef = `\`screens.md\` > \`${reqId}\``;
     if (hasGroups) {
-      md += `| ${i + 1} | \`${reqId}\` | ${s.name}${stateLabel} | \`${imgRef}\` | ${groupLabel} | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
+      md += `| ${i + 1} | \`${reqId}\` | ${s.name}${stateLabel} | \`${imgRef}\` | ${specRef} | ${groupLabel} | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
     } else {
-      md += `| ${i + 1} | \`${reqId}\` | ${s.name}${stateLabel} | \`${imgRef}\` | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
+      md += `| ${i + 1} | \`${reqId}\` | ${s.name}${stateLabel} | \`${imgRef}\` | ${specRef} | ${statusLabel} | ${tbdLabel} | ${accessLabel} | ${navRoles.length > 0 ? navRoles.join(", ") : "screen"} |\n`;
     }
   });
   md += `\n`;
@@ -259,6 +291,41 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
     md += `\n`;
   }
 
+  md += `## Implementation Workflow\n\n`;
+  md += `**Follow these steps for EVERY screen.** Do not skip or reorder steps.\n\n`;
+  md += `### Step 1 — Read the reference image (REQUIRED)\n\n`;
+  md += `Open the screen's PNG from the \`images/\` folder in the same directory as this file.\n`;
+  md += `Use the full path from the Roster. Study colors, typography, spacing, layout.\n`;
+  md += `**Do not proceed until you have analyzed the image.**\n\n`;
+  md += `### Step 2 — Read the screen spec in \`screens.md\`\n\n`;
+  md += `Open \`screens.md\` (same directory as this file) and find the screen by its ID\n`;
+  md += `(e.g., \`SCR-XXXXXXXX\`). Read the FULL entry:\n\n`;
+  md += `- Interactive Elements table (element types, positions, actions)\n`;
+  md += `- Action detail blocks (API endpoints, conditional branches, custom descriptions)\n`;
+  md += `- Implementation notes and acceptance criteria\n`;
+  md += `- Device type\n\n`;
+  md += `**Include these details in your plan for this screen** so they are available\n`;
+  md += `during implementation.\n\n`;
+  md += `### Step 3 — Read connections in \`navigation.md\`\n\n`;
+  md += `Open \`navigation.md\` (same directory) and find all connections involving this screen.\n`;
+  md += `**Add the connection list to your plan** — include source, target, trigger, and action.\n\n`;
+  md += `### Step 4 — Read platform patterns in \`build-guide.md\`\n\n`;
+  md += `Open \`build-guide.md\` (same directory).\n`;
+  md += `Review action type mappings for the target platform.\n\n`;
+  if (documents.length > 0) {
+    md += `### Step 4b — Read API / reference documents in \`documents.md\`\n\n`;
+    md += `If a hotspot involves an API call or references a document, open \`documents.md\`\n`;
+    md += `(same directory) for specs, payloads, and design guides before implementing.\n\n`;
+  }
+  md += `### Step 5 — Implement\n\n`;
+  md += `Build the screen matching the reference image exactly (unless design override active).\n`;
+  md += `Wire all interactions per the spec from Steps 2–3.\n\n`;
+  md += `> **Before writing code:** Re-read the screen's spec in \`screens.md\` if your plan\n`;
+  md += `> does not include the full hotspot/action details. Do NOT implement from memory.\n\n`;
+  md += `### Step 6 — Verify\n\n`;
+  md += `Compare implementation to the reference image. Confirm all hotspot actions and\n`;
+  md += `navigation connections match \`screens.md\` and \`navigation.md\`.\n\n`;
+
   md += `## Delegation & Progress Tracking\n\n`;
   md += `Analyze the Screen Roster and the navigation pattern above, then decide:\n\n`;
   md += `- **How to group screens into teams** — consider which screens are independent vs. share\n`;
@@ -266,60 +333,28 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   md += `- **Parallelism** — screens with no shared dependencies can be implemented simultaneously;\n`;
   md += `  screens that share components or build on each other should be sequenced\n`;
   md += `- **How to track progress** — use whatever format keeps you accurate (checklist, table,\n`;
-  md += `  counter). Update it as each sub-agent reports back.\n\n`;
-  md += `> **Before spawning any sub-agents:** state your delegation plan — which screens go to which\n`;
-  md += `> team/wave, and why. This keeps you accountable and makes retries easier to reason about.\n\n`;
+  md += `  counter). Update it as each agent reports back.\n\n`;
+  md += `> **Before starting implementation:** state your plan — which screens go in which wave,\n`;
+  md += `> and which spec files you will read for each. This keeps you accountable and makes retries easier.\n\n`;
+  md += `> **The most common failure mode is skipping Steps 2–4 and implementing from this\n`;
+  md += `> summary alone — the summary intentionally omits detail that exists in \`screens.md\`,\n`;
+  md += `> \`navigation.md\`, and \`build-guide.md\`.**\n\n`;
 
   md += `## Design Override\n\n`;
   md += `If the user has explicitly stated that the designs are approximate — for example:\n`;
   md += `*"design is just a demo"*, *"screens are placeholders"*, *"don't follow the design exactly"*,\n`;
-  md += `*"use your own judgment for visuals"* — then pass this override to every sub-agent.\n`;
+  md += `*"use your own judgment for visuals"* — then apply this override to every screen.\n`;
   md += `In override mode: preserve element positions and hierarchy from the images, but apply\n`;
   md += `your own color scheme, typography, and visual polish. Do not pixel-match.\n\n`;
-  md += `**Default (no override):** instruct sub-agents to match the reference images precisely.\n\n`;
+  md += `**Default (no override):** match the reference images precisely.\n\n`;
 
-  md += `## Sub-Agent Contract\n\n`;
-  md += `Every sub-agent you spawn **must** follow these steps in order. Include this contract in\n`;
-  md += `each sub-agent's prompt (substitute the screen name and image path from the Roster above):\n\n`;
-  md += `\`\`\`\n`;
-  md += `Implement the [Screen Name] screen.\n`;
-  md += `\n`;
-  md += `Step 1 — REQUIRED: Open and visually analyze [image path from roster]. Study the exact\n`;
-  md += `colors, typography, spacing, component layout, icons, and visual hierarchy. Do not proceed\n`;
-  md += `to step 2 until you have read the image.\n`;
-  md += `\n`;
-  md += `Step 2: Read the [Screen Name] section in screens.md for element types, hotspot positions,\n`;
-  md += `and action mappings.\n`;
-  md += `\n`;
-  md += `Step 3: Read the relevant sections in navigation.md to understand how this screen connects\n`;
-  md += `to the rest of the app.\n`;
-  md += `\n`;
-  md += `Step 4: Read build-guide.md for platform patterns and implement the screen, matching the\n`;
-  md += `reference image exactly (unless the orchestrator passed a design override).\n`;
-  md += `\n`;
-  md += `Step 5: Wire all interactions (navigate, back, modal, api, custom) using the patterns\n`;
-  md += `from build-guide.md.\n`;
-  md += `\n`;
-  md += `Step 6 — Verification: Compare your implementation to the reference image and adjust\n`;
-  md += `until they match.\n`;
-  md += `\n`;
-  md += `When done, report back:\n`;
-  md += `- What was implemented\n`;
-  md += `- Any blockers or unresolved interactions\n`;
-  md += `- Confidence level (High / Medium / Low) on visual fidelity\n`;
-  md += `\`\`\`\n\n`;
-  if (documents.length > 0) {
-    md += `> **API / Reference Documents:** If a sub-agent encounters an API call or references a\n`;
-    md += `> document, point them to \`documents.md\` for specs, payloads, and design guides.\n\n`;
-  }
-
-  md += `## Orchestrator Responsibilities\n\n`;
-  md += `After all sub-agents report back:\n\n`;
-  md += `1. **Review results** — check each agent's completion status and confidence level\n`;
-  md += `2. **Retry failures** — for any agent that failed or reported Low confidence, re-spawn\n`;
-  md += `   with the specific issue called out and tighter instructions\n`;
-  md += `3. **Wire the app** — once all screens pass, implement shared navigation setup, routing,\n`;
-  md += `   tab bar wiring, and the app entry point connecting all screens together\n`;
+  md += `## Final Integration\n\n`;
+  md += `After all screens are implemented:\n\n`;
+  md += `1. **Review results** — check each screen's completion status and confidence level\n`;
+  md += `2. **Retry failures** — for any screen that failed or has Low confidence, revisit\n`;
+  md += `   with the specific issue called out and the spec re-read\n`;
+  md += `3. **Wire the app** — implement shared navigation setup, routing, tab bar wiring,\n`;
+  md += `   and the app entry point connecting all screens together\n`;
   md += `4. **Final check** — confirm the navigation graph matches \`navigation.md\` and that all\n`;
   md += `   connections between screens work end-to-end\n\n`;
 
@@ -346,15 +381,6 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
       md += `\n`;
     }
   }
-
-  md += `## File Reference\n\n`;
-  md += `- **screens.md** — Detailed screen specifications, hotspots, and element descriptions\n`;
-  md += `- **navigation.md** — Navigation architecture, flow connections, and graph analysis\n`;
-  md += `- **build-guide.md** — Platform-specific implementation instructions and code patterns\n`;
-  if (documents.length > 0) {
-    md += `- **documents.md** — Project reference documents (API specs, design guides, etc.)\n`;
-  }
-  md += `- **images/** — Screen reference images (**PRIMARY design specification** — open and analyze each PNG)\n`;
 
   return md;
 }
