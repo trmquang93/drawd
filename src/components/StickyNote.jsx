@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { FONTS } from "../styles/theme";
+import { FONTS, COLORS } from "../styles/theme";
 
 const NOTE_COLORS = {
   yellow: { bg: "#2d2a00", border: "#f0c040", text: "#f5e17a", placeholder: "rgba(245,225,122,0.4)" },
@@ -10,7 +10,7 @@ const NOTE_COLORS = {
 
 const COLOR_OPTIONS = ["yellow", "blue", "red", "green"];
 
-export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart }) {
+export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart, isMultiSelected, onToggleSelect, onMultiDragStart }) {
   const [isEditing, setIsEditing] = useState(!note.content);
   const [showMenu, setShowMenu] = useState(false);
   const textareaRef = useRef(null);
@@ -19,8 +19,18 @@ export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart }) {
   const handleMouseDown = useCallback((e) => {
     if (e.target.closest(".sticky-controls")) return;
     if (e.target.tagName === "TEXTAREA") return;
+    if (e.shiftKey || e.metaKey) {
+      e.stopPropagation();
+      onToggleSelect?.("sticky", note.id);
+      return;
+    }
+    if (isMultiSelected) {
+      e.stopPropagation();
+      onMultiDragStart?.(e);
+      return;
+    }
     onDragStart?.(e, note.id);
-  }, [note.id, onDragStart]);
+  }, [note.id, onDragStart, isMultiSelected, onMultiDragStart, onToggleSelect]);
 
   return (
     <div
@@ -32,9 +42,13 @@ export function StickyNote({ note, zoom, onUpdate, onDelete, onDragStart }) {
         width: note.width || 220,
         minHeight: 120,
         background: colors.bg,
-        border: `1.5px solid ${colors.border}`,
+        border: isMultiSelected
+          ? `2px dashed ${COLORS.warning}`
+          : `1.5px solid ${colors.border}`,
+        boxShadow: isMultiSelected
+          ? `0 0 16px rgba(229,192,123,0.35), 0 4px 20px rgba(0,0,0,0.5)`
+          : `0 4px 20px rgba(0,0,0,0.5), 0 0 12px ${colors.border}22`,
         borderRadius: 10,
-        boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 12px ${colors.border}22`,
         cursor: "grab",
         userSelect: "none",
         zIndex: 5,

@@ -11,6 +11,7 @@ import { useHotspotInteraction } from "./hooks/useHotspotInteraction";
 import { useCanvasMouseHandlers } from "./hooks/useCanvasMouseHandlers";
 import { useImportExport } from "./hooks/useImportExport";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useCanvasSelection } from "./hooks/useCanvasSelection";
 import { ScreenNode } from "./components/ScreenNode";
 import { ConnectionLines } from "./components/ConnectionLines";
 import { HotspotModal } from "./components/HotspotModal";
@@ -28,6 +29,8 @@ import { InlineConditionLabels } from "./components/InlineConditionLabels";
 import { ShortcutsPanel } from "./components/ShortcutsPanel";
 import { ScreensPanel } from "./components/ScreensPanel";
 import { BatchHotspotBar } from "./components/BatchHotspotBar";
+import { BatchSelectionBar } from "./components/BatchSelectionBar";
+import { SelectionOverlay } from "./components/SelectionOverlay";
 import { ToolBar } from "./components/ToolBar";
 import { StickyNote } from "./components/StickyNote";
 import { ScreenGroup } from "./components/ScreenGroup";
@@ -40,13 +43,13 @@ export default function Drawd() {
 
   // ── Core hooks ──────────────────────────────────────────────
   const {
-    pan, setPan, zoom, setZoom, isPanning, dragging, canvasRef,
-    isSpaceHeld, spaceHeld, handleDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown,
+    pan, setPan, zoom, setZoom, isPanning, dragging, multiDragging, canvasRef,
+    isSpaceHeld, spaceHeld, handleDragStart, handleMultiDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown,
   } = useCanvas(activeTool);
 
   const {
     screens, connections, documents, selectedScreen, setSelectedScreen,
-    fileInputRef, addScreen, addScreenAtCenter, removeScreen, renameScreen, moveScreen,
+    fileInputRef, addScreen, addScreenAtCenter, removeScreen, removeScreens, renameScreen, moveScreen, moveScreens,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, deleteHotspots, moveHotspot, resizeHotspot, updateScreenDimensions,
     updateScreenDescription, updateScreenNotes, updateScreenTbd, updateScreenRoles, updateScreenCodeRef, updateScreenCriteria, assignScreenImage, quickConnectHotspot,
@@ -57,6 +60,14 @@ export default function Drawd() {
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
     updateScreenStatus, markAllExisting,
   } = useScreenManager(pan, zoom, canvasRef);
+
+  // ── Canvas multi-object selection ────────────────────────────────────────
+  const {
+    canvasSelection, setCanvasSelection,
+    rubberBand, rubberBandRect,
+    toggleSelection, clearSelection,
+    startRubberBand, updateRubberBand, completeRubberBand,
+  } = useCanvasSelection();
 
   // ── Feature brief + scope ─────────────────────────────────────────────────
   const [featureBrief, setFeatureBrief] = useState("");
@@ -319,8 +330,12 @@ export default function Drawd() {
       editingConditionGroup, setEditingConditionGroup,
       selectedHotspots, setSelectedHotspots,
       handleCanvasMouseDown, handleMouseMove, handleMouseUp,
-      isSpaceHeld, spaceHeld, isPanning, dragging,
-      setSelectedScreen, moveScreen,
+      isSpaceHeld, spaceHeld, isPanning, dragging, multiDragging,
+      setSelectedScreen, moveScreen, moveScreens,
+      updateStickyNote, stickyNotes,
+      canvasSelection, clearSelection,
+      startRubberBand, updateRubberBand, completeRubberBand,
+      rubberBand, setCanvasSelection,
       pan, zoom, canvasRef,
       activeTool,
     });
@@ -338,6 +353,7 @@ export default function Drawd() {
     hotspotInteraction, cancelHotspotInteraction,
     selectedConnection, setSelectedConnection,
     selectedHotspots, setSelectedHotspots,
+    canvasSelection, clearSelection, removeScreens, deleteStickyNote, addScreenGroup, screens,
     connections, deleteHotspots, deleteConnection, deleteConnectionGroup,
     selectedScreen, removeScreen,
     undo, redo, saveNow, isFileSystemSupported, onSaveAs, onExport, onOpen,
@@ -361,6 +377,27 @@ export default function Drawd() {
     captureDragSnapshot();
     handleDragStart(e, screenId, screens);
   }, [handleDragStart, screens, captureDragSnapshot, activeTool]);
+
+  const onMultiDragStart = useCallback((e) => {
+    if (activeTool === "pan") return;
+    captureDragSnapshot();
+    handleMultiDragStart(e, canvasSelection, screens, stickyNotes);
+  }, [activeTool, captureDragSnapshot, handleMultiDragStart, canvasSelection, screens, stickyNotes]);
+
+  const onGroupSelection = useCallback(() => {
+    const selectedScreenIds = canvasSelection.filter((i) => i.type === "screen").map((i) => i.id);
+    if (selectedScreenIds.length === 0) return;
+    addScreenGroup("Group", selectedScreenIds);
+    clearSelection();
+  }, [canvasSelection, addScreenGroup, clearSelection]);
+
+  const onDeleteSelection = useCallback(() => {
+    const screenIds = canvasSelection.filter((i) => i.type === "screen").map((i) => i.id);
+    const stickyIds = canvasSelection.filter((i) => i.type === "sticky").map((i) => i.id);
+    if (screenIds.length > 0) removeScreens(screenIds);
+    stickyIds.forEach((id) => deleteStickyNote(id));
+    clearSelection();
+  }, [canvasSelection, removeScreens, deleteStickyNote, clearSelection]);
 
   const addHotspot = useCallback((screenId) => {
     const screen = screens.find((s) => s.id === screenId);
@@ -408,6 +445,7 @@ export default function Drawd() {
   }, [screens, connections, documents, scopeScreenIds, buildInstructionResult]);
 
   const onScreensPanelClick = useCallback((screenId) => {
+    clearSelection();
     setSelectedScreen(screenId);
     const screen = screens.find((s) => s.id === screenId);
     if (!screen || !canvasRef.current) return;
@@ -418,7 +456,7 @@ export default function Drawd() {
     const centerX = screen.x + screenW / 2;
     const centerY = screen.y + screenH / 2;
     setPan({ x: vw / 2 - centerX * zoom, y: vh / 2 - centerY * zoom });
-  }, [screens, zoom, canvasRef, setPan, setSelectedScreen]);
+  }, [screens, zoom, canvasRef, setPan, setSelectedScreen, clearSelection]);
 
   // ── Derived values ──────────────────────────────────────────────────────────────────
   const selectedScreenData = screens.find((s) => s.id === selectedScreen);
@@ -545,7 +583,7 @@ export default function Drawd() {
                 key={screen.id}
                 screen={screen}
                 selected={selectedScreen === screen.id}
-                onSelect={setSelectedScreen}
+                onSelect={(id) => { clearSelection(); setSelectedScreen(id); }}
                 onDragStart={onDragStart}
                 isSpaceHeld={isSpaceHeld}
                 onAddHotspot={addHotspotViaConnect}
@@ -578,6 +616,9 @@ export default function Drawd() {
                   const rect = canvasRef.current?.getBoundingClientRect();
                   setGroupContextMenu({ screenId: screen.id, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) });
                 }}
+                isMultiSelected={canvasSelection.some((i) => i.type === "screen" && i.id === screen.id)}
+                onToggleSelect={toggleSelection}
+                onMultiDragStart={onMultiDragStart}
               />
             ))}
             {stickyNotes.map((note) => (
@@ -587,6 +628,9 @@ export default function Drawd() {
                 zoom={zoom}
                 onUpdate={updateStickyNote}
                 onDelete={deleteStickyNote}
+                isMultiSelected={canvasSelection.some((i) => i.type === "sticky" && i.id === note.id)}
+                onToggleSelect={toggleSelection}
+                onMultiDragStart={onMultiDragStart}
                 onDragStart={(e, id) => {
                   e.stopPropagation();
                   const startX = e.clientX;
@@ -607,6 +651,7 @@ export default function Drawd() {
                 }}
               />
             ))}
+            <SelectionOverlay rubberBandRect={rubberBandRect} />
             <ConnectionLines
               screens={screens}
               connections={connections}
@@ -891,7 +936,16 @@ export default function Drawd() {
 
       {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
 
-      {selectedHotspots.length > 0 && (
+      {canvasSelection.length > 0 && (
+        <BatchSelectionBar
+          count={canvasSelection.length}
+          onDelete={onDeleteSelection}
+          onGroup={onGroupSelection}
+          onCancel={clearSelection}
+        />
+      )}
+
+      {selectedHotspots.length > 0 && canvasSelection.length === 0 && (
         <BatchHotspotBar
           count={selectedHotspots.length}
           hasClipboard={!!hotspotClipboard.current}

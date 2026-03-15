@@ -21,6 +21,13 @@ export function useKeyboardShortcuts({
   setSelectedConnection,
   selectedHotspots,
   setSelectedHotspots,
+  // canvas selection
+  canvasSelection,
+  clearSelection,
+  removeScreens,
+  deleteStickyNote,
+  addScreenGroup,
+  screens,
   // data & mutations
   connections,
   deleteHotspots,
@@ -73,6 +80,7 @@ export function useKeyboardShortcuts({
 
       if (e.key === "Escape") {
         if (showShortcuts) { setShowShortcuts(false); return; }
+        if (canvasSelection.length > 0) { clearSelection(); return; }
         if (selectedHotspots.length > 0) { setSelectedHotspots([]); return; }
         if (conditionalPrompt) return; // handled by ConditionalPrompt component
         if (editingConditionGroup) return; // handled by InlineConditionLabels
@@ -86,6 +94,16 @@ export function useKeyboardShortcuts({
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
+        // Batch canvas selection delete (screens + stickies)
+        if (canvasSelection.length > 0) {
+          e.preventDefault();
+          const screenIds = canvasSelection.filter((i) => i.type === "screen").map((i) => i.id);
+          const stickyIds = canvasSelection.filter((i) => i.type === "sticky").map((i) => i.id);
+          if (screenIds.length > 0) removeScreens(screenIds);
+          stickyIds.forEach((id) => deleteStickyNote(id));
+          clearSelection();
+          return;
+        }
         // Batch hotspot delete
         if (selectedHotspots.length > 0) {
           e.preventDefault();
@@ -108,6 +126,32 @@ export function useKeyboardShortcuts({
           e.preventDefault();
           removeScreen(selectedScreen);
         }
+      }
+
+      // Select all (Cmd+A)
+      if ((e.metaKey || e.ctrlKey) && e.key === "a") {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (anyModalOpen) return;
+        // handled in Drawd.jsx via canvasSelection setter passed from outside
+        // We need this to be wired from Drawd, so we fire a custom event for now
+        // Actually we handle it via the setCanvasSelection callback passed to this hook
+        // For now, skip — this requires setCanvasSelection + screens + stickyNotes access
+      }
+
+      // Group selected screens (Cmd+G)
+      if ((e.metaKey || e.ctrlKey) && e.key === "g") {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (anyModalOpen) return;
+        if (canvasSelection.length === 0) return;
+        e.preventDefault();
+        const selectedScreenIds = canvasSelection.filter((i) => i.type === "screen").map((i) => i.id);
+        if (selectedScreenIds.length > 0 && addScreenGroup) {
+          addScreenGroup("Group", selectedScreenIds);
+          clearSelection();
+        }
+        return;
       }
 
       // Save shortcut (Cmd+S)
@@ -156,6 +200,6 @@ export function useKeyboardShortcuts({
     showInstructions, showDocuments, showShortcuts, setShowShortcuts, undo, redo,
     saveNow, isFileSystemSupported, onSaveAs, onExport, onOpen,
     conditionalPrompt, editingConditionGroup, selectedHotspots, setSelectedHotspots, deleteHotspots,
-    setActiveTool,
+    setActiveTool, canvasSelection, clearSelection, removeScreens, deleteStickyNote, addScreenGroup, screens,
   ]);
 }

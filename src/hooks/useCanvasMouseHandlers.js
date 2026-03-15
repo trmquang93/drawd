@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { computeDrawRect, computeRepositionDelta, computeResize, hitTestScreen } from "../utils/canvasMath.js";
-import { HEADER_HEIGHT } from "../constants";
+import { HEADER_HEIGHT, RUBBER_BAND_THRESHOLD } from "../constants";
 const resizeCursors = {
   nw: "nwse-resize", n: "ns-resize", ne: "nesw-resize", e: "ew-resize",
   se: "nwse-resize", s: "ns-resize", sw: "nesw-resize", w: "ew-resize",
@@ -35,9 +35,21 @@ export function useCanvasMouseHandlers({
   spaceHeld,
   isPanning,
   dragging,
+  multiDragging,
   // screen management
   setSelectedScreen,
   moveScreen,
+  moveScreens,
+  updateStickyNote,
+  stickyNotes,
+  // canvas selection
+  canvasSelection,
+  clearSelection,
+  startRubberBand,
+  updateRubberBand,
+  completeRubberBand,
+  rubberBand,
+  setCanvasSelection,
   // viewport
   pan,
   zoom,
@@ -88,9 +100,19 @@ export function useCanvasMouseHandlers({
     if (hotspotInteraction?.mode === "draw" || hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "hotspot-drag" || hotspotInteraction?.mode === "resize" || hotspotInteraction?.mode === "conn-endpoint-drag") {
       return;
     }
-    const wasPan = handleCanvasMouseDown(e);
-    if (wasPan) setSelectedScreen(null);
-  }, [handleCanvasMouseDown, setSelectedScreen, connecting, cancelConnecting, hotspotInteraction, setHotspotInteraction, selectedConnection, setSelectedConnection, isSpaceHeld, conditionalPrompt, onConditionalPromptCancel, editingConditionGroup, setEditingConditionGroup, selectedHotspots, setSelectedHotspots, activeTool]);
+    const result = handleCanvasMouseDown(e);
+    if (result === true) {
+      setSelectedScreen(null);
+    } else if (result === "empty") {
+      // Start rubber-band selection
+      const rect = canvasRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - pan.x) / zoom;
+      const worldY = (e.clientY - rect.top - pan.y) / zoom;
+      if (!e.shiftKey && !e.metaKey) clearSelection();
+      startRubberBand(worldX, worldY);
+      setSelectedScreen(null);
+    }
+  }, [handleCanvasMouseDown, setSelectedScreen, connecting, cancelConnecting, hotspotInteraction, setHotspotInteraction, selectedConnection, setSelectedConnection, isSpaceHeld, conditionalPrompt, onConditionalPromptCancel, editingConditionGroup, setEditingConditionGroup, selectedHotspots, setSelectedHotspots, activeTool, clearSelection, startRubberBand, canvasRef, pan, zoom]);
 
   const onCanvasMouseMove = useCallback((e) => {
     if (hotspotInteraction?.mode === "draw") {
@@ -172,9 +194,26 @@ export function useCanvasMouseHandlers({
       setConnecting((prev) => ({ ...prev, mouseX, mouseY }));
       return;
     }
+
+    // Rubber-band: update rect
+    if (rubberBand) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - pan.x) / zoom;
+      const worldY = (e.clientY - rect.top - pan.y) / zoom;
+      updateRubberBand(worldX, worldY);
+      return;
+    }
+
     const result = handleMouseMove(e);
-    if (result?.type === "drag") moveScreen(result.id, result.x, result.y);
-  }, [handleMouseMove, moveScreen, connecting, setConnecting, canvasRef, pan, zoom, hotspotInteraction, setHotspotInteraction, screens, moveHotspot, resizeHotspot]);
+    if (result?.type === "drag") {
+      moveScreen(result.id, result.x, result.y);
+    } else if (result?.type === "multi-drag") {
+      const screenMoves = result.items.filter((i) => i.type === "screen");
+      const stickyMoves = result.items.filter((i) => i.type === "sticky");
+      if (screenMoves.length > 0) moveScreens(screenMoves);
+      stickyMoves.forEach((item) => updateStickyNote(item.id, { x: item.x, y: item.y }));
+    }
+  }, [handleMouseMove, moveScreen, moveScreens, updateStickyNote, connecting, setConnecting, canvasRef, pan, zoom, hotspotInteraction, setHotspotInteraction, screens, moveHotspot, resizeHotspot, rubberBand, updateRubberBand]);
 
   const onCanvasMouseUp = useCallback((e) => {
     // Handle connection endpoint drag completion
@@ -225,10 +264,40 @@ export function useCanvasMouseHandlers({
       cancelConnecting();
       return;
     }
+
+    // Handle rubber-band completion
+    if (rubberBand) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const startScreenX = rubberBand.startX * zoom + pan.x;
+      const startScreenY = rubberBand.startY * zoom + pan.y;
+      const dx = e.clientX - rect.left - startScreenX;
+      const dy = e.clientY - rect.top - startScreenY;
+      const distPx = Math.sqrt(dx * dx + dy * dy);
+      const selected = completeRubberBand(screens, stickyNotes, rubberBand);
+
+      if (distPx >= RUBBER_BAND_THRESHOLD && selected.length > 0) {
+        if (e.shiftKey || e.metaKey) {
+          setCanvasSelection((prev) => {
+            const existing = new Set(prev.map((i) => `${i.type}:${i.id}`));
+            const next = [...prev];
+            selected.forEach((item) => {
+              if (!existing.has(`${item.type}:${item.id}`)) next.push(item);
+            });
+            return next;
+          });
+        } else {
+          setCanvasSelection(selected);
+        }
+      } else if (!e.shiftKey && !e.metaKey) {
+        clearSelection();
+      }
+      return;
+    }
+
     const wasDragging = !!dragging;
-    handleMouseUp(e);
-    if (wasDragging) commitDragSnapshot();
-  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, setHotspotInteraction, screens, updateConnection, dragging, commitDragSnapshot]);
+    const { wasMultiDragging } = handleMouseUp(e);
+    if (wasDragging || wasMultiDragging) commitDragSnapshot();
+  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, setHotspotInteraction, screens, stickyNotes, updateConnection, dragging, commitDragSnapshot, rubberBand, completeRubberBand, clearSelection, setCanvasSelection, canvasRef, pan, zoom]);
 
   const onCanvasMouseLeave = useCallback((e) => {
     if (hotspotInteraction?.mode === "conn-endpoint-drag") {
@@ -257,6 +326,8 @@ export function useCanvasMouseHandlers({
 
   const canvasCursor = activeTool === "pan"
     ? (isPanning ? "grabbing" : "grab")
+    : rubberBand
+    ? "crosshair"
     : connecting || hotspotInteraction?.mode === "hotspot-drag" || hotspotInteraction?.mode === "conn-endpoint-drag"
     ? "crosshair"
     : hotspotInteraction?.mode === "draw"

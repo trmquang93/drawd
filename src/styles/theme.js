@@ -39,6 +39,9 @@ export const COLORS = {
   statusExistingBorder: "#444",
   statusTbd: "#f0932b",
   imageAreaBg: "#0d0d15",
+  // Multi-object selection
+  selection: "rgba(97,175,239,0.08)",
+  selectionBorder: "#61afef",
 };
 
 export const FONTS = {
@@ -52,6 +55,7 @@ export const FONT_LINK =
 
 export const Z_INDEX = {
   screenGroup: 0,
+  selectionOverlay: 1,
   hotspotHandle: 2,
   resizeHandle: 3,
   dragOverlay: 5,

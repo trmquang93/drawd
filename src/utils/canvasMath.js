@@ -81,6 +81,47 @@ export function computeResize(handle, dragStart, currentClient, imageRect, zoom,
 }
 
 /**
+ * Rect-rect intersection test for rubber-band selection.
+ * a, b: {x, y, width, height} in world coordinates
+ * returns: boolean
+ */
+export function rectsIntersect(a, b) {
+  return !(
+    a.x + a.width <= b.x ||
+    b.x + b.width <= a.x ||
+    a.y + a.height <= b.y ||
+    b.y + b.height <= a.y
+  );
+}
+
+/**
+ * Returns the bounding box {x, y, width, height} of a screen node in world coordinates.
+ * screen: {x, y, width, imageHeight}
+ * headerHeight: number (pixel height of the header bar)
+ */
+export function screenBounds(screen, headerHeight) {
+  return {
+    x: screen.x,
+    y: screen.y,
+    width: screen.width || 220,
+    height: (screen.imageHeight || 120) + headerHeight,
+  };
+}
+
+/**
+ * Returns the bounding box {x, y, width, height} of a sticky note in world coordinates.
+ * note: {x, y, width}
+ */
+export function stickyBounds(note) {
+  return {
+    x: note.x,
+    y: note.y,
+    width: note.width || 220,
+    height: 120,
+  };
+}
+
+/**
  * Hit test: is (mouseX, mouseY) inside a screen node?
  * mouseX/Y are canvas coordinates (already adjusted for pan/zoom)
  * screen: {x, y, width, imageHeight}

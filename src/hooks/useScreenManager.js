@@ -235,6 +235,41 @@ export function useScreenManager(pan, zoom, canvasRef) {
     );
   }, []);
 
+  const moveScreens = useCallback((moves) => {
+    const moveMap = new Map(moves.map((m) => [m.id, m]));
+    setScreens((prev) =>
+      prev.map((s) => {
+        const move = moveMap.get(s.id);
+        return move ? { ...s, x: move.x, y: move.y } : s;
+      })
+    );
+  }, []);
+
+  const removeScreens = useCallback((ids) => {
+    pushHistory(screens, connections, documents);
+    const idSet = new Set(ids);
+    setScreens((prev) => {
+      const removedScreens = prev.filter((s) => idSet.has(s.id));
+      let remaining = prev.filter((s) => !idSet.has(s.id));
+      const affectedGroups = new Set(
+        removedScreens.map((s) => s.stateGroup).filter(Boolean)
+      );
+      affectedGroups.forEach((groupId) => {
+        const siblings = remaining.filter((s) => s.stateGroup === groupId);
+        if (siblings.length === 1) {
+          remaining = remaining.map((s) =>
+            s.stateGroup === groupId ? { ...s, stateGroup: null, stateName: "" } : s
+          );
+        }
+      });
+      return remaining;
+    });
+    setConnections((prev) =>
+      prev.filter((c) => !idSet.has(c.fromScreenId) && !idSet.has(c.toScreenId))
+    );
+    if (idSet.has(selectedScreen)) setSelectedScreen(null);
+  }, [selectedScreen, screens, connections, documents, pushHistory]);
+
   const handleImageUpload = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -769,8 +804,10 @@ export function useScreenManager(pan, zoom, canvasRef) {
     addScreen,
     addScreenAtCenter,
     removeScreen,
+    removeScreens,
     renameScreen,
     moveScreen,
+    moveScreens,
     handleImageUpload,
     onFileChange,
     handlePaste,

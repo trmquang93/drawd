@@ -49,6 +49,9 @@ export const VIEWPORT_FALLBACK_HEIGHT = 600;
 // ── Hotspot ──────────────────────────────────
 export const HOTSPOT_PASTE_OFFSET = 5;
 
+// ── Selection ────────────────────────────────
+export const RUBBER_BAND_THRESHOLD = 3;
+
 // ── Timing ───────────────────────────────────
 export const AUTOSAVE_DEBOUNCE_MS = 1500;
 export const SAVE_STATUS_RESET_MS = 2000;

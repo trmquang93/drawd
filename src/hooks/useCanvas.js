@@ -11,6 +11,7 @@ export function useCanvas(activeTool = "select") {
 
   const canvasRef = useRef(null);
   const isSpaceHeld = useRef(false);
+  const multiDragging = useRef(null); // [{type, id, offsetX, offsetY}]
 
   const handleDragStart = useCallback((e, screenId, screens) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -22,7 +23,38 @@ export function useCanvas(activeTool = "select") {
     });
   }, [pan, zoom]);
 
+  // Begins a multi-object drag; selectedItems: [{type, id}], screens/stickyNotes for position lookup
+  const handleMultiDragStart = useCallback((e, selectedItems, screens, stickyNotes) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const worldX = (e.clientX - rect.left - pan.x) / zoom;
+    const worldY = (e.clientY - rect.top - pan.y) / zoom;
+
+    multiDragging.current = selectedItems.map((item) => {
+      if (item.type === "screen") {
+        const screen = screens.find((s) => s.id === item.id);
+        return { type: "screen", id: item.id, offsetX: worldX - (screen?.x ?? 0), offsetY: worldY - (screen?.y ?? 0) };
+      } else {
+        const note = stickyNotes.find((n) => n.id === item.id);
+        return { type: "sticky", id: item.id, offsetX: worldX - (note?.x ?? 0), offsetY: worldY - (note?.y ?? 0) };
+      }
+    });
+  }, [pan, zoom]);
+
   const handleMouseMove = useCallback((e) => {
+    if (multiDragging.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - pan.x) / zoom;
+      const worldY = (e.clientY - rect.top - pan.y) / zoom;
+      return {
+        type: "multi-drag",
+        items: multiDragging.current.map((item) => ({
+          type: item.type,
+          id: item.id,
+          x: worldX - item.offsetX,
+          y: worldY - item.offsetY,
+        })),
+      };
+    }
     if (dragging) {
       const rect = canvasRef.current.getBoundingClientRect();
       const newX = (e.clientX - rect.left - pan.x) / zoom - dragging.offsetX;
@@ -37,14 +69,18 @@ export function useCanvas(activeTool = "select") {
       setPanStart({ x: e.clientX, y: e.clientY });
     }
     return null;
-  }, [dragging, isPanning, panStart, pan, zoom]);
+  }, [multiDragging, dragging, isPanning, panStart, pan, zoom]);
 
   const handleMouseUp = useCallback(() => {
+    const wasMultiDragging = multiDragging.current !== null;
+    multiDragging.current = null;
     setDragging(null);
     setIsPanning(false);
     setPanStart(null);
+    return { wasMultiDragging };
   }, []);
 
+  // Returns: true (panning), "empty" (empty canvas click in select mode), false (nothing)
   const handleCanvasMouseDown = useCallback((e) => {
     // Pan tool: always pan regardless of click target
     if (activeTool === "pan") {
@@ -58,6 +94,9 @@ export function useCanvas(activeTool = "select") {
       return true;
     }
     if (e.target === canvasRef.current || e.target.classList.contains("canvas-inner")) {
+      if (activeTool === "select") {
+        return "empty";
+      }
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY });
       return true;
@@ -126,10 +165,12 @@ export function useCanvas(activeTool = "select") {
     setZoom,
     isPanning,
     dragging,
+    multiDragging,
     canvasRef,
     isSpaceHeld,
     spaceHeld,
     handleDragStart,
+    handleMultiDragStart,
     handleMouseMove,
     handleMouseUp,
     handleCanvasMouseDown,

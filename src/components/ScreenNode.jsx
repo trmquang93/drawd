@@ -10,6 +10,7 @@ export function ScreenNode({
   onResizeHandleMouseDown, onScreenDimensions, drawRect, isHotspotDragging,
   onUpdateDescription, isSpaceHeld, onAddState, onDropImage, activeTool,
   scopeRoot, isInScope, onContextMenu,
+  isMultiSelected, onToggleSelect, onMultiDragStart,
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -43,13 +44,15 @@ export function ScreenNode({
 
   const borderColor = isConnectHoverTarget
     ? COLORS.success
-    : selected
-      ? COLORS.borderActive
-      : screen.tbd
-        ? COLORS.statusTbd
-        : isScopeRoot
-          ? COLORS.accent
-          : STATUS_BORDER[status];
+    : isMultiSelected
+      ? COLORS.warning
+      : selected
+        ? COLORS.borderActive
+        : screen.tbd
+          ? COLORS.statusTbd
+          : isScopeRoot
+            ? COLORS.accent
+            : STATUS_BORDER[status];
 
   const handleImgLoad = useCallback(() => {
     setImgLoaded(true);
@@ -67,6 +70,15 @@ export function ScreenNode({
         if (e.target.closest(".connection-dot-right")) return;
         if (e.target.closest(".hotspot-drag-handle")) return;
         if (e.target.closest(".description-area")) return;
+        if (e.shiftKey || e.metaKey) {
+          e.stopPropagation();
+          onToggleSelect?.("screen", screen.id);
+          return;
+        }
+        if (isMultiSelected) {
+          onMultiDragStart?.(e);
+          return;
+        }
         onSelect(screen.id);
         onDragStart(e, screen.id);
       }}
@@ -113,18 +125,20 @@ export function ScreenNode({
           : status === "existing"
             ? "rgba(10,10,18,0.85)"
             : COLORS.screenBg,
-        border: `2px solid ${isDragOver ? COLORS.success : borderColor}`,
+        border: `2px ${isMultiSelected ? "dashed" : "solid"} ${isDragOver ? COLORS.success : borderColor}`,
         borderRadius: 14,
         cursor: isConnecting || isHotspotDragging ? "default" : "grab",
         boxShadow: isDragOver
           ? `0 0 30px rgba(0,210,211,0.3), 0 8px 32px rgba(0,0,0,0.5)`
           : isConnectHoverTarget
             ? `0 0 30px rgba(0,210,211,0.3), 0 8px 32px rgba(0,0,0,0.5)`
-            : isScopeRoot
-              ? `0 0 20px ${COLORS.accent04}, 0 8px 32px rgba(0,0,0,0.5)`
-              : selected
-                ? `0 0 30px ${COLORS.accentGlow}, 0 8px 32px rgba(0,0,0,0.5)`
-                : "0 4px 20px rgba(0,0,0,0.4)",
+            : isMultiSelected
+              ? `0 0 16px rgba(229,192,123,0.35), 0 8px 32px rgba(0,0,0,0.5)`
+              : isScopeRoot
+                ? `0 0 20px ${COLORS.accent04}, 0 8px 32px rgba(0,0,0,0.5)`
+                : selected
+                  ? `0 0 30px ${COLORS.accentGlow}, 0 8px 32px rgba(0,0,0,0.5)`
+                  : "0 4px 20px rgba(0,0,0,0.4)",
         transition: "border-color 0.2s, box-shadow 0.2s, background 0.2s, opacity 0.2s",
         overflow: "hidden",
         userSelect: "none",
