@@ -51,6 +51,12 @@ function makeProps(overrides = {}) {
     onSaveAs: vi.fn(),
     onExport: vi.fn(),
     onOpen: vi.fn(),
+    // canvas selection
+    canvasSelection: [],
+    clearSelection: vi.fn(),
+    removeScreens: vi.fn(),
+    addScreenGroup: vi.fn(),
+    screens: [],
     // tool mode
     setActiveTool: vi.fn(),
     ...overrides,
