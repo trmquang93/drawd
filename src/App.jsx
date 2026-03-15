@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import LandingPage from "./pages/LandingPage";
 import DocsPage from "./pages/DocsPage";
 import { COLORS } from "./styles/theme";
@@ -23,8 +24,9 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
+  let page;
   if (route === "editor") {
-    return (
+    page = (
       <Suspense
         fallback={
           <div
@@ -46,9 +48,16 @@ export default function App() {
         <Drawd />
       </Suspense>
     );
+  } else if (route === "docs") {
+    page = <DocsPage />;
+  } else {
+    page = <LandingPage />;
   }
 
-  if (route === "docs") return <DocsPage />;
-
-  return <LandingPage />;
+  return (
+    <>
+      {page}
+      <Analytics />
+    </>
+  );
 }
