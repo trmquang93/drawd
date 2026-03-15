@@ -818,6 +818,7 @@ export default function Drawd() {
             onToolChange={setActiveTool}
             onUpload={handleImageUpload}
             onAddBlank={() => addScreenAtCenter()}
+            hidden={canvasSelection.length > 0 || selectedHotspots.length > 0}
             onAddStickyNote={() => {
               if (!canvasRef.current) return;
               const rect = canvasRef.current.getBoundingClientRect();
