@@ -28,8 +28,6 @@ import { ConditionalPrompt } from "./components/ConditionalPrompt";
 import { InlineConditionLabels } from "./components/InlineConditionLabels";
 import { ShortcutsPanel } from "./components/ShortcutsPanel";
 import { ScreensPanel } from "./components/ScreensPanel";
-import { BatchHotspotBar } from "./components/BatchHotspotBar";
-import { BatchSelectionBar } from "./components/BatchSelectionBar";
 import { SelectionOverlay } from "./components/SelectionOverlay";
 import { ToolBar } from "./components/ToolBar";
 import { StickyNote } from "./components/StickyNote";
@@ -54,7 +52,7 @@ export default function Drawd() {
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
     saveHotspot, deleteHotspot, deleteHotspots, moveHotspot, resizeHotspot, updateScreenDimensions,
     updateScreenDescription, updateScreenNotes, updateScreenTbd, updateScreenRoles, updateScreenCodeRef, updateScreenCriteria, assignScreenImage, quickConnectHotspot,
-    updateConnection, deleteConnection, pasteHotspots,
+    updateConnection, deleteConnection,
     addConnection, convertToConditionalGroup, addToConditionalGroup, saveConnectionGroup, deleteConnectionGroup,
     addState, updateStateName, addDocument, updateDocument, deleteDocument,
     replaceAll, mergeAll,
@@ -239,7 +237,6 @@ export default function Drawd() {
   const {
     hotspotInteraction, setHotspotInteraction,
     selectedHotspots, setSelectedHotspots,
-    hotspotClipboard,
     cancelHotspotInteraction,
     onHotspotMouseDown, onImageAreaMouseDown,
     onResizeHandleMouseDown, onHotspotDragHandleMouseDown,
@@ -390,21 +387,6 @@ export default function Drawd() {
     captureDragSnapshot();
     handleMultiDragStart(e, canvasSelection, screens, stickyNotes);
   }, [activeTool, captureDragSnapshot, handleMultiDragStart, canvasSelection, screens, stickyNotes]);
-
-  const onGroupSelection = useCallback(() => {
-    const selectedScreenIds = canvasSelection.filter((i) => i.type === "screen").map((i) => i.id);
-    if (selectedScreenIds.length === 0) return;
-    addScreenGroup("Group", selectedScreenIds);
-    clearSelection();
-  }, [canvasSelection, addScreenGroup, clearSelection]);
-
-  const onDeleteSelection = useCallback(() => {
-    const screenIds = canvasSelection.filter((i) => i.type === "screen").map((i) => i.id);
-    const stickyIds = canvasSelection.filter((i) => i.type === "sticky").map((i) => i.id);
-    if (screenIds.length > 0) removeScreens(screenIds);
-    stickyIds.forEach((id) => deleteStickyNote(id));
-    clearSelection();
-  }, [canvasSelection, removeScreens, deleteStickyNote, clearSelection]);
 
   const addHotspot = useCallback((screenId) => {
     const screen = screens.find((s) => s.id === screenId);
@@ -968,41 +950,6 @@ export default function Drawd() {
       )}
 
       {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
-
-      {canvasSelection.length > 0 && (
-        <BatchSelectionBar
-          count={canvasSelection.length}
-          onDelete={onDeleteSelection}
-          onGroup={onGroupSelection}
-          onCancel={clearSelection}
-        />
-      )}
-
-      {selectedHotspots.length > 0 && canvasSelection.length === 0 && (
-        <BatchHotspotBar
-          count={selectedHotspots.length}
-          hasClipboard={!!hotspotClipboard.current}
-          onCopy={() => {
-            const screenId = selectedHotspots[0].screenId;
-            const screen = screens.find((s) => s.id === screenId);
-            if (!screen) return;
-            const ids = new Set(selectedHotspots.map((h) => h.hotspotId));
-            hotspotClipboard.current = screen.hotspots.filter((h) => ids.has(h.id));
-          }}
-          onPaste={() => {
-            if (!hotspotClipboard.current || !selectedScreen) return;
-            pasteHotspots(selectedScreen, hotspotClipboard.current);
-            setSelectedHotspots([]);
-          }}
-          onDelete={() => {
-            const screenId = selectedHotspots[0].screenId;
-            const ids = selectedHotspots.map((h) => h.hotspotId);
-            deleteHotspots(screenId, ids);
-            setSelectedHotspots([]);
-          }}
-          onCancel={() => setSelectedHotspots([])}
-        />
-      )}
     </div>
   );
 }

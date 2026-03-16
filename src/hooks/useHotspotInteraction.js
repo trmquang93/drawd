@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 export function useHotspotInteraction({
   screens,
@@ -17,7 +17,6 @@ export function useHotspotInteraction({
 }) {
   const [hotspotInteraction, setHotspotInteraction] = useState(null);
   const [selectedHotspots, setSelectedHotspots] = useState([]);
-  const hotspotClipboard = useRef(null);
 
   const cancelHotspotInteraction = useCallback(() => {
     setHotspotInteraction(null);
@@ -143,7 +142,6 @@ export function useHotspotInteraction({
   return {
     hotspotInteraction, setHotspotInteraction,
     selectedHotspots, setSelectedHotspots,
-    hotspotClipboard,
     cancelHotspotInteraction,
     onHotspotMouseDown,
     onImageAreaMouseDown,
