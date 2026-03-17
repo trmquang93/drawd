@@ -18,6 +18,12 @@ export function ScreenNode({
   const [isDragOver, setIsDragOver] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
   const imgRef = useRef(null);
+  const [prevImageData, setPrevImageData] = useState(screen.imageData);
+
+  if (prevImageData !== screen.imageData) {
+    setPrevImageData(screen.imageData);
+    setImgLoaded(false);
+  }
 
   useEffect(() => {
     const onKeyDown = (e) => { if (e.key === "Alt") setAltHeld(true); };
@@ -93,19 +99,19 @@ export function ScreenNode({
       onMouseLeave={() => {
         if (isConnecting) onHoverTarget?.(null);
         if (isHotspotDragging) onHoverTarget?.(null);
-        if (!screen.imageData) setIsDragOver(false);
+        setIsDragOver(false);
       }}
       onContextMenu={onContextMenu}
-      onDragOver={!screen.imageData ? (e) => {
+      onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(true);
-      } : undefined}
-      onDragLeave={!screen.imageData ? (e) => {
+      }}
+      onDragLeave={(e) => {
         e.stopPropagation();
         if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false);
-      } : undefined}
-      onDrop={!screen.imageData ? (e) => {
+      }}
+      onDrop={(e) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
@@ -113,7 +119,7 @@ export function ScreenNode({
         if (files.length > 0 && onDropImage) {
           onDropImage(screen.id, files[0]);
         }
-      } : undefined}
+      }}
       style={{
         position: "absolute",
         left: screen.x,

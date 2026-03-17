@@ -226,7 +226,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
 
   const assignScreenImage = useCallback((id, imageData) => {
     pushHistory(screens, connections, documents);
-    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, imageData } : s)));
+    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, imageData, imageWidth: undefined, imageHeight: undefined } : s)));
   }, [screens, connections, documents, pushHistory]);
 
   const moveScreen = useCallback((id, x, y) => {
@@ -294,7 +294,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
 
     // Single image pasted with a blank screen selected -> assign to that screen
     const sel = selectedScreen ? screens.find((s) => s.id === selectedScreen) : null;
-    if (imageItems.length === 1 && sel && !sel.imageData) {
+    if (imageItems.length === 1 && sel) {
       const file = imageItems[0].getAsFile();
       if (!file) return;
       const reader = new FileReader();

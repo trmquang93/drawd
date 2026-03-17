@@ -729,6 +729,89 @@ describe("pasteHotspots", () => {
   });
 });
 
+describe("assignScreenImage (image replacement)", () => {
+  it("replaces imageData on an existing screen", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen("img-A", "Screen"));
+    const id = result.current.screens[0].id;
+    expect(result.current.screens[0].imageData).toBe("img-A");
+
+    act(() => result.current.assignScreenImage(id, "img-B"));
+    expect(result.current.screens[0].imageData).toBe("img-B");
+  });
+
+  it("clears imageWidth and imageHeight on replacement", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen("img-A", "Screen"));
+    const id = result.current.screens[0].id;
+
+    act(() => result.current.updateScreenDimensions(id, 375, 812));
+    expect(result.current.screens[0].imageWidth).toBe(375);
+    expect(result.current.screens[0].imageHeight).toBe(812);
+
+    act(() => result.current.assignScreenImage(id, "img-B"));
+    expect(result.current.screens[0].imageWidth).toBeUndefined();
+    expect(result.current.screens[0].imageHeight).toBeUndefined();
+  });
+
+  it("preserves hotspots when replacing image", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen("img-A", "Screen"));
+    const id = result.current.screens[0].id;
+
+    const hotspot = {
+      id: "hs1", label: "Tap", x: 10, y: 10, w: 20, h: 20,
+      action: "navigate", targetScreenId: null,
+    };
+    act(() => result.current.saveHotspot(id, hotspot));
+    expect(result.current.screens[0].hotspots).toHaveLength(1);
+
+    act(() => result.current.assignScreenImage(id, "img-B"));
+    expect(result.current.screens[0].hotspots).toHaveLength(1);
+    expect(result.current.screens[0].hotspots[0].id).toBe("hs1");
+  });
+
+  it("preserves connections when replacing image", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen("img-A", "A"));
+    act(() => result.current.addScreen("img-B", "B"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+
+    act(() => result.current.addConnection(idA, idB));
+    expect(result.current.connections).toHaveLength(1);
+
+    act(() => result.current.assignScreenImage(idA, "img-C"));
+    expect(result.current.connections).toHaveLength(1);
+    expect(result.current.connections[0].fromScreenId).toBe(idA);
+  });
+
+  it("preserves screen name and position", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen("img-A", "MyScreen"));
+    const id = result.current.screens[0].id;
+    const origX = result.current.screens[0].x;
+    const origY = result.current.screens[0].y;
+
+    act(() => result.current.assignScreenImage(id, "img-B"));
+    expect(result.current.screens[0].name).toBe("MyScreen");
+    expect(result.current.screens[0].x).toBe(origX);
+    expect(result.current.screens[0].y).toBe(origY);
+  });
+
+  it("is undoable", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen("img-A", "Screen"));
+    const id = result.current.screens[0].id;
+
+    act(() => result.current.assignScreenImage(id, "img-B"));
+    expect(result.current.screens[0].imageData).toBe("img-B");
+
+    act(() => result.current.undo());
+    expect(result.current.screens[0].imageData).toBe("img-A");
+  });
+});
+
 describe("document CRUD", () => {
   it("addDocument returns new document ID synchronously", () => {
     const { result } = setup();
