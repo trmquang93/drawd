@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { COLORS, FONTS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
 
@@ -128,6 +128,14 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
   const [validationMaxLength, setValidationMaxLength] = useState(hotspot?.validation?.maxLength ?? "");
   const [validationPattern, setValidationPattern] = useState(hotspot?.validation?.pattern || "");
   const [validationErrorMessage, setValidationErrorMessage] = useState(hotspot?.validation?.errorMessage || "");
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const otherScreens = screens.filter((s) => s.id !== screen.id);
   const selectedDoc = documents.find((d) => d.id === documentId) || null;

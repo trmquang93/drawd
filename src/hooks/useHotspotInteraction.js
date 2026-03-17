@@ -52,13 +52,12 @@ export function useHotspotInteraction({
     if (selectedHotspots.length > 0) setSelectedHotspots([]);
 
     if (hotspotInteraction?.mode === "selected" && hotspotInteraction.hotspotId === hotspotId) {
-      // Same hotspot selected again -> begin reposition
+      // Same hotspot selected again -> enter pending reposition (drag threshold required)
       const screen = screens.find((s) => s.id === screenId);
       const hs = screen?.hotspots.find((h) => h.id === hotspotId);
       if (!screen || !hs) return;
-      captureDragSnapshot();
       setHotspotInteraction({
-        mode: "reposition",
+        mode: "reposition-pending",
         screenId,
         hotspotId,
         offsetPct: { dx: 0, dy: 0 },

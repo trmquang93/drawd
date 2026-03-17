@@ -10,6 +10,7 @@ export function useCanvasMouseHandlers({
   // hotspot interaction
   hotspotInteraction,
   setHotspotInteraction,
+  captureDragSnapshot,
   commitDragSnapshot,
   screens,
   moveHotspot,
@@ -66,7 +67,7 @@ export function useCanvasMouseHandlers({
       if (selectedHotspots.length > 0) setSelectedHotspots([]);
       setSelectedStickyNote?.(null);
       setSelectedScreenGroup?.(null);
-      if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
+      if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "reposition-pending" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
         setHotspotInteraction(null);
       }
       handleCanvasMouseDown(e);
@@ -76,7 +77,7 @@ export function useCanvasMouseHandlers({
     // Space+click: always pan, skip all interaction guards
     if (isSpaceHeld.current) {
       if (selectedConnection) setSelectedConnection(null);
-      if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
+      if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "reposition-pending" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
         setHotspotInteraction(null);
       }
       handleCanvasMouseDown(e);
@@ -97,14 +98,14 @@ export function useCanvasMouseHandlers({
     setSelectedStickyNote?.(null);
     setSelectedScreenGroup?.(null);
     // Cancel hotspot interaction on canvas click
-    if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
+    if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "reposition-pending" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
       setHotspotInteraction(null);
     }
     if (connecting) {
       if (connecting.mode === "click") cancelConnecting();
       return;
     }
-    if (hotspotInteraction?.mode === "draw" || hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "hotspot-drag" || hotspotInteraction?.mode === "resize" || hotspotInteraction?.mode === "conn-endpoint-drag") {
+    if (hotspotInteraction?.mode === "draw" || hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "reposition-pending" || hotspotInteraction?.mode === "hotspot-drag" || hotspotInteraction?.mode === "resize" || hotspotInteraction?.mode === "conn-endpoint-drag") {
       return;
     }
     const result = handleCanvasMouseDown(e);
@@ -136,6 +137,17 @@ export function useCanvasMouseHandlers({
         ...prev,
         drawRect: { screenId: hotspotInteraction.screenId, ...rect },
       }));
+      return;
+    }
+
+    if (hotspotInteraction?.mode === "reposition-pending") {
+      // Only transition to full reposition after exceeding drag threshold (5px)
+      const dx = e.clientX - hotspotInteraction.startClientX;
+      const dy = e.clientY - hotspotInteraction.startClientY;
+      if (Math.abs(dx) >= 5 || Math.abs(dy) >= 5) {
+        captureDragSnapshot();
+        setHotspotInteraction((prev) => ({ ...prev, mode: "reposition" }));
+      }
       return;
     }
 
@@ -209,7 +221,7 @@ export function useCanvasMouseHandlers({
       if (screenMoves.length > 0) moveScreens(screenMoves);
       stickyMoves.forEach((item) => updateStickyNote(item.id, { x: item.x, y: item.y }));
     }
-  }, [handleMouseMove, moveScreen, moveScreens, updateStickyNote, connecting, setConnecting, canvasRef, pan, zoom, hotspotInteraction, setHotspotInteraction, screens, resizeHotspot, rubberBand, updateRubberBand]);
+  }, [handleMouseMove, moveScreen, moveScreens, updateStickyNote, connecting, setConnecting, canvasRef, pan, zoom, hotspotInteraction, setHotspotInteraction, screens, resizeHotspot, rubberBand, updateRubberBand, captureDragSnapshot]);
 
   const onCanvasMouseUp = useCallback((e) => {
     // Handle connection endpoint drag completion
@@ -239,6 +251,12 @@ export function useCanvasMouseHandlers({
     // Handle resize completion
     if (hotspotInteraction?.mode === "resize") {
       commitDragSnapshot();
+      setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
+      return;
+    }
+
+    // Handle reposition-pending mouseup: threshold not reached, revert to selected
+    if (hotspotInteraction?.mode === "reposition-pending") {
       setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
       return;
     }
@@ -330,6 +348,11 @@ export function useCanvasMouseHandlers({
       setHotspotInteraction(null);
       return;
     }
+    if (hotspotInteraction?.mode === "reposition-pending") {
+      // Threshold not reached — revert to selected, no snapshot to commit
+      setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
+      return;
+    }
     if (hotspotInteraction?.mode === "reposition") {
       // Reposition doesn't move the hotspot during drag, so just cancel — no snapshot to commit
       setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
@@ -367,7 +390,9 @@ export function useCanvasMouseHandlers({
         ? (resizeCursors[hotspotInteraction.handle] || "default")
         : hotspotInteraction?.mode === "reposition"
           ? "grabbing"
-          : (spaceHeld && isPanning) ? "grabbing"
+          : hotspotInteraction?.mode === "reposition-pending"
+            ? "grab"
+            : (spaceHeld && isPanning) ? "grabbing"
             : spaceHeld ? "grab"
               : isPanning ? "grabbing" : "default";
 

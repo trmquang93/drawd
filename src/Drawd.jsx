@@ -322,7 +322,7 @@ export default function Drawd() {
   // ── Canvas event handlers ──────────────────────────────────────────────────────────
   const { onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, onCanvasMouseLeave, canvasCursor } =
     useCanvasMouseHandlers({
-      hotspotInteraction, setHotspotInteraction, commitDragSnapshot,
+      hotspotInteraction, setHotspotInteraction, captureDragSnapshot, commitDragSnapshot,
       screens, moveHotspot, moveHotspotToScreen, resizeHotspot, updateConnection,
       connecting, setConnecting, cancelConnecting,
       selectedConnection, setSelectedConnection,
@@ -392,6 +392,15 @@ export default function Drawd() {
     const screen = screens.find((s) => s.id === screenId);
     setHotspotModal({ screen, hotspot: null });
   }, [screens]);
+
+  const onHotspotDoubleClick = useCallback((_e, screenId, hotspotId) => {
+    const screen = screens.find((s) => s.id === screenId);
+    if (!screen) return;
+    const hotspot = screen.hotspots.find((h) => h.id === hotspotId);
+    if (!hotspot) return;
+    setHotspotInteraction(null);
+    setHotspotModal({ screen, hotspot });
+  }, [screens, setHotspotInteraction]);
 
   const addHotspotViaConnect = useCallback((screenId) => {
     onStartConnect(screenId);
@@ -613,6 +622,7 @@ export default function Drawd() {
                   ? new Set(selectedHotspots.map((h) => h.hotspotId))
                   : null}
                 onHotspotMouseDown={onHotspotMouseDown}
+                onHotspotDoubleClick={onHotspotDoubleClick}
                 onImageAreaMouseDown={onImageAreaMouseDown}
                 onHotspotDragHandleMouseDown={onHotspotDragHandleMouseDown}
                 onResizeHandleMouseDown={onResizeHandleMouseDown}

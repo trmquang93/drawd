@@ -5,7 +5,7 @@ import { DEFAULT_SCREEN_WIDTH, DEFAULT_IMAGE_HEIGHT, HEADER_HEIGHT, DESCRIPTION_
 export function ScreenNode({
   screen, selected, onSelect, onDragStart, onAddHotspot, onRemoveScreen,
   onDotDragStart, onConnectTarget, onHoverTarget, isConnectHoverTarget, isConnecting,
-  selectedHotspotId, selectedHotspotIds, onHotspotMouseDown, onImageAreaMouseDown,
+  selectedHotspotId, selectedHotspotIds, onHotspotMouseDown, onHotspotDoubleClick, onImageAreaMouseDown,
   onHotspotDragHandleMouseDown,
   onResizeHandleMouseDown, onScreenDimensions, drawRect, isHotspotDragging,
   onUpdateDescription, isSpaceHeld, onAddState, onDropImage, activeTool,
@@ -360,6 +360,10 @@ export function ScreenNode({
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     if (onHotspotMouseDown) onHotspotMouseDown(e, screen.id, hs.id);
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (onHotspotDoubleClick) onHotspotDoubleClick(e, screen.id, hs.id);
                   }}
                   style={{
                     position: "absolute",
