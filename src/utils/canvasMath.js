@@ -135,6 +135,21 @@ export function hitTestScreen(mouseX, mouseY, screen, headerHeight) {
 }
 
 /**
+ * Converts world coordinates to percentage position within a target screen's image area.
+ * Accounts for header and border offsets so the result aligns with hotspot coordinate space.
+ * Returns unclamped values — caller is responsible for clamping with hotspot w/h.
+ */
+export function worldToScreenPct(worldX, worldY, screen, headerHeight, borderWidth) {
+  const imgLeft = screen.x + borderWidth;
+  const imgTop = screen.y + headerHeight + borderWidth;
+  const imgW = screen.width || 220;
+  const imgH = screen.imageHeight || 120;
+  const pctX = ((worldX - imgLeft) / imgW) * 100;
+  const pctY = ((worldY - imgTop) / imgH) * 100;
+  return { x: Math.round(pctX * 10) / 10, y: Math.round(pctY * 10) / 10 };
+}
+
+/**
  * Computes new zoom level and pan after wheel zoom toward cursor.
  * prevZoom: number, delta: number (positive=zoom in, negative=zoom out)
  * mouseX/Y: cursor position in viewport pixels (relative to canvas element)

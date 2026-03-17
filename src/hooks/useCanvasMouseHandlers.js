@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { computeDrawRect, computeRepositionDelta, computeResize, hitTestScreen } from "../utils/canvasMath.js";
-import { HEADER_HEIGHT, RUBBER_BAND_THRESHOLD } from "../constants";
+import { computeDrawRect, computeResize, hitTestScreen, worldToScreenPct } from "../utils/canvasMath.js";
+import { HEADER_HEIGHT, BORDER_WIDTH, RUBBER_BAND_THRESHOLD } from "../constants";
 const resizeCursors = {
   nw: "nwse-resize", n: "ns-resize", ne: "nesw-resize", e: "ew-resize",
   se: "nwse-resize", s: "ns-resize", sw: "nesw-resize", w: "ew-resize",
@@ -13,6 +13,7 @@ export function useCanvasMouseHandlers({
   commitDragSnapshot,
   screens,
   moveHotspot,
+  moveHotspotToScreen,
   resizeHotspot,
   updateConnection,
   // connection interaction
@@ -139,22 +140,11 @@ export function useCanvasMouseHandlers({
     }
 
     if (hotspotInteraction?.mode === "reposition") {
-      const screen = screens.find((s) => s.id === hotspotInteraction.screenId);
-      if (!screen || !screen.imageHeight) return;
-      const screenW = screen.width || 220;
-      const hs = screen.hotspots.find((h) => h.id === hotspotInteraction.hotspotId);
-      if (!hs) return;
-
-      const { x: newX, y: newY } = computeRepositionDelta(
-        { clientX: hotspotInteraction.startClientX, clientY: hotspotInteraction.startClientY },
-        { clientX: e.clientX, clientY: e.clientY },
-        { width: screenW, height: screen.imageHeight },
-        zoom,
-        hs,
-        { x: hotspotInteraction.startX, y: hotspotInteraction.startY },
-      );
-
-      moveHotspot(hotspotInteraction.screenId, hotspotInteraction.hotspotId, newX, newY);
+      // Track world cursor position — hotspot stays at original position until mouseup
+      const rect = canvasRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - pan.x) / zoom;
+      const worldY = (e.clientY - rect.top - pan.y) / zoom;
+      setHotspotInteraction((prev) => ({ ...prev, worldX, worldY }));
       return;
     }
 
@@ -219,7 +209,7 @@ export function useCanvasMouseHandlers({
       if (screenMoves.length > 0) moveScreens(screenMoves);
       stickyMoves.forEach((item) => updateStickyNote(item.id, { x: item.x, y: item.y }));
     }
-  }, [handleMouseMove, moveScreen, moveScreens, updateStickyNote, connecting, setConnecting, canvasRef, pan, zoom, hotspotInteraction, setHotspotInteraction, screens, moveHotspot, resizeHotspot, rubberBand, updateRubberBand]);
+  }, [handleMouseMove, moveScreen, moveScreens, updateStickyNote, connecting, setConnecting, canvasRef, pan, zoom, hotspotInteraction, setHotspotInteraction, screens, resizeHotspot, rubberBand, updateRubberBand]);
 
   const onCanvasMouseUp = useCallback((e) => {
     // Handle connection endpoint drag completion
@@ -253,10 +243,40 @@ export function useCanvasMouseHandlers({
       return;
     }
 
-    // Handle reposition completion
+    // Handle reposition completion (may transfer hotspot to another screen)
     if (hotspotInteraction?.mode === "reposition") {
-      commitDragSnapshot();
-      setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
+      const rect = canvasRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - pan.x) / zoom;
+      const worldY = (e.clientY - rect.top - pan.y) / zoom;
+
+      const sourceScreen = screens.find((s) => s.id === hotspotInteraction.screenId);
+      const hs = sourceScreen?.hotspots.find((h) => h.id === hotspotInteraction.hotspotId);
+
+      const targetScreen = screens.find(
+        (s) => s.id !== hotspotInteraction.screenId && hitTestScreen(worldX, worldY, s, HEADER_HEIGHT)
+      );
+
+      // Place hotspot center at cursor — matches ghost preview position
+      const dropOnScreen = (targetScreen && targetScreen.imageHeight && hs) ? targetScreen
+        : (sourceScreen && sourceScreen.imageHeight && hs) ? sourceScreen
+        : null;
+
+      if (dropOnScreen && hs) {
+        const { x: rawX, y: rawY } = worldToScreenPct(worldX, worldY, dropOnScreen, HEADER_HEIGHT, BORDER_WIDTH);
+        const clampedX = Math.max(0, Math.min(100 - hs.w, rawX - hs.w / 2));
+        const clampedY = Math.max(0, Math.min(100 - hs.h, rawY - hs.h / 2));
+
+        if (dropOnScreen.id !== hotspotInteraction.screenId) {
+          moveHotspotToScreen(hotspotInteraction.screenId, hotspotInteraction.hotspotId, dropOnScreen.id, clampedX, clampedY);
+        } else {
+          moveHotspot(hotspotInteraction.screenId, hotspotInteraction.hotspotId, clampedX, clampedY);
+        }
+        commitDragSnapshot();
+        setHotspotInteraction({ mode: "selected", screenId: dropOnScreen.id, hotspotId: hotspotInteraction.hotspotId });
+      } else {
+        // Dropped on empty canvas or screen without image — cancel
+        setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
+      }
       return;
     }
 
@@ -303,14 +323,19 @@ export function useCanvasMouseHandlers({
     const wasDragging = !!dragging;
     const { wasMultiDragging } = handleMouseUp(e);
     if (wasDragging || wasMultiDragging) commitDragSnapshot();
-  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, setHotspotInteraction, screens, stickyNotes, updateConnection, dragging, commitDragSnapshot, rubberBand, completeRubberBand, clearSelection, setCanvasSelection, canvasRef, pan, zoom]);
+  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, setHotspotInteraction, screens, stickyNotes, updateConnection, dragging, commitDragSnapshot, rubberBand, completeRubberBand, clearSelection, setCanvasSelection, canvasRef, pan, zoom, moveHotspotToScreen, moveHotspot]);
 
   const onCanvasMouseLeave = useCallback((e) => {
     if (hotspotInteraction?.mode === "conn-endpoint-drag") {
       setHotspotInteraction(null);
       return;
     }
-    if (hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "resize") {
+    if (hotspotInteraction?.mode === "reposition") {
+      // Reposition doesn't move the hotspot during drag, so just cancel — no snapshot to commit
+      setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
+      return;
+    }
+    if (hotspotInteraction?.mode === "resize") {
       commitDragSnapshot();
       setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
       return;

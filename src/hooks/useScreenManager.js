@@ -504,6 +504,31 @@ export function useScreenManager(pan, zoom, canvasRef) {
     );
   }, []);
 
+  const moveHotspotToScreen = useCallback((fromScreenId, hotspotId, toScreenId, newX, newY) => {
+    setScreens((prev) => {
+      const sourceScreen = prev.find((s) => s.id === fromScreenId);
+      const hotspot = sourceScreen?.hotspots.find((h) => h.id === hotspotId);
+      if (!hotspot) return prev;
+      const movedHotspot = { ...hotspot, x: newX, y: newY };
+      return prev.map((s) => {
+        if (s.id === fromScreenId) {
+          return { ...s, hotspots: s.hotspots.filter((h) => h.id !== hotspotId) };
+        }
+        if (s.id === toScreenId) {
+          return { ...s, hotspots: [...s.hotspots, movedHotspot] };
+        }
+        return s;
+      });
+    });
+    setConnections((prev) =>
+      prev.map((c) =>
+        c.hotspotId === hotspotId && c.fromScreenId === fromScreenId
+          ? { ...c, fromScreenId: toScreenId }
+          : c
+      )
+    );
+  }, []);
+
   const resizeHotspot = useCallback((screenId, hotspotId, newX, newY, newW, newH) => {
     setScreens((prev) =>
       prev.map((s) => {
@@ -817,6 +842,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
     deleteHotspots,
     pasteHotspots,
     moveHotspot,
+    moveHotspotToScreen,
     resizeHotspot,
     updateScreenDimensions,
     updateScreenDescription,

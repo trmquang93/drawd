@@ -50,7 +50,7 @@ export default function Drawd() {
     screens, connections, documents, selectedScreen, setSelectedScreen,
     fileInputRef, addScreen, addScreenAtCenter, removeScreen, removeScreens, renameScreen, moveScreen, moveScreens,
     handleImageUpload, onFileChange, handlePaste, handleCanvasDrop,
-    saveHotspot, deleteHotspot, deleteHotspots, moveHotspot, resizeHotspot, updateScreenDimensions,
+    saveHotspot, deleteHotspot, deleteHotspots, moveHotspot, moveHotspotToScreen, resizeHotspot, updateScreenDimensions,
     updateScreenDescription, updateScreenNotes, updateScreenTbd, updateScreenRoles, updateScreenCodeRef, updateScreenCriteria, assignScreenImage, quickConnectHotspot,
     updateConnection, deleteConnection,
     addConnection, convertToConditionalGroup, addToConditionalGroup, saveConnectionGroup, deleteConnectionGroup,
@@ -323,7 +323,7 @@ export default function Drawd() {
   const { onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, onCanvasMouseLeave, canvasCursor } =
     useCanvasMouseHandlers({
       hotspotInteraction, setHotspotInteraction, commitDragSnapshot,
-      screens, moveHotspot, resizeHotspot, updateConnection,
+      screens, moveHotspot, moveHotspotToScreen, resizeHotspot, updateConnection,
       connecting, setConnecting, cancelConnecting,
       selectedConnection, setSelectedConnection,
       conditionalPrompt, onConditionalPromptCancel,
@@ -465,6 +465,23 @@ export default function Drawd() {
 
   const selectedHotspotId = hotspotInteraction?.hotspotId || null;
   const drawRect = hotspotInteraction?.mode === "draw" ? hotspotInteraction.drawRect : null;
+
+  // Ghost preview showing where the hotspot will land during reposition drag
+  const repositionGhost = (() => {
+    if (hotspotInteraction?.mode !== "reposition" || hotspotInteraction.worldX == null) return null;
+    const srcScreen = screens.find((s) => s.id === hotspotInteraction.screenId);
+    if (!srcScreen) return null;
+    const hs = srcScreen.hotspots.find((h) => h.id === hotspotInteraction.hotspotId);
+    if (!hs) return null;
+    const pixelW = (hs.w / 100) * (srcScreen.width || DEFAULT_SCREEN_WIDTH);
+    const pixelH = (hs.h / 100) * (srcScreen.imageHeight || DEFAULT_SCREEN_HEIGHT);
+    return {
+      x: hotspotInteraction.worldX - pixelW / 2,
+      y: hotspotInteraction.worldY - pixelH / 2,
+      width: pixelW,
+      height: pixelH,
+    };
+  })();
 
   // ── Render ────────────────────────────────────────────────────────────────────────────
   return (
@@ -669,6 +686,22 @@ export default function Drawd() {
               onEndpointMouseDown={onEndpointMouseDown}
               endpointDragPreview={endpointDragPreview}
             />
+            {repositionGhost && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: repositionGhost.x,
+                  top: repositionGhost.y,
+                  width: repositionGhost.width,
+                  height: repositionGhost.height,
+                  border: `2px dashed ${COLORS.accent}`,
+                  borderRadius: 6,
+                  background: COLORS.accent01,
+                  pointerEvents: "none",
+                  opacity: 0.8,
+                }}
+              />
+            )}
             {conditionalPrompt && (
               <ConditionalPrompt
                 x={conditionalPrompt.x}

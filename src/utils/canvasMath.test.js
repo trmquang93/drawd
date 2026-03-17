@@ -5,6 +5,7 @@ import {
   computeResize,
   hitTestScreen,
   zoomTowardCursor,
+  worldToScreenPct,
 } from "./canvasMath.js";
 
 // --- computeDrawRect ---
@@ -269,6 +270,47 @@ describe("hitTestScreen", () => {
     // total height = 120 + 37 = 157
     expect(hitTestScreen(100, 150, noImgH, 37)).toBe(true);
     expect(hitTestScreen(100, 158, noImgH, 37)).toBe(false);
+  });
+});
+
+// --- worldToScreenPct ---
+
+describe("worldToScreenPct", () => {
+  const screen = { x: 100, y: 100, width: 220, imageHeight: 500 };
+  const headerHeight = 37;
+  const borderWidth = 2;
+
+  it("converts world coords to percentage within the image area", () => {
+    // imgLeft = 100 + 2 = 102, imgTop = 100 + 37 + 2 = 139
+    // imgW = 220, imgH = 500
+    // mouse at (210, 339): pctX = (210-102)/220 * 100 = 49.1%, pctY = (339-139)/500 * 100 = 40%
+    const result = worldToScreenPct(210, 339, screen, headerHeight, borderWidth);
+    expect(result.x).toBeCloseTo(49.1, 1);
+    expect(result.y).toBe(40);
+  });
+
+  it("returns negative values for coords above/left of image area (unclamped)", () => {
+    const result = worldToScreenPct(50, 50, screen, headerHeight, borderWidth);
+    expect(result.x).toBeLessThan(0);
+    expect(result.y).toBeLessThan(0);
+  });
+
+  it("returns values above 100 for coords beyond bottom-right (unclamped)", () => {
+    // imgLeft = 102, imgTop = 139, imgW = 220, imgH = 500
+    // mouse at (400, 700): pctX = (400-102)/220 * 100 = 135.5%, pctY = (700-139)/500 * 100 = 112.2%
+    const result = worldToScreenPct(400, 700, screen, headerHeight, borderWidth);
+    expect(result.x).toBeGreaterThan(100);
+    expect(result.y).toBeGreaterThan(100);
+  });
+
+  it("uses default width and height for screens without those values", () => {
+    const noSize = { x: 0, y: 0 };
+    // imgLeft = 0 + 2 = 2, imgTop = 0 + 37 + 2 = 39
+    // default imgW = 220, default imgH = 120
+    // mouse at (112, 99): pctX = (112-2)/220 * 100 = 50%, pctY = (99-39)/120 * 100 = 50%
+    const result = worldToScreenPct(112, 99, noSize, 37, 2);
+    expect(result.x).toBe(50);
+    expect(result.y).toBe(50);
   });
 });
 
