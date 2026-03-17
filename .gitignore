@@ -3,6 +3,7 @@ dist
 .DS_Store
 *.md
 !README.md
+!src/pages/docs/userGuide.md
 
 # React Component Preview
 previewConfig.json
