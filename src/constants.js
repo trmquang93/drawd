@@ -60,5 +60,11 @@ export const COPY_FEEDBACK_MS = 2000;
 // ── Validation ───────────────────────────────
 export const DESCRIPTION_MAX_LENGTH = 500;
 
+// ── Collaboration ───────────────────────────
+export const COLLAB_DEBOUNCE_MS = 500;
+export const CURSOR_THROTTLE_MS = 50;
+export const COLLAB_ROOM_CODE_LENGTH = 6;
+export const COLLAB_CURSOR_FADE_MS = 3000;
+
 // ── Sticky Notes ─────────────────────────────
 export const STICKY_NOTE_MIN_WIDTH = 150;

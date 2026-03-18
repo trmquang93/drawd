@@ -59,6 +59,10 @@ export function useCanvasMouseHandlers({
   // sticky note / screen group selection clearing
   setSelectedStickyNote,
   setSelectedScreenGroup,
+  // collaboration
+  isReadOnly,
+  pendingRemoteStateRef,
+  applyPendingRemoteState,
 }) {
   const onCanvasMouseDown = useCallback((e) => {
     // Pan tool: always pan, skip all other interactions
@@ -70,6 +74,12 @@ export function useCanvasMouseHandlers({
       if (hotspotInteraction && hotspotInteraction.mode !== "draw" && hotspotInteraction.mode !== "reposition" && hotspotInteraction.mode !== "reposition-pending" && hotspotInteraction.mode !== "hotspot-drag" && hotspotInteraction.mode !== "resize" && hotspotInteraction.mode !== "conn-endpoint-drag") {
         setHotspotInteraction(null);
       }
+      handleCanvasMouseDown(e);
+      setSelectedScreen(null);
+      return;
+    }
+    // Read-only: only allow panning and zoom (no draw/drag/resize)
+    if (isReadOnly) {
       handleCanvasMouseDown(e);
       setSelectedScreen(null);
       return;
@@ -120,7 +130,7 @@ export function useCanvasMouseHandlers({
       startRubberBand(worldX, worldY);
       setSelectedScreen(null);
     }
-  }, [handleCanvasMouseDown, setSelectedScreen, connecting, cancelConnecting, hotspotInteraction, setHotspotInteraction, selectedConnection, setSelectedConnection, isSpaceHeld, conditionalPrompt, onConditionalPromptCancel, editingConditionGroup, setEditingConditionGroup, selectedHotspots, setSelectedHotspots, activeTool, clearSelection, startRubberBand, canvasRef, pan, zoom, setSelectedStickyNote, setSelectedScreenGroup]);
+  }, [handleCanvasMouseDown, setSelectedScreen, connecting, cancelConnecting, hotspotInteraction, setHotspotInteraction, selectedConnection, setSelectedConnection, isSpaceHeld, conditionalPrompt, onConditionalPromptCancel, editingConditionGroup, setEditingConditionGroup, selectedHotspots, setSelectedHotspots, activeTool, clearSelection, startRubberBand, canvasRef, pan, zoom, setSelectedStickyNote, setSelectedScreenGroup, isReadOnly]);
 
   const onCanvasMouseMove = useCallback((e) => {
     if (hotspotInteraction?.mode === "draw") {
@@ -341,7 +351,13 @@ export function useCanvasMouseHandlers({
     const wasDragging = !!dragging;
     const { wasMultiDragging } = handleMouseUp(e);
     if (wasDragging || wasMultiDragging) commitDragSnapshot();
-  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, setHotspotInteraction, screens, stickyNotes, updateConnection, dragging, commitDragSnapshot, rubberBand, completeRubberBand, clearSelection, setCanvasSelection, canvasRef, pan, zoom, moveHotspotToScreen, moveHotspot]);
+
+    // Apply any queued remote state that arrived mid-drag
+    if (pendingRemoteStateRef?.current) {
+      applyPendingRemoteState?.(pendingRemoteStateRef.current);
+      pendingRemoteStateRef.current = null;
+    }
+  }, [connecting, cancelConnecting, handleMouseUp, hotspotInteraction, setHotspotInteraction, screens, stickyNotes, updateConnection, dragging, commitDragSnapshot, rubberBand, completeRubberBand, clearSelection, setCanvasSelection, canvasRef, pan, zoom, moveHotspotToScreen, moveHotspot, pendingRemoteStateRef, applyPendingRemoteState]);
 
   const onCanvasMouseLeave = useCallback((e) => {
     if (hotspotInteraction?.mode === "conn-endpoint-drag") {

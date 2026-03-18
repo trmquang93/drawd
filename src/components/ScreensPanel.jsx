@@ -17,6 +17,7 @@ export function ScreensPanel({
   onTaskLinkChange,
   techStack,
   onTechStackChange,
+  isReadOnly,
 }) {
   const [briefOpen, setBriefOpen] = useState(false);
   const [techOpen, setTechOpen] = useState(false);

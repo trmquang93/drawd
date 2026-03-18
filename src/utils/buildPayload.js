@@ -22,3 +22,17 @@ export function buildPayload(screens, connections, pan, zoom, documents = [], fe
     screenGroups,
   };
 }
+
+export function buildCollabPayload(screens, connections, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = []) {
+  return {
+    screens,
+    connections,
+    documents,
+    featureBrief,
+    taskLink,
+    techStack,
+    dataModels,
+    stickyNotes,
+    screenGroups,
+  };
+}

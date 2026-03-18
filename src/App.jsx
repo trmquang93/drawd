@@ -8,9 +8,15 @@ const Drawd = lazy(() => import("./Drawd"));
 
 function getRoute() {
   const hash = window.location.hash;
-  if (hash === "#/editor") return "editor";
+  if (hash.startsWith("#/editor")) return "editor";
   if (hash === "#/docs") return "docs";
   return "landing";
+}
+
+function getRoomCodeFromHash() {
+  const hash = window.location.hash;
+  const match = hash.match(/[?&]room=([A-Za-z0-9]+)/);
+  return match ? match[1].toUpperCase() : null;
 }
 
 export default function App() {
@@ -45,7 +51,7 @@ export default function App() {
           </div>
         }
       >
-        <Drawd />
+        <Drawd initialRoomCode={getRoomCodeFromHash()} />
       </Suspense>
     );
   } else if (route === "docs") {

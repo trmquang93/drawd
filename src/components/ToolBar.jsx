@@ -89,7 +89,7 @@ function ActionButton({ icon: Icon, label, shortcutKey, onClick }) {
   );
 }
 
-export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddStickyNote }) {
+export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddStickyNote, isReadOnly }) {
   return (
     <div
       style={{
@@ -152,11 +152,14 @@ export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddS
         );
       })}
 
-      <div style={dividerStyle} />
-
-      <ActionButton icon={UploadIcon} label="Upload Screens" shortcutKey="U" onClick={onUpload} />
-      <ActionButton icon={BlankScreenIcon} label="Add Blank Screen" shortcutKey="B" onClick={onAddBlank} />
-      <ActionButton icon={StickyNoteIcon} label="Add Sticky Note" shortcutKey="N" onClick={onAddStickyNote} />
+      {!isReadOnly && (
+        <>
+          <div style={dividerStyle} />
+          <ActionButton icon={UploadIcon} label="Upload Screens" shortcutKey="U" onClick={onUpload} />
+          <ActionButton icon={BlankScreenIcon} label="Add Blank Screen" shortcutKey="B" onClick={onAddBlank} />
+          <ActionButton icon={StickyNoteIcon} label="Add Sticky Note" shortcutKey="N" onClick={onAddStickyNote} />
+        </>
+      )}
     </div>
   );
 }

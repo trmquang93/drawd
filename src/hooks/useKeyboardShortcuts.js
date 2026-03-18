@@ -52,6 +52,8 @@ export function useKeyboardShortcuts({
   onOpen,
   // tool mode
   setActiveTool,
+  // collaboration
+  isReadOnly,
 }) {
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -102,6 +104,7 @@ export function useKeyboardShortcuts({
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
+        if (isReadOnly) return;
         // Batch canvas selection delete (screens + stickies)
         if (canvasSelection.length > 0) {
           e.preventDefault();
@@ -208,6 +211,7 @@ export function useKeyboardShortcuts({
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
+        if (isReadOnly) return;
         e.preventDefault();
         undo();
       }
@@ -215,6 +219,7 @@ export function useKeyboardShortcuts({
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
+        if (isReadOnly) return;
         e.preventDefault();
         redo();
       }
@@ -232,5 +237,6 @@ export function useKeyboardShortcuts({
     deleteHotspot, selectedStickyNote, setSelectedStickyNote, deleteStickyNote,
     selectedScreenGroup, setSelectedScreenGroup, deleteScreenGroup,
     setActiveTool, canvasSelection, clearSelection, removeScreens, addScreenGroup, screens,
+    isReadOnly,
   ]);
 }

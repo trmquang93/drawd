@@ -36,6 +36,13 @@ const SHORTCUTS = [
       { keys: ["\u2318/Ctrl", "O"], desc: "Open file" },
     ],
   },
+  {
+    category: "Collaboration",
+    items: [
+      { keys: ["Share button"], desc: "Create or join a collaboration room" },
+      { keys: ["Click room code"], desc: "Copy room code to clipboard" },
+    ],
+  },
 ];
 
 const kbdStyle = {

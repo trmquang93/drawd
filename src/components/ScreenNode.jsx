@@ -11,6 +11,7 @@ export function ScreenNode({
   onUpdateDescription, isSpaceHeld, onAddState, onDropImage, activeTool,
   scopeRoot, isInScope, onContextMenu,
   isMultiSelected, onToggleSelect, onMultiDragStart,
+  isReadOnly,
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -76,6 +77,7 @@ export function ScreenNode({
         if (e.target.closest(".connection-dot-right")) return;
         if (e.target.closest(".hotspot-drag-handle")) return;
         if (e.target.closest(".description-area")) return;
+        if (isReadOnly) { onSelect(screen.id); return; }
         if (e.shiftKey || e.metaKey) {
           e.stopPropagation();
           onToggleSelect?.("screen", screen.id);
@@ -274,7 +276,7 @@ export function ScreenNode({
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+        {!isReadOnly && <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           <button
             className="screen-btn"
             onClick={(e) => { e.stopPropagation(); onAddState?.(screen.id); }}
@@ -326,7 +328,7 @@ export function ScreenNode({
           >
             x
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* Image */}

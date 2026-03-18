@@ -2,7 +2,7 @@ import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE } from "../styles/theme";
 import { useState } from "react";
 import { SIDEBAR_WIDTH } from "../constants";
 
-export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles }) {
+export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles, isReadOnly }) {
   const [draftNotes, setDraftNotes] = useState(screen.notes || "");
   const [notesScreenId, setNotesScreenId] = useState(screen.id);
   const [draftCodeRef, setDraftCodeRef] = useState(screen.codeRef || "");
@@ -86,21 +86,23 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
         <span style={{ color: COLORS.text, fontSize: 13, fontWeight: 600, fontFamily: FONTS.mono }}>
           {screen.name}
         </span>
-        <button
-          onClick={onRename}
-          style={{
-            background: COLORS.accent01,
-            border: `1px solid ${COLORS.accent02}`,
-            borderRadius: 6,
-            color: COLORS.accentLight,
-            fontSize: 10,
-            padding: "3px 8px",
-            cursor: "pointer",
-            fontFamily: FONTS.mono,
-          }}
-        >
-          Rename
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={onRename}
+            style={{
+              background: COLORS.accent01,
+              border: `1px solid ${COLORS.accent02}`,
+              borderRadius: 6,
+              color: COLORS.accentLight,
+              fontSize: 10,
+              padding: "3px 8px",
+              cursor: "pointer",
+              fontFamily: FONTS.mono,
+            }}
+          >
+            Rename
+          </button>
+        )}
       </div>
 
       {/* TBD toggle */}
@@ -306,12 +308,13 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
         </div>
         <textarea
           value={draftNotes}
-          onChange={(e) => setDraftNotes(e.target.value)}
+          onChange={(e) => { if (!isReadOnly) setDraftNotes(e.target.value); }}
           onBlur={() => {
-            if (draftNotes !== (screen.notes || "")) {
+            if (!isReadOnly && draftNotes !== (screen.notes || "")) {
               onUpdateNotes?.(screen.id, draftNotes);
             }
           }}
+          readOnly={isReadOnly}
           placeholder="Add implementation notes, technical context..."
           rows={3}
           style={{
@@ -517,23 +520,25 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
             No states defined
           </div>
         )}
-        <button
-          onClick={() => onAddState?.(screen.id)}
-          style={{
-            width: "100%",
-            padding: "6px 0",
-            marginTop: 6,
-            background: COLORS.accent008,
-            border: `1px dashed ${COLORS.accent03}`,
-            borderRadius: 6,
-            color: COLORS.accentLight,
-            fontSize: 11,
-            cursor: "pointer",
-            fontFamily: FONTS.mono,
-          }}
-        >
-          + Add State
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={() => onAddState?.(screen.id)}
+            style={{
+              width: "100%",
+              padding: "6px 0",
+              marginTop: 6,
+              background: COLORS.accent008,
+              border: `1px dashed ${COLORS.accent03}`,
+              borderRadius: 6,
+              color: COLORS.accentLight,
+              fontSize: 11,
+              cursor: "pointer",
+              fontFamily: FONTS.mono,
+            }}
+          >
+            + Add State
+          </button>
+        )}
       </div>
 
       {/* Hotspots list */}
@@ -607,23 +612,25 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
         );
       })}
 
-      <button
-        onClick={() => onAddHotspot(screen.id)}
-        style={{
-          width: "100%",
-          padding: "10px 0",
-          marginTop: 8,
-          background: COLORS.accent008,
-          border: `1px dashed ${COLORS.accent03}`,
-          borderRadius: 8,
-          color: COLORS.accentLight,
-          fontSize: 12,
-          cursor: "pointer",
-          fontFamily: FONTS.mono,
-        }}
-      >
-        + Add Tap Area
-      </button>
+      {!isReadOnly && (
+        <button
+          onClick={() => onAddHotspot(screen.id)}
+          style={{
+            width: "100%",
+            padding: "10px 0",
+            marginTop: 8,
+            background: COLORS.accent008,
+            border: `1px dashed ${COLORS.accent03}`,
+            borderRadius: 8,
+            color: COLORS.accentLight,
+            fontSize: 12,
+            cursor: "pointer",
+            fontFamily: FONTS.mono,
+          }}
+        >
+          + Add Tap Area
+        </button>
+      )}
 
       {/* Incoming connections */}
       {incomingLinks.length > 0 && (

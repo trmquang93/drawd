@@ -42,6 +42,17 @@ export const COLORS = {
   // Multi-object selection
   selection: "rgba(97,175,239,0.08)",
   selectionBorder: "#61afef",
+  // Remote cursor palette (8 distinct colors for collaboration)
+  cursorPalette: [
+    "#e06c75", // red
+    "#98c379", // green
+    "#e5c07b", // yellow
+    "#c678dd", // purple
+    "#56b6c2", // cyan
+    "#d19a66", // orange
+    "#61afef", // blue
+    "#be5046", // rust
+  ],
 };
 
 export const FONTS = {
@@ -60,6 +71,7 @@ export const Z_INDEX = {
   resizeHandle: 3,
   dragOverlay: 5,
   stickyNote: 5,
+  remoteCursor: 40,
   canvasPrompt: 50,
   toolbar: 100,
   batchBar: 900,

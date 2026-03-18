@@ -224,6 +224,11 @@ export function useScreenManager(pan, zoom, canvasRef) {
     setScreens((prev) => prev.map((s) => ({ ...s, status: "existing" })));
   }, []);
 
+  // Lightweight image patch for collab sync (no undo, no dimension clear)
+  const patchScreenImage = useCallback((id, imageData) => {
+    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, imageData } : s)));
+  }, []);
+
   const assignScreenImage = useCallback((id, imageData) => {
     pushHistory(screens, connections, documents);
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, imageData, imageWidth: undefined, imageHeight: undefined } : s)));
@@ -854,6 +859,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
     updateScreenStatus,
     markAllExisting,
     assignScreenImage,
+    patchScreenImage,
     quickConnectHotspot,
     updateConnection,
     deleteConnection,
