@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "../collab/supabaseClient";
-import { COLLAB_DEBOUNCE_MS, CURSOR_THROTTLE_MS, COLLAB_ROOM_CODE_LENGTH } from "../constants";
+import { COLLAB_DEBOUNCE_MS, CURSOR_THROTTLE_MS, CURSOR_STALE_MS, COLLAB_ROOM_CODE_LENGTH } from "../constants";
 
 function generateRoomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 for clarity
@@ -48,6 +48,7 @@ export function useCollaboration({
   const applyRemoteStateRef = useRef(null);
   const applyRemoteImageRef = useRef(null);
   const initializedPeersRef = useRef(new Set());
+  const remoteCursorsRef = useRef([]);
 
   // Keep refs in sync
   useEffect(() => { screensRef.current = screens; }, [screens]);
@@ -102,11 +103,30 @@ export function useCollaboration({
       }
     });
 
+    // Broadcast: cursor-update
+    channel.on("broadcast", { event: "cursor-update" }, ({ payload }) => {
+      if (!payload?.peerId) return;
+      const entry = {
+        id: payload.peerId,
+        displayName: payload.displayName,
+        color: payload.color,
+        x: payload.x,
+        y: payload.y,
+        lastUpdate: payload.ts,
+      };
+      const prev = remoteCursorsRef.current;
+      const idx = prev.findIndex((c) => c.id === payload.peerId);
+      const next = idx >= 0
+        ? prev.map((c, i) => (i === idx ? entry : c))
+        : [...prev, entry];
+      remoteCursorsRef.current = next;
+      setRemoteCursors(next);
+    });
+
     // Presence: sync
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState();
       const allPeers = [];
-      const cursors = [];
       for (const [, presences] of Object.entries(state)) {
         for (const p of presences) {
           if (p.peerId === peerIdRef.current) continue;
@@ -116,26 +136,22 @@ export function useCollaboration({
             color: p.color,
             role: p.role,
           });
-          if (p.cursorX != null && p.cursorY != null) {
-            cursors.push({
-              id: p.peerId,
-              displayName: p.displayName,
-              color: p.color,
-              x: p.cursorX,
-              y: p.cursorY,
-              lastUpdate: p.cursorTs || Date.now(),
-            });
-          }
         }
       }
       setPeers(allPeers);
-      setRemoteCursors(cursors);
+
+      // Remove cursors for peers that left via Presence
+      const activePeerIds = new Set(allPeers.map((p) => p.id));
+      const filtered = remoteCursorsRef.current.filter((c) => activePeerIds.has(c.id));
+      if (filtered.length !== remoteCursorsRef.current.length) {
+        remoteCursorsRef.current = filtered;
+        setRemoteCursors(filtered);
+      }
 
       // Host departure detection
       if (myRole !== "host") {
         const hasHost = allPeers.some((p) => p.role === "host");
         if (!hasHost && allPeers.length === 0 && channelRef.current) {
-          // Check if we ever had a host (we did since we joined)
           setHostLeft(true);
         }
       }
@@ -193,9 +209,6 @@ export function useCollaboration({
           displayName,
           color,
           role: "host",
-          cursorX: null,
-          cursorY: null,
-          cursorTs: null,
         });
         channelRef.current = channel;
         setRoomCode(code);
@@ -226,9 +239,6 @@ export function useCollaboration({
           displayName,
           color,
           role: "editor",
-          cursorX: null,
-          cursorY: null,
-          cursorTs: null,
         });
         channelRef.current = channel;
         setRoomCode(normalizedCode);
@@ -253,6 +263,7 @@ export function useCollaboration({
       debounceTimerRef.current = null;
     }
     initializedPeersRef.current.clear();
+    remoteCursorsRef.current = [];
     setIsConnected(false);
     setRoomCode(null);
     setRole(null);
@@ -336,20 +347,40 @@ export function useCollaboration({
       const worldX = (e.clientX - rect.left - panRef.current.x) / zoomRef.current;
       const worldY = (e.clientY - rect.top - panRef.current.y) / zoomRef.current;
 
-      channel.track({
-        peerId: peerIdRef.current,
-        displayName: selfDisplayNameRef.current || "",
-        color: selfColorRef.current || "#61afef",
-        role: roleRef.current,
-        cursorX: worldX,
-        cursorY: worldY,
-        cursorTs: now,
+      channel.send({
+        type: "broadcast",
+        event: "cursor-update",
+        payload: {
+          peerId: peerIdRef.current,
+          displayName: selfDisplayNameRef.current || "",
+          color: selfColorRef.current || "#61afef",
+          x: worldX,
+          y: worldY,
+          ts: now,
+        },
       });
     };
 
     canvas.addEventListener("mousemove", onMouseMove);
     return () => canvas.removeEventListener("mousemove", onMouseMove);
   }, [isConnected, canvasRef]);
+
+  // Stale cursor cleanup: remove cursors not updated within CURSOR_STALE_MS.
+  // Handles unclean disconnects (browser crash, network drop) where Presence
+  // leave event never fires.
+  useEffect(() => {
+    if (!isConnected) return;
+    const id = setInterval(() => {
+      const now = Date.now();
+      const prev = remoteCursorsRef.current;
+      const filtered = prev.filter((c) => now - c.lastUpdate < CURSOR_STALE_MS);
+      if (filtered.length !== prev.length) {
+        remoteCursorsRef.current = filtered;
+        setRemoteCursors(filtered);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isConnected]);
 
   // Cleanup on unmount
   useEffect(() => {

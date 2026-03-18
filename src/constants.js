@@ -63,7 +63,8 @@ export const DESCRIPTION_MAX_LENGTH = 500;
 
 // ── Collaboration ───────────────────────────
 export const COLLAB_DEBOUNCE_MS = 500;
-export const CURSOR_THROTTLE_MS = 50;
+export const CURSOR_THROTTLE_MS = 150;
+export const CURSOR_STALE_MS = 4000;
 export const COLLAB_ROOM_CODE_LENGTH = 6;
 export const COLLAB_CURSOR_FADE_MS = 3000;
 

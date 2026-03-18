@@ -69,7 +69,7 @@ export function useHotspotInteraction({
     } else {
       setHotspotInteraction({ mode: "selected", screenId, hotspotId });
     }
-  }, [hotspotInteraction, canvasRef, screens, captureDragSnapshot, pan, zoom, selectedHotspots, setSelectedConnection, activeTool]);
+  }, [hotspotInteraction, canvasRef, screens, pan, zoom, selectedHotspots, setSelectedConnection, activeTool]);
 
   const onImageAreaMouseDown = useCallback((e, screenId) => {
     // Pan tool blocks drawing hotspots
