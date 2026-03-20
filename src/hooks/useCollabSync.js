@@ -34,7 +34,7 @@ export function useCollabSync({
     if (payload.dataModels !== undefined) setDataModels(payload.dataModels);
     if (payload.stickyNotes !== undefined) setStickyNotes(payload.stickyNotes);
     if (payload.screenGroups !== undefined) setScreenGroups(payload.screenGroups);
-  }, [replaceAll, setDataModels, setStickyNotes, setScreenGroups]);
+  }, [replaceAll, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups]);
 
   const applyPendingRemoteState = useCallback((payload) => {
     applyRemotePayload(payload);
@@ -58,10 +58,6 @@ export function useCollabSync({
   });
 
   const isReadOnly = collab.isReadOnly;
-
-  useEffect(() => {
-    if (!collab.isConnected) setShowParticipants(false);
-  }, [collab.isConnected]);
 
   return {
     collab, isReadOnly,

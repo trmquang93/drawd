@@ -16,7 +16,7 @@ export function useFileActions({
     setStickyNotes(payload.stickyNotes || []);
     setScreenGroups(payload.screenGroups || []);
     setScopeRoot(null);
-  }, [replaceAll, setPan, setZoom, setDataModels, setStickyNotes, setScreenGroups]);
+  }, [replaceAll, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setScopeRoot]);
 
   const onOpen = useCallback(async () => {
     try {
@@ -45,7 +45,7 @@ export function useFileActions({
     setScreenGroups([]);
     setScopeRoot(null);
     disconnect();
-  }, [screens.length, replaceAll, setPan, setZoom, disconnect, setDataModels, setStickyNotes, setScreenGroups]);
+  }, [screens.length, replaceAll, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setScopeRoot, disconnect]);
 
   return { applyPayload, onOpen, onSaveAs, onNew };
 }

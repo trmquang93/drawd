@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
 import { FILE_EXTENSION, LEGACY_FILE_EXTENSION } from "./constants";
 import { useCanvas } from "./hooks/useCanvas";
@@ -108,6 +108,10 @@ export default function Drawd({ initialRoomCode }) {
     draggingRef, hotspotInteractionRef, patchScreenImage,
     canvasRef, pan, zoom, initialRoomCode,
   });
+
+  useEffect(() => {
+    if (!collab.isConnected) setShowParticipants(false);
+  }, [collab.isConnected]);
 
   // ── Scope computation ───────────────────────────────────────────────────
   const scopeScreenIds = scopeRoot ? (() => {

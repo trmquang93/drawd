@@ -34,7 +34,7 @@ export function useInteractionCallbacks({
         : [conn];
       setConnectionEditModal({ connection: conn, groupConnections: groupConns, fromScreen: screen });
     }
-  }, [connections, screens]);
+  }, [connections, screens, setHotspotModal, setConnectionEditModal]);
 
   const onConnectComplete = useCallback((targetScreenId) => {
     if (hotspotInteraction?.mode === "hotspot-drag") {
@@ -85,7 +85,7 @@ export function useInteractionCallbacks({
       }
       setHotspotInteraction(null);
     }
-  }, [hotspotInteraction, screens, setHotspotInteraction]);
+  }, [hotspotInteraction, screens, setHotspotInteraction, setHotspotModal]);
 
   const onDragStart = useCallback((e, screenId) => {
     if (activeTool === "pan") return;
@@ -102,7 +102,7 @@ export function useInteractionCallbacks({
   const addHotspot = useCallback((screenId) => {
     const screen = screens.find((s) => s.id === screenId);
     setHotspotModal({ screen, hotspot: null });
-  }, [screens]);
+  }, [screens, setHotspotModal]);
 
   const onHotspotDoubleClick = useCallback((_e, screenId, hotspotId) => {
     const screen = screens.find((s) => s.id === screenId);
@@ -111,7 +111,7 @@ export function useInteractionCallbacks({
     if (!hotspot) return;
     setHotspotInteraction(null);
     setHotspotModal({ screen, hotspot });
-  }, [screens, setHotspotInteraction]);
+  }, [screens, setHotspotInteraction, setHotspotModal]);
 
   const addHotspotViaConnect = useCallback((screenId) => {
     onStartConnect(screenId);
