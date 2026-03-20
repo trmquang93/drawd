@@ -20,7 +20,7 @@
   },
   "overrides": {
     "@grida/refig": {
-      "@grida/canvas-wasm": "0.90.0-canary.10"
+      "@grida/canvas-wasm": "0.91.0-canary.3"
     }
   },
   "devDependencies": {

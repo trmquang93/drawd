@@ -1,8 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { COLORS, FONTS, FONT_LINK, Z_INDEX } from "./styles/theme";
-import { HEADER_HEIGHT, DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, FILE_EXTENSION, LEGACY_FILE_EXTENSION } from "./constants";
-import { generateInstructionFiles } from "./utils/generateInstructionFiles";
-import { validateInstructions } from "./utils/validateInstructions";
+import { useState, useCallback, useRef } from "react";
+import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
+import { FILE_EXTENSION, LEGACY_FILE_EXTENSION } from "./constants";
 import { useCanvas } from "./hooks/useCanvas";
 import { useScreenManager } from "./hooks/useScreenManager";
 import { useFilePersistence } from "./hooks/useFilePersistence";
@@ -12,45 +10,32 @@ import { useCanvasMouseHandlers } from "./hooks/useCanvasMouseHandlers";
 import { useImportExport } from "./hooks/useImportExport";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useCanvasSelection } from "./hooks/useCanvasSelection";
-import { useCollaboration } from "./hooks/useCollaboration";
-import { ScreenNode } from "./components/ScreenNode";
-import { ConnectionLines } from "./components/ConnectionLines";
-import { HotspotModal } from "./components/HotspotModal";
-import { ConnectionEditModal } from "./components/ConnectionEditModal";
-import { InstructionsPanel } from "./components/InstructionsPanel";
-import { DocumentsPanel } from "./components/DocumentsPanel";
-import { DataModelsPanel } from "./components/DataModelsPanel";
-import { RenameModal } from "./components/RenameModal";
-import { ImportConfirmModal } from "./components/ImportConfirmModal";
+import { useStickyNotes } from "./hooks/useStickyNotes";
+import { useScreenGroups } from "./hooks/useScreenGroups";
+import { useDataModels } from "./hooks/useDataModels";
+import { useFigmaPaste } from "./hooks/useFigmaPaste";
+import { useInstructionGeneration } from "./hooks/useInstructionGeneration";
+import { useFileActions } from "./hooks/useFileActions";
+import { useCollabSync } from "./hooks/useCollabSync";
+import { useInteractionCallbacks } from "./hooks/useInteractionCallbacks";
+import { useDerivedCanvasState } from "./hooks/useDerivedCanvasState";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
-import { EmptyState } from "./components/EmptyState";
-import { ConditionalPrompt } from "./components/ConditionalPrompt";
-import { InlineConditionLabels } from "./components/InlineConditionLabels";
-import { ShortcutsPanel } from "./components/ShortcutsPanel";
-import { ScreensPanel } from "./components/ScreensPanel";
-import { SelectionOverlay } from "./components/SelectionOverlay";
-import { ToolBar } from "./components/ToolBar";
-import { StickyNote } from "./components/StickyNote";
 import { StickyNoteSidebar } from "./components/StickyNoteSidebar";
-import { ScreenGroup } from "./components/ScreenGroup";
-import { importFlow } from "./utils/importFlow";
-import { isFigmaClipboard, extractFigmaData, renderFigmaBuffer } from "./utils/parseFigmaClipboard";
-import { detectDrawdFile } from "./utils/detectDrawdFile";
-import { generateId } from "./utils/generateId";
-import { ShareModal } from "./components/ShareModal";
+import { ScreensPanel } from "./components/ScreensPanel";
+import { CanvasArea } from "./components/CanvasArea";
+import { ModalsLayer } from "./components/ModalsLayer";
 import { CollabPresence } from "./components/CollabPresence";
 import { CollabBadge } from "./components/CollabBadge";
-import { RemoteCursors } from "./components/RemoteCursors";
-import { HostLeftModal } from "./components/HostLeftModal";
-import { ParticipantsPanel } from "./components/ParticipantsPanel";
+import { importFlow } from "./utils/importFlow";
+import { detectDrawdFile } from "./utils/detectDrawdFile";
 
 
 export default function Drawd({ initialRoomCode }) {
   // ── Active tool ──────────────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState("select");
 
-  // ── Core hooks ──────────────────────────────────────────────
+  // ── Core hooks ──────────────────────────────────────────
   const {
     pan, setPan, zoom, setZoom, isPanning, dragging, multiDragging, canvasRef,
     isSpaceHeld, spaceHeld, handleDragStart, handleMultiDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown,
@@ -84,142 +69,47 @@ export default function Drawd({ initialRoomCode }) {
   const [techStack, setTechStack] = useState({});
   const [scopeRoot, setScopeRoot] = useState(null);
 
-  // ── Data models ───────────────────────────────────────────────────────────
-  const [dataModels, setDataModels] = useState([]);
-  const [showDataModels, setShowDataModels] = useState(false);
+  // ── Extracted CRUD hooks ────────────────────────────────────────────────
+  const {
+    stickyNotes, setStickyNotes,
+    selectedStickyNote, setSelectedStickyNote,
+    addStickyNote, updateStickyNote, deleteStickyNote,
+  } = useStickyNotes();
 
-  // ── Sticky notes ──────────────────────────────────────────────────────────
-  const [stickyNotes, setStickyNotes] = useState([]);
-  const [selectedStickyNote, setSelectedStickyNote] = useState(null);
+  const {
+    screenGroups, setScreenGroups,
+    selectedScreenGroup, setSelectedScreenGroup,
+    addScreenGroup, updateScreenGroup, deleteScreenGroup,
+    addScreenToGroup, removeScreenFromGroup,
+  } = useScreenGroups();
 
-  // ── Screen groups ─────────────────────────────────────────────────────────
-  const [screenGroups, setScreenGroups] = useState([]);
-  const [selectedScreenGroup, setSelectedScreenGroup] = useState(null);
-
-  // ── Screen group callbacks ────────────────────────────────────────────────
-  const addScreenGroup = useCallback((name, screenIds = [], color = COLORS.accent008) => {
-    const group = { id: generateId(), name, screenIds, color, folderHint: "" };
-    setScreenGroups((prev) => [...prev, group]);
-    return group.id;
-  }, []);
-
-  const updateScreenGroup = useCallback((id, patch) => {
-    setScreenGroups((prev) => prev.map((g) => g.id === id ? { ...g, ...patch } : g));
-  }, []);
-
-  const deleteScreenGroup = useCallback((id) => {
-    setScreenGroups((prev) => prev.filter((g) => g.id !== id));
-  }, []);
-
-  const addScreenToGroup = useCallback((groupId, screenId) => {
-    setScreenGroups((prev) => prev.map((g) =>
-      g.id === groupId && !g.screenIds.includes(screenId)
-        ? { ...g, screenIds: [...g.screenIds, screenId] }
-        : g
-    ));
-  }, []);
-
-  const removeScreenFromGroup = useCallback((screenId) => {
-    setScreenGroups((prev) => prev.map((g) => ({
-      ...g,
-      screenIds: g.screenIds.filter((id) => id !== screenId),
-    })));
-  }, []);
-
-  const addStickyNote = useCallback((x, y) => {
-    const note = { id: generateId(), x, y, width: DEFAULT_SCREEN_WIDTH, content: "", color: "yellow", author: "" };
-    setStickyNotes((prev) => [...prev, note]);
-  }, []);
-
-  const updateStickyNote = useCallback((id, patch) => {
-    setStickyNotes((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
-  }, []);
-
-  const deleteStickyNote = useCallback((id) => {
-    setStickyNotes((prev) => prev.filter((n) => n.id !== id));
-  }, []);
-
-  const addDataModel = useCallback((name, schema) => {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-    setDataModels((prev) => [...prev, { id, name, schema, createdAt: new Date().toISOString() }]);
-    return id;
-  }, []);
-  const updateDataModel = useCallback((id, patch) => {
-    setDataModels((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-  }, []);
-  const deleteDataModel = useCallback((id) => {
-    setDataModels((prev) => prev.filter((m) => m.id !== id));
-  }, []);
-
-  // ── Figma paste state ────────────────────────────────────────────────────
-  const [figmaProcessing, setFigmaProcessing] = useState(false);
-  const [figmaError, setFigmaError] = useState(null);
+  const {
+    dataModels, setDataModels,
+    showDataModels, setShowDataModels,
+    addDataModel, updateDataModel, deleteDataModel,
+  } = useDataModels();
 
   // ── Collaboration ──────────────────────────────────────────────────────────
-  const [showShareModal, setShowShareModal] = useState(!!initialRoomCode);
-  const [showParticipants, setShowParticipants] = useState(false);
-  const pendingRemoteStateRef = useRef(null);
+  const draggingRef = useRef(false);
+  draggingRef.current = dragging;
+  const hotspotInteractionRef = useRef(null);
 
-  const screensRef = useRef(screens);
-  useEffect(() => { screensRef.current = screens; }, [screens]);
-
-  const applyRemotePayload = useCallback((payload) => {
-    const incomingScreens = payload.screens || [];
-    // Preserve existing imageData for screens that arrive without it.
-    // buildCollabPayload strips imageData to stay under Supabase's size limit,
-    // so we merge with the guest's current images to avoid flicker.
-    const currentScreens = screensRef.current;
-    const merged = incomingScreens.map((s) => {
-      if (!s.imageData) {
-        const existing = currentScreens.find((e) => e.id === s.id);
-        if (existing?.imageData) {
-          return { ...s, imageData: existing.imageData };
-        }
-      }
-      return s;
-    });
-    replaceAll(
-      merged,
-      payload.connections || [],
-      merged.length + 1,
-      payload.documents || [],
-    );
-    if (payload.featureBrief !== undefined) setFeatureBrief(payload.featureBrief);
-    if (payload.taskLink !== undefined) setTaskLink(payload.taskLink);
-    if (payload.techStack !== undefined) setTechStack(payload.techStack);
-    if (payload.dataModels !== undefined) setDataModels(payload.dataModels);
-    if (payload.stickyNotes !== undefined) setStickyNotes(payload.stickyNotes);
-    if (payload.screenGroups !== undefined) setScreenGroups(payload.screenGroups);
-  }, [replaceAll]);
-
-  const applyPendingRemoteState = useCallback((payload) => {
-    applyRemotePayload(payload);
-  }, [applyRemotePayload]);
-
-  const collab = useCollaboration({
+  const {
+    collab, isReadOnly,
+    showShareModal, setShowShareModal,
+    showParticipants, setShowParticipants,
+    pendingRemoteStateRef, applyPendingRemoteState,
+  } = useCollabSync({
     screens, connections, documents,
     featureBrief, taskLink, techStack,
     dataModels, stickyNotes, screenGroups,
-    applyRemoteState: (payload) => {
-      // If user is mid-drag, queue the update
-      if (dragging || hotspotInteraction?.mode === "draw" || hotspotInteraction?.mode === "reposition" || hotspotInteraction?.mode === "resize") {
-        pendingRemoteStateRef.current = payload;
-        return;
-      }
-      applyRemotePayload(payload);
-    },
-    applyRemoteImage: patchScreenImage,
-    canvasRef, pan, zoom,
+    replaceAll, setFeatureBrief, setTaskLink, setTechStack,
+    setDataModels, setStickyNotes, setScreenGroups,
+    draggingRef, hotspotInteractionRef, patchScreenImage,
+    canvasRef, pan, zoom, initialRoomCode,
   });
 
-  const isReadOnly = collab.isReadOnly;
-
-  // Auto-close participants panel when disconnecting
-  useEffect(() => {
-    if (!collab.isConnected) setShowParticipants(false);
-  }, [collab.isConnected]);
-
-  // BFS forward from scopeRoot following connections
+  // ── Scope computation ───────────────────────────────────────────────────
   const scopeScreenIds = scopeRoot ? (() => {
     const visited = new Set([scopeRoot]);
     const queue = [scopeRoot];
@@ -235,62 +125,39 @@ export default function Drawd({ initialRoomCode }) {
     return visited;
   })() : null;
 
+  // ── File persistence ────────────────────────────────────────────────────
   const {
     connectedFileName, saveStatus, isFileSystemSupported,
     openFile, saveAs, saveNow, disconnect,
   } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups);
 
   // ── File actions ───────────────────────────────────────────────────
-  const applyPayload = useCallback((payload) => {
-    replaceAll(payload.screens, payload.connections, payload.screens.length + 1, payload.documents || []);
-    if (payload.viewport) { setPan(payload.viewport.pan); setZoom(payload.viewport.zoom); }
-    setFeatureBrief(payload.metadata?.featureBrief || "");
-    setTaskLink(payload.metadata?.taskLink || "");
-    setTechStack(payload.metadata?.techStack || {});
-    setDataModels(payload.dataModels || []);
-    setStickyNotes(payload.stickyNotes || []);
-    setScreenGroups(payload.screenGroups || []);
-    setScopeRoot(null);
-  }, [replaceAll, setPan, setZoom]);
-
-  const onOpen = useCallback(async () => {
-    try {
-      const payload = await openFile();
-      if (!payload) return;
-      applyPayload(payload);
-    } catch (err) { alert(err.message); }
-  }, [openFile, applyPayload]);
-
-  const onSaveAs = useCallback(async () => {
-    try { await saveAs(); } catch (err) { alert("Save failed: " + err.message); }
-  }, [saveAs]);
-
-  const onNew = useCallback(() => {
-    if (screens.length > 0) {
-      if (!window.confirm("You have unsaved changes. Start a new flow?")) return;
-    }
-    replaceAll([], [], 1, []);
-    setPan({ x: 0, y: 0 });
-    setZoom(1);
-    setFeatureBrief("");
-    setTaskLink("");
-    setTechStack({});
-    setDataModels([]);
-    setStickyNotes([]);
-    setScreenGroups([]);
-    setScopeRoot(null);
-    disconnect();
-  }, [screens.length, replaceAll, setPan, setZoom, disconnect]);
+  const { applyPayload, onOpen, onSaveAs, onNew } = useFileActions({
+    screens, replaceAll, setPan, setZoom,
+    setFeatureBrief, setTaskLink, setTechStack,
+    setDataModels, setStickyNotes, setScreenGroups,
+    setScopeRoot, openFile, saveAs, disconnect,
+  });
 
   // ── Modal state ────────────────────────────────────────────────────────
   const [hotspotModal, setHotspotModal] = useState(null);
   const [connectionEditModal, setConnectionEditModal] = useState(null);
   const [showDocuments, setShowDocuments] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(false);
-  const [groupContextMenu, setGroupContextMenu] = useState(null); // { screenId, x, y }
-  const [instructions, setInstructions] = useState(null);
+  const [groupContextMenu, setGroupContextMenu] = useState(null);
   const [renameModal, setRenameModal] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // ── Instruction generation ─────────────────────────────────────────────
+  const { instructions, showInstructions, setShowInstructions, onGenerate, buildInstructionResult } =
+    useInstructionGeneration({
+      screens, connections, documents,
+      featureBrief, taskLink, techStack,
+      dataModels, screenGroups, scopeScreenIds,
+    });
+
+  // ── Figma paste ────────────────────────────────────────────────────────
+  const { figmaProcessing, figmaError, setFigmaError } =
+    useFigmaPaste({ handlePaste, addScreenAtCenter });
 
   // ── Interaction hooks ────────────────────────────────────────────────────────
   const connInteraction = useConnectionInteraction({
@@ -325,81 +192,29 @@ export default function Drawd({ initialRoomCode }) {
     onEndpointMouseDown, onScreenDimensions, handleDropImage,
   } = hsInteraction;
 
+  // Keep collab sync refs up to date
+  hotspotInteractionRef.current = hotspotInteraction;
+
   // ── Cross-concern callbacks ──────────────────────────────────────────────────────────
-  const onConnectionClick = useCallback((connId) => {
-    setSelectedConnection(connId);
-    setHotspotInteraction(null);
-  }, [setSelectedConnection, setHotspotInteraction]);
-
-  const onConnectionDoubleClick = useCallback((connId) => {
-    const conn = connections.find((c) => c.id === connId);
-    if (!conn) return;
-    const screen = screens.find((s) => s.id === conn.fromScreenId);
-    if (!screen) return;
-    if (conn.hotspotId) {
-      const hotspot = screen.hotspots.find((h) => h.id === conn.hotspotId);
-      if (hotspot) setHotspotModal({ screen, hotspot, connection: conn });
-    } else {
-      const groupConns = conn.conditionGroupId
-        ? connections.filter((c) => c.conditionGroupId === conn.conditionGroupId)
-        : [conn];
-      setConnectionEditModal({ connection: conn, groupConnections: groupConns, fromScreen: screen });
-    }
-  }, [connections, screens]);
-
-  const onConnectComplete = useCallback((targetScreenId) => {
-    // Handle hotspot-drag connect
-    if (hotspotInteraction?.mode === "hotspot-drag") {
-      if (targetScreenId !== hotspotInteraction.screenId) {
-        quickConnectHotspot(hotspotInteraction.screenId, hotspotInteraction.hotspotId, targetScreenId);
-      }
-      setHotspotInteraction({ mode: "selected", screenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId });
-      setHoverTarget(null);
-      return;
-    }
-
-    if (!connecting) return;
-    const fromId = connecting.fromScreenId;
-    if (targetScreenId === fromId) { cancelConnecting(); return; }
-
-    const existingPlain = connections.filter((c) => c.fromScreenId === fromId && !c.hotspotId);
-
-    // Scenario 2: existing conditional group — auto-join
-    const existingGroup = existingPlain.find((c) => c.conditionGroupId);
-    if (existingGroup) {
-      addToConditionalGroup(fromId, targetScreenId, existingGroup.conditionGroupId);
-      setEditingConditionGroup(existingGroup.conditionGroupId);
-      cancelConnecting();
-      return;
-    }
-
-    // Scenario 1: existing non-grouped connection — show prompt
-    if (existingPlain.length > 0) {
-      const isDuplicate = existingPlain.some((c) => c.toScreenId === targetScreenId);
-      if (isDuplicate) { cancelConnecting(); return; }
-      const fromScreen = screens.find((s) => s.id === fromId);
-      const promptX = fromScreen ? fromScreen.x + (fromScreen.width || DEFAULT_SCREEN_WIDTH) + 20 : 0;
-      const promptY = fromScreen ? fromScreen.y : 0;
-      setConditionalPrompt({ fromId, targetScreenId, existingConnId: existingPlain[0].id, x: promptX, y: promptY });
-      cancelConnecting();
-      return;
-    }
-
-    addConnection(fromId, targetScreenId);
-    cancelConnecting();
-  }, [connecting, cancelConnecting, hotspotInteraction, setHotspotInteraction, quickConnectHotspot, addConnection, connections, screens, addToConditionalGroup, setEditingConditionGroup, setHoverTarget, setConditionalPrompt]);
-
-  // Open hotspot modal when a draw gesture completes
-  useEffect(() => {
-    if (hotspotInteraction?.mode === "draw-complete") {
-      const screen = screens.find((s) => s.id === hotspotInteraction.screenId);
-      if (screen) {
-        const { x, y, w, h } = hotspotInteraction.drawRect;
-        setHotspotModal({ screen, hotspot: null, prefilledRect: { x, y, w, h } });
-      }
-      setHotspotInteraction(null);
-    }
-  }, [hotspotInteraction, screens, setHotspotInteraction]);
+  const {
+    onConnectionClick, onConnectionDoubleClick, onConnectComplete,
+    onDragStart, onMultiDragStart,
+    addHotspot, onHotspotDoubleClick, addHotspotViaConnect,
+    onScreensPanelClick,
+  } = useInteractionCallbacks({
+    screens, connections, stickyNotes,
+    connecting, cancelConnecting,
+    hotspotInteraction, setHotspotInteraction,
+    setSelectedConnection, setHoverTarget,
+    setConditionalPrompt, setEditingConditionGroup,
+    setHotspotModal, setConnectionEditModal,
+    quickConnectHotspot, addConnection, addToConditionalGroup,
+    onStartConnect,
+    activeTool, captureDragSnapshot,
+    handleDragStart, handleMultiDragStart,
+    canvasSelection, clearSelection,
+    setSelectedScreen, setPan, zoom, canvasRef,
+  });
 
   // ── Canvas event handlers ──────────────────────────────────────────────────────────
   const { onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, onCanvasMouseLeave, canvasCursor } =
@@ -475,171 +290,12 @@ export default function Drawd({ initialRoomCode }) {
     isReadOnly,
   });
 
-  // ── Paste handler ───────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const onPaste = async (e) => {
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-
-      // Figma clipboard: detect before regular image paste
-      if (e.clipboardData && isFigmaClipboard(e.clipboardData)) {
-        const html = e.clipboardData.getData("text/html");
-        const figmaData = extractFigmaData(html);
-        if (figmaData) {
-          e.preventDefault();
-          setFigmaProcessing(true);
-          setFigmaError(null);
-          try {
-            const { frameName, imageDataUrl, frameCount } = await renderFigmaBuffer(figmaData.buffer);
-            if (frameCount > 1) {
-              alert("Multiple frames detected. Only the first frame was imported. Please copy and paste one frame at a time for best results.");
-            }
-            addScreenAtCenter(imageDataUrl, frameName, 0, {
-              figmaSource: {
-                fileKey: figmaData.meta.fileKey,
-                frameName,
-                importedAt: new Date().toISOString(),
-              },
-            });
-          } catch (err) {
-            console.error("Figma render failed:", err);
-            setFigmaError(err.message || "Failed to render Figma frame");
-          } finally {
-            setFigmaProcessing(false);
-          }
-          return;
-        }
-      }
-
-      handlePaste(e);
-    };
-    document.addEventListener("paste", onPaste);
-    return () => document.removeEventListener("paste", onPaste);
-  }, [handlePaste, addScreenAtCenter]);
-
-  // ── Figma error auto-dismiss ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!figmaError) return;
-    const timer = setTimeout(() => setFigmaError(null), 5000);
-    return () => clearTimeout(timer);
-  }, [figmaError]);
-
-  // ── Misc callbacks ──────────────────────────────────────────────────────────────────
-  const onDragStart = useCallback((e, screenId) => {
-    if (activeTool === "pan") return;
-    captureDragSnapshot();
-    handleDragStart(e, screenId, screens);
-  }, [handleDragStart, screens, captureDragSnapshot, activeTool]);
-
-  const onMultiDragStart = useCallback((e) => {
-    if (activeTool === "pan") return;
-    captureDragSnapshot();
-    handleMultiDragStart(e, canvasSelection, screens, stickyNotes);
-  }, [activeTool, captureDragSnapshot, handleMultiDragStart, canvasSelection, screens, stickyNotes]);
-
-  const addHotspot = useCallback((screenId) => {
-    const screen = screens.find((s) => s.id === screenId);
-    setHotspotModal({ screen, hotspot: null });
-  }, [screens]);
-
-  const onHotspotDoubleClick = useCallback((_e, screenId, hotspotId) => {
-    const screen = screens.find((s) => s.id === screenId);
-    if (!screen) return;
-    const hotspot = screen.hotspots.find((h) => h.id === hotspotId);
-    if (!hotspot) return;
-    setHotspotInteraction(null);
-    setHotspotModal({ screen, hotspot });
-  }, [screens, setHotspotInteraction]);
-
-  const addHotspotViaConnect = useCallback((screenId) => {
-    onStartConnect(screenId);
-  }, [onStartConnect]);
-
-  const buildInstructionResult = useCallback((warnings) => {
-    const scopedScreens = scopeScreenIds
-      ? screens.filter((s) => scopeScreenIds.has(s.id))
-      : screens;
-    return generateInstructionFiles(scopedScreens, connections, {
-      platform: "auto",
-      documents,
-      featureBrief,
-      taskLink,
-      techStack,
-      dataModels,
-      screenGroups,
-      scopeScreenIds,
-      allScreens: screens,
-      warnings,
-    });
-  }, [screens, connections, documents, featureBrief, scopeScreenIds, taskLink, techStack, dataModels, screenGroups]);
-
-  const onGenerate = useCallback(() => {
-    if (screens.length === 0) return;
-    const scopedScreens = scopeScreenIds
-      ? screens.filter((s) => scopeScreenIds.has(s.id))
-      : screens;
-    const warnings = validateInstructions(scopedScreens, connections, { documents });
-    const errors = warnings.filter((w) => w.level === "error");
-    if (
-      errors.length > 0 &&
-      !window.confirm(
-        `Found ${errors.length} issue(s) that may affect generated output:\n\n${errors.map((e) => `\u2022 ${e.message}`).join("\n")}\n\nGenerate anyway?`
-      )
-    ) return;
-    const result = buildInstructionResult(warnings);
-    setInstructions(result);
-    setShowInstructions(true);
-  }, [screens, connections, documents, scopeScreenIds, buildInstructionResult]);
-
-  const onScreensPanelClick = useCallback((screenId) => {
-    clearSelection();
-    setSelectedScreen(screenId);
-    const screen = screens.find((s) => s.id === screenId);
-    if (!screen || !canvasRef.current) return;
-    const vw = canvasRef.current.clientWidth;
-    const vh = canvasRef.current.clientHeight;
-    const screenW = screen.width || DEFAULT_SCREEN_WIDTH;
-    const screenH = screen.imageHeight ? screen.imageHeight + HEADER_HEIGHT : DEFAULT_SCREEN_HEIGHT;
-    const centerX = screen.x + screenW / 2;
-    const centerY = screen.y + screenH / 2;
-    setPan({ x: vw / 2 - centerX * zoom, y: vh / 2 - centerY * zoom });
-  }, [screens, zoom, canvasRef, setPan, setSelectedScreen, clearSelection]);
-
   // ── Derived values ──────────────────────────────────────────────────────────────────
   const selectedScreenData = screens.find((s) => s.id === selectedScreen);
   const selectedStickyNoteData = stickyNotes.find((n) => n.id === selectedStickyNote);
 
-  const previewLine = connecting
-    ? { fromScreenId: connecting.fromScreenId, toX: connecting.mouseX, toY: connecting.mouseY }
-    : null;
-
-  const hotspotPreviewLine = hotspotInteraction?.mode === "hotspot-drag"
-    ? { fromScreenId: hotspotInteraction.screenId, hotspotId: hotspotInteraction.hotspotId, toX: hotspotInteraction.mouseX, toY: hotspotInteraction.mouseY }
-    : null;
-
-  const endpointDragPreview = hotspotInteraction?.mode === "conn-endpoint-drag"
-    ? { connectionId: hotspotInteraction.connectionId, endpoint: hotspotInteraction.endpoint, mouseX: hotspotInteraction.mouseX, mouseY: hotspotInteraction.mouseY }
-    : null;
-
-  const selectedHotspotId = hotspotInteraction?.hotspotId || null;
-  const drawRect = hotspotInteraction?.mode === "draw" ? hotspotInteraction.drawRect : null;
-
-  // Ghost preview showing where the hotspot will land during reposition drag
-  const repositionGhost = (() => {
-    if (hotspotInteraction?.mode !== "reposition" || hotspotInteraction.worldX == null) return null;
-    const srcScreen = screens.find((s) => s.id === hotspotInteraction.screenId);
-    if (!srcScreen) return null;
-    const hs = srcScreen.hotspots.find((h) => h.id === hotspotInteraction.hotspotId);
-    if (!hs) return null;
-    const pixelW = (hs.w / 100) * (srcScreen.width || DEFAULT_SCREEN_WIDTH);
-    const pixelH = (hs.h / 100) * (srcScreen.imageHeight || DEFAULT_SCREEN_HEIGHT);
-    return {
-      x: hotspotInteraction.worldX - pixelW / 2,
-      y: hotspotInteraction.worldY - pixelH / 2,
-      width: pixelW,
-      height: pixelH,
-    };
-  })();
+  const { previewLine, hotspotPreviewLine, endpointDragPreview, selectedHotspotId, drawRect, repositionGhost } =
+    useDerivedCanvasState({ connecting, hotspotInteraction, screens });
 
   // ── Render ────────────────────────────────────────────────────────────────────────────
   return (
@@ -716,324 +372,88 @@ export default function Drawd({ initialRoomCode }) {
           isReadOnly={isReadOnly}
         />
 
-        {/* Canvas */}
-        <div
-          ref={canvasRef}
-          onMouseDown={onCanvasMouseDown}
-          onMouseMove={onCanvasMouseMove}
-          onMouseUp={onCanvasMouseUp}
-          onMouseLeave={onCanvasMouseLeave}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onCanvasDrop}
-          onClick={() => { if (groupContextMenu) setGroupContextMenu(null); }}
-          onDoubleClick={(e) => {
-            if (e.target !== canvasRef.current) return;
-            const rect = canvasRef.current.getBoundingClientRect();
-            const worldX = (e.clientX - rect.left - pan.x) / zoom;
-            const worldY = (e.clientY - rect.top - pan.y) / zoom;
-            addStickyNote(worldX, worldY);
-          }}
-          style={{
-            flex: 1,
-            position: "relative",
-            overflow: "hidden",
-            background: COLORS.canvasBg,
-            cursor: canvasCursor,
-            backgroundImage: `radial-gradient(circle, ${COLORS.canvasDot} 1px, transparent 1px)`,
-            backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
-            backgroundPosition: `${pan.x}px ${pan.y}px`,
-          }}
-        >
-          <div
-            className="canvas-inner"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: "0 0",
-            }}
-          >
-            {screenGroups.map((group) => (
-              <ScreenGroup
-                key={group.id}
-                group={group}
-                screens={screens}
-                onUpdate={updateScreenGroup}
-                onDelete={deleteScreenGroup}
-                selected={selectedScreenGroup === group.id}
-                onSelect={(id) => {
-                  setSelectedScreenGroup(id);
-                  setSelectedStickyNote(null);
-                  setSelectedScreen(null);
-                  setSelectedConnection(null);
-                  setHotspotInteraction(null);
-                }}
-              />
-            ))}
-            {screens.map((screen) => (
-              <ScreenNode
-                key={screen.id}
-                screen={screen}
-                selected={selectedScreen === screen.id}
-                onSelect={(id) => { clearSelection(); setSelectedScreen(id); setSelectedStickyNote(null); }}
-                onDragStart={onDragStart}
-                isSpaceHeld={isSpaceHeld}
-                onAddHotspot={addHotspotViaConnect}
-                onRemoveScreen={removeScreen}
-                onDotDragStart={onDotDragStart}
-                onConnectTarget={onConnectComplete}
-                onHoverTarget={setHoverTarget}
-                isConnectHoverTarget={hoverTarget === screen.id}
-                isConnecting={!!connecting}
-                selectedHotspotId={hotspotInteraction?.screenId === screen.id ? selectedHotspotId : null}
-                selectedHotspotIds={selectedHotspots.length > 0 && selectedHotspots[0].screenId === screen.id
-                  ? new Set(selectedHotspots.map((h) => h.hotspotId))
-                  : null}
-                onHotspotMouseDown={onHotspotMouseDown}
-                onHotspotDoubleClick={onHotspotDoubleClick}
-                onImageAreaMouseDown={onImageAreaMouseDown}
-                onHotspotDragHandleMouseDown={onHotspotDragHandleMouseDown}
-                onResizeHandleMouseDown={onResizeHandleMouseDown}
-                onScreenDimensions={onScreenDimensions}
-                drawRect={drawRect}
-                isHotspotDragging={hotspotInteraction?.mode === "hotspot-drag"}
-                onUpdateDescription={updateScreenDescription}
-                onAddState={addState}
-                onDropImage={handleDropImage}
-                activeTool={activeTool}
-                scopeRoot={scopeRoot}
-                isInScope={scopeScreenIds ? scopeScreenIds.has(screen.id) : undefined}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const rect = canvasRef.current?.getBoundingClientRect();
-                  setGroupContextMenu({ screenId: screen.id, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) });
-                }}
-                isMultiSelected={canvasSelection.some((i) => i.type === "screen" && i.id === screen.id)}
-                onToggleSelect={toggleSelection}
-                onMultiDragStart={onMultiDragStart}
-                isReadOnly={isReadOnly}
-              />
-            ))}
-            {stickyNotes.map((note) => (
-              <StickyNote
-                key={note.id}
-                note={note}
-                zoom={zoom}
-                onUpdate={updateStickyNote}
-                onDelete={deleteStickyNote}
-                selected={selectedStickyNote === note.id}
-                onSelect={(id) => {
-                  setSelectedStickyNote(id);
-                  setSelectedScreen(null);
-                  setSelectedConnection(null);
-                  setHotspotInteraction(null);
-                  setSelectedScreenGroup(null);
-                }}
-                isMultiSelected={canvasSelection.some((i) => i.type === "sticky" && i.id === note.id)}
-                onToggleSelect={toggleSelection}
-                onMultiDragStart={onMultiDragStart}
-                onDragStart={(e, id) => {
-                  e.stopPropagation();
-                  const startX = e.clientX;
-                  const startY = e.clientY;
-                  const origX = note.x;
-                  const origY = note.y;
-                  const onMove = (me) => {
-                    const dx = (me.clientX - startX) / zoom;
-                    const dy = (me.clientY - startY) / zoom;
-                    updateStickyNote(id, { x: origX + dx, y: origY + dy });
-                  };
-                  const onUp = () => {
-                    window.removeEventListener("mousemove", onMove);
-                    window.removeEventListener("mouseup", onUp);
-                  };
-                  window.addEventListener("mousemove", onMove);
-                  window.addEventListener("mouseup", onUp);
-                }}
-              />
-            ))}
-            <SelectionOverlay rubberBandRect={rubberBandRect} />
-            <ConnectionLines
-              screens={screens}
-              connections={connections}
-              previewLine={previewLine}
-              hotspotPreviewLine={hotspotPreviewLine}
-              selectedConnectionId={selectedConnection}
-              onConnectionClick={onConnectionClick}
-              onConnectionDoubleClick={onConnectionDoubleClick}
-              onEndpointMouseDown={onEndpointMouseDown}
-              endpointDragPreview={endpointDragPreview}
-            />
-            {repositionGhost && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: repositionGhost.x,
-                  top: repositionGhost.y,
-                  width: repositionGhost.width,
-                  height: repositionGhost.height,
-                  border: `2px dashed ${COLORS.accent}`,
-                  borderRadius: 6,
-                  background: COLORS.accent01,
-                  pointerEvents: "none",
-                  opacity: 0.8,
-                }}
-              />
-            )}
-            {conditionalPrompt && (
-              <ConditionalPrompt
-                x={conditionalPrompt.x}
-                y={conditionalPrompt.y}
-                onConfirm={onConditionalPromptConfirm}
-                onCancel={onConditionalPromptCancel}
-              />
-            )}
-            {collab.isConnected && <RemoteCursors cursors={collab.remoteCursors} />}
-            {editingConditionGroup && (
-              <InlineConditionLabels
-                connections={connections}
-                screens={screens}
-                conditionGroupId={editingConditionGroup}
-                onUpdateLabel={updateConnection}
-                onDone={() => setEditingConditionGroup(null)}
-              />
-            )}
-          </div>
-
-          {screens.length === 0 && <EmptyState />}
-
-          {/* Zoom indicator */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: 16,
-              left: 16,
-              background: COLORS.surface,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 8,
-              padding: "6px 12px",
-              fontSize: 11,
-              color: COLORS.textDim,
-              fontFamily: FONTS.mono,
-            }}
-          >
-            {Math.round(zoom * 100)}%
-          </div>
-
-          {/* Screen group context menu */}
-          {groupContextMenu && (
-            <div
-              style={{
-                position: "absolute",
-                left: groupContextMenu.x,
-                top: groupContextMenu.y,
-                background: COLORS.surface,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                padding: "6px 0",
-                zIndex: Z_INDEX.contextMenu,
-                minWidth: 180,
-                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-              }}
-              onMouseLeave={() => setGroupContextMenu(null)}
-            >
-              <div style={{
-                fontSize: 9,
-                color: COLORS.textDim,
-                fontFamily: FONTS.mono,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                padding: "4px 14px 6px",
-              }}>
-                Add to Group
-              </div>
-              {screenGroups.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => {
-                    addScreenToGroup(g.id, groupContextMenu.screenId);
-                    setGroupContextMenu(null);
-                  }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    padding: "6px 14px",
-                    background: "none",
-                    border: "none",
-                    color: COLORS.text,
-                    fontFamily: FONTS.mono,
-                    fontSize: 12,
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  {g.name}
-                </button>
-              ))}
-              <div style={{ height: 1, background: COLORS.border, margin: "4px 0" }} />
-              <button
-                onClick={() => {
-                  const name = prompt("New group name:");
-                  if (!name?.trim()) return;
-                  const gid = addScreenGroup(name.trim(), [groupContextMenu.screenId]);
-                  setGroupContextMenu(null);
-                }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "6px 14px",
-                  background: "none",
-                  border: "none",
-                  color: COLORS.accentLight,
-                  fontFamily: FONTS.mono,
-                  fontSize: 12,
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-              >
-                + Create new group…
-              </button>
-              <button
-                onClick={() => {
-                  removeScreenFromGroup(groupContextMenu.screenId);
-                  setGroupContextMenu(null);
-                }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "6px 14px",
-                  background: "none",
-                  border: "none",
-                  color: COLORS.textDim,
-                  fontFamily: FONTS.mono,
-                  fontSize: 12,
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-              >
-                Remove from group
-              </button>
-            </div>
-          )}
-
-          {/* Tool switcher */}
-          <ToolBar
-            activeTool={activeTool}
-            onToolChange={setActiveTool}
-            onUpload={handleImageUpload}
-            onAddBlank={() => addScreenAtCenter()}
-            isReadOnly={isReadOnly}
-            onAddStickyNote={() => {
-              if (!canvasRef.current) return;
-              const rect = canvasRef.current.getBoundingClientRect();
-              const worldX = (rect.width / 2 - pan.x) / zoom;
-              const worldY = (rect.height / 2 - pan.y) / zoom;
-              addStickyNote(worldX, worldY);
-            }}
-          />
-        </div>
+        <CanvasArea
+          canvasRef={canvasRef}
+          pan={pan}
+          zoom={zoom}
+          canvasCursor={canvasCursor}
+          onCanvasMouseDown={onCanvasMouseDown}
+          onCanvasMouseMove={onCanvasMouseMove}
+          onCanvasMouseUp={onCanvasMouseUp}
+          onCanvasMouseLeave={onCanvasMouseLeave}
+          onCanvasDrop={onCanvasDrop}
+          screenGroups={screenGroups}
+          selectedScreenGroup={selectedScreenGroup}
+          updateScreenGroup={updateScreenGroup}
+          deleteScreenGroup={deleteScreenGroup}
+          addScreenToGroup={addScreenToGroup}
+          removeScreenFromGroup={removeScreenFromGroup}
+          addScreenGroup={addScreenGroup}
+          setSelectedScreenGroup={setSelectedScreenGroup}
+          setSelectedStickyNote={setSelectedStickyNote}
+          setSelectedScreen={setSelectedScreen}
+          setSelectedConnection={setSelectedConnection}
+          setHotspotInteraction={setHotspotInteraction}
+          screens={screens}
+          selectedScreen={selectedScreen}
+          clearSelection={clearSelection}
+          onDragStart={onDragStart}
+          isSpaceHeld={isSpaceHeld}
+          addHotspotViaConnect={addHotspotViaConnect}
+          removeScreen={removeScreen}
+          onDotDragStart={onDotDragStart}
+          onConnectComplete={onConnectComplete}
+          setHoverTarget={setHoverTarget}
+          hoverTarget={hoverTarget}
+          connecting={connecting}
+          hotspotInteraction={hotspotInteraction}
+          selectedHotspotId={selectedHotspotId}
+          selectedHotspots={selectedHotspots}
+          onHotspotMouseDown={onHotspotMouseDown}
+          onHotspotDoubleClick={onHotspotDoubleClick}
+          onImageAreaMouseDown={onImageAreaMouseDown}
+          onHotspotDragHandleMouseDown={onHotspotDragHandleMouseDown}
+          onResizeHandleMouseDown={onResizeHandleMouseDown}
+          onScreenDimensions={onScreenDimensions}
+          drawRect={drawRect}
+          updateScreenDescription={updateScreenDescription}
+          addState={addState}
+          handleDropImage={handleDropImage}
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
+          scopeRoot={scopeRoot}
+          scopeScreenIds={scopeScreenIds}
+          canvasSelection={canvasSelection}
+          toggleSelection={toggleSelection}
+          onMultiDragStart={onMultiDragStart}
+          isReadOnly={isReadOnly}
+          stickyNotes={stickyNotes}
+          selectedStickyNote={selectedStickyNote}
+          updateStickyNote={updateStickyNote}
+          deleteStickyNote={deleteStickyNote}
+          addStickyNote={addStickyNote}
+          rubberBandRect={rubberBandRect}
+          connections={connections}
+          previewLine={previewLine}
+          hotspotPreviewLine={hotspotPreviewLine}
+          selectedConnection={selectedConnection}
+          onConnectionClick={onConnectionClick}
+          onConnectionDoubleClick={onConnectionDoubleClick}
+          onEndpointMouseDown={onEndpointMouseDown}
+          endpointDragPreview={endpointDragPreview}
+          repositionGhost={repositionGhost}
+          conditionalPrompt={conditionalPrompt}
+          onConditionalPromptConfirm={onConditionalPromptConfirm}
+          onConditionalPromptCancel={onConditionalPromptCancel}
+          collab={collab}
+          editingConditionGroup={editingConditionGroup}
+          updateConnection={updateConnection}
+          setEditingConditionGroup={setEditingConditionGroup}
+          groupContextMenu={groupContextMenu}
+          setGroupContextMenu={setGroupContextMenu}
+          handleImageUpload={handleImageUpload}
+          addScreenAtCenter={addScreenAtCenter}
+        />
 
         {selectedScreenData && (
           <Sidebar
@@ -1070,171 +490,53 @@ export default function Drawd({ initialRoomCode }) {
       <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFileChange} />
       <input ref={importFileRef} type="file" accept={`${FILE_EXTENSION},${LEGACY_FILE_EXTENSION}`} style={{ display: "none" }} onChange={onImportFileChange} />
 
-      {hotspotModal && (
-        <HotspotModal
-          screen={hotspotModal.screen}
-          hotspot={hotspotModal.hotspot}
-          screens={screens}
-          documents={documents}
-          onAddDocument={addDocument}
-          connection={hotspotModal.connection || null}
-          prefilledTarget={hotspotModal.prefilledTarget || null}
-          prefilledRect={hotspotModal.prefilledRect || null}
-          onSave={(hs) => {
-            saveHotspot(hotspotModal.screen.id, hs);
-            if (hotspotModal.connection) {
-              updateConnection(hotspotModal.connection.id, {
-                transitionType: hs.transitionType ?? "",
-                transitionLabel: hs.transitionLabel ?? "",
-              });
-            }
-            setHotspotModal(null);
-          }}
-          onDelete={(id) => { deleteHotspot(hotspotModal.screen.id, id); setHotspotModal(null); }}
-          onClose={() => setHotspotModal(null)}
-        />
-      )}
-
-      {connectionEditModal && (
-        <ConnectionEditModal
-          connection={connectionEditModal.connection}
-          groupConnections={connectionEditModal.groupConnections}
-          screens={screens}
-          fromScreen={connectionEditModal.fromScreen}
-          onSave={(payload) => {
-            saveConnectionGroup(connectionEditModal.connection.id, payload);
-            setConnectionEditModal(null);
-            setSelectedConnection(null);
-          }}
-          onDelete={() => {
-            const conn = connectionEditModal.connection;
-            if (conn.conditionGroupId) {
-              deleteConnectionGroup(conn.conditionGroupId);
-            } else {
-              deleteConnection(conn.id);
-            }
-            setConnectionEditModal(null);
-            setSelectedConnection(null);
-          }}
-          onClose={() => setConnectionEditModal(null)}
-        />
-      )}
-
-      {showDocuments && (
-        <DocumentsPanel
-          documents={documents}
-          onAddDocument={addDocument}
-          onUpdateDocument={updateDocument}
-          onDeleteDocument={deleteDocument}
-          onClose={() => setShowDocuments(false)}
-        />
-      )}
-
-      {showDataModels && (
-        <DataModelsPanel
-          dataModels={dataModels}
-          onAddModel={addDataModel}
-          onUpdateModel={updateDataModel}
-          onDeleteModel={deleteDataModel}
-          onClose={() => setShowDataModels(false)}
-        />
-      )}
-
-      {showInstructions && (
-        <InstructionsPanel
-          instructions={instructions}
-          onClose={() => setShowInstructions(false)}
-        />
-      )}
-
-      {renameModal && (
-        <RenameModal
-          screen={renameModal}
-          onSave={(name) => { renameScreen(renameModal.id, name); setRenameModal(null); }}
-          onClose={() => setRenameModal(null)}
-        />
-      )}
-
-      {importConfirm && (
-        <ImportConfirmModal
-          payload={importConfirm}
-          canvasEmpty={screens.length === 0}
-          onReplace={onImportReplace}
-          onMerge={onImportMerge}
-          onClose={() => setImportConfirm(null)}
-        />
-      )}
-
-      {showParticipants && collab.isConnected && (
-        <ParticipantsPanel
-          peers={collab.peers}
-          selfDisplayName={collab.selfDisplayName}
-          selfColor={collab.selfColor}
-          selfRole={collab.role}
-          isHost={collab.isHost}
-          onSetRole={collab.setPeerRole}
-          onClose={() => setShowParticipants(false)}
-        />
-      )}
-
-      {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
-
-      {showShareModal && (
-        <ShareModal
-          isCollabAvailable={collab.isCollabAvailable}
-          initialRoomCode={initialRoomCode}
-          onCreateRoom={(name, color) => {
-            collab.createRoom(name, color);
-            setShowShareModal(false);
-          }}
-          onJoinRoom={(code, name, color) => {
-            collab.joinRoom(code, name, color);
-            setShowShareModal(false);
-          }}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
-
-      {collab.hostLeft && (
-        <HostLeftModal
-          onKeepState={() => {
-            collab.dismissHostLeft();
-            collab.leaveRoom();
-          }}
-          onLeave={() => {
-            collab.dismissHostLeft();
-            collab.leaveRoom();
-          }}
-        />
-      )}
-
-      {figmaProcessing && (
-        <div style={{
-          position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(0,0,0,0.5)", zIndex: Z_INDEX.modal + 10,
-        }}>
-          <div style={{
-            background: COLORS.bg, color: COLORS.fg, padding: "24px 32px", borderRadius: 12,
-            fontFamily: FONTS.ui, fontSize: 14, textAlign: "center",
-            border: `1px solid ${COLORS.border}`, boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}>
-            <div style={{ marginBottom: 12, fontSize: 20 }}>Rendering Figma frame...</div>
-            <div style={{ color: COLORS.fgMuted }}>This may take a moment on first use while the rendering engine loads.</div>
-          </div>
-        </div>
-      )}
-
-      {figmaError && (
-        <div style={{
-          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          background: COLORS.danger, color: "#fff", padding: "10px 20px", borderRadius: 8,
-          fontFamily: FONTS.ui, fontSize: 13, zIndex: Z_INDEX.modal + 10,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.3)", cursor: "pointer",
-          maxWidth: 480,
-        }} onClick={() => setFigmaError(null)}>
-          Figma paste failed: {figmaError}
-        </div>
-      )}
+      <ModalsLayer
+        hotspotModal={hotspotModal}
+        setHotspotModal={setHotspotModal}
+        screens={screens}
+        documents={documents}
+        addDocument={addDocument}
+        saveHotspot={saveHotspot}
+        deleteHotspot={deleteHotspot}
+        updateConnection={updateConnection}
+        connectionEditModal={connectionEditModal}
+        setConnectionEditModal={setConnectionEditModal}
+        saveConnectionGroup={saveConnectionGroup}
+        deleteConnectionGroup={deleteConnectionGroup}
+        deleteConnection={deleteConnection}
+        setSelectedConnection={setSelectedConnection}
+        showDocuments={showDocuments}
+        setShowDocuments={setShowDocuments}
+        updateDocument={updateDocument}
+        deleteDocument={deleteDocument}
+        showDataModels={showDataModels}
+        setShowDataModels={setShowDataModels}
+        dataModels={dataModels}
+        addDataModel={addDataModel}
+        updateDataModel={updateDataModel}
+        deleteDataModel={deleteDataModel}
+        showInstructions={showInstructions}
+        setShowInstructions={setShowInstructions}
+        instructions={instructions}
+        renameModal={renameModal}
+        setRenameModal={setRenameModal}
+        renameScreen={renameScreen}
+        importConfirm={importConfirm}
+        onImportReplace={onImportReplace}
+        onImportMerge={onImportMerge}
+        setImportConfirm={setImportConfirm}
+        showParticipants={showParticipants}
+        setShowParticipants={setShowParticipants}
+        collab={collab}
+        showShortcuts={showShortcuts}
+        setShowShortcuts={setShowShortcuts}
+        showShareModal={showShareModal}
+        setShowShareModal={setShowShareModal}
+        initialRoomCode={initialRoomCode}
+        figmaProcessing={figmaProcessing}
+        figmaError={figmaError}
+        setFigmaError={setFigmaError}
+      />
     </div>
   );
 }
