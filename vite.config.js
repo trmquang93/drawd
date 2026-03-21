@@ -62,7 +62,16 @@ const serveWasmPlugin = {
 export default defineConfig({
   plugins: [nodeStubPlugin, serveWasmPlugin, react()],
   resolve: {
-    alias: NODE_STUBS,
+    alias: {
+      ...NODE_STUBS,
+      // @grida/refig v0.0.4 exports map only lists "." and "./browser".
+      // The shared chunk exports iofigma (kiwi parser utilities) needed
+      // for shared-component resolution. This alias bypasses the exports
+      // restriction so Vite can resolve the deep import.
+      "@grida/refig/dist/chunk-INJ5F2RK.mjs": resolve(
+        "node_modules/@grida/refig/dist/chunk-INJ5F2RK.mjs",
+      ),
+    },
   },
   optimizeDeps: {
     esbuildOptions: {

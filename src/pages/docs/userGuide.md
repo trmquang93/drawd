@@ -25,7 +25,7 @@ Screens are the foundation of every Drawd project. Each screen represents a sing
 - Floating toolbar — Click the Upload icon (`U`) in the bottom toolbar to open a file picker. Select one or more image files (PNG, JPG, WebP).
 - Drag and drop — Drag image files from Finder or Explorer directly onto the canvas.
 - Paste from clipboard — Copy an image (e.g. a screenshot) and press Cmd/Ctrl+V to paste it onto the canvas.
-- Paste from Figma — Copy a frame in Figma and paste directly into Drawd with Cmd/Ctrl+V. The frame is automatically rendered as a screen image using its Figma name.
+- Paste from Figma — Use `Shift+Cmd+C` in Figma to copy a frame as PNG, then paste into Drawd with `Cmd/Ctrl+V`. The frame appears as a pixel-perfect screen image with its Figma name.
 - Add blank screen — Click the Blank Screen icon (`B`) in the bottom toolbar to create a placeholder screen without an image.
 
 ### Replacing an image
@@ -34,10 +34,14 @@ You can replace the image on an existing screen by pasting from the clipboard or
 
 ### Paste from Figma
 
-Copy a frame in Figma and paste directly into Drawd (Cmd/Ctrl+V). The frame is automatically rendered as a screen image with its Figma name.
+For pixel-perfect results, use `Shift+Cmd+C` (Copy as PNG) in Figma, then paste into Drawd with `Cmd/Ctrl+V`. Drawd automatically detects the Figma frame name and applies it to the screen.
 
-> [!NOTE]
-> For best results, copy one frame at a time. The first render may take a moment as the Figma rendering engine loads.
+If you use regular `Cmd+C` in Figma, Drawd renders a layout preview using the clipboard scene graph. Text, shapes, gradients, vectors, and shared library components are rendered at their correct positions, while raster images (photos, backgrounds) appear as transparent areas since the clipboard does not include image pixel data. A loading overlay is shown during rendering.
+
+After the layout preview is added, a tip appears suggesting `Shift+Cmd+C` for pixel-perfect results. If you follow the tip and paste within 30 seconds, the frame name and Figma metadata are automatically applied to the new paste.
+
+> [!TIP]
+> For best results, copy one frame at a time. Use `Shift+Cmd+C` in Figma (not regular `Cmd+C`) to get a pixel-perfect image with all raster content included.
 
 ### Naming screens
 
