@@ -5,7 +5,6 @@ dist
 .env.local
 *.md
 !README.md
-!CLAUDE.md
 !src/pages/docs/userGuide.md
 
 # React Component Preview
