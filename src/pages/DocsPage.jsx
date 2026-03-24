@@ -65,6 +65,14 @@ const DOCS_CSS = `
     padding: 1px 5px;
   }
 
+  /* ── Code blocks inside <pre> ────────────────── */
+  pre code {
+    color: inherit;
+    background: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
   /* ── Responsive docs layout ─────────────────── */
   @media (max-width: 860px) {
     .docs-sidebar {

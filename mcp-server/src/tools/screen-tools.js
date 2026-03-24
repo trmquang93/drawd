@@ -1,0 +1,279 @@
+export const screenTools = [
+  {
+    name: "create_screen",
+    description: "Create a new screen by rendering HTML content to a PNG image. The HTML is rendered at the specified device viewport size using headless Chrome. If no position is specified, the screen is auto-placed on a grid layout.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        html: { type: "string", description: "HTML content to render as the screen image. Include full HTML with <style> tags for styling." },
+        name: { type: "string", description: "Screen name (e.g., 'Login Screen', 'Home Feed')" },
+        device: {
+          type: "string",
+          description: "Device preset for viewport size",
+          enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
+        },
+        width: { type: "number", description: "Custom viewport width (overrides device preset)" },
+        height: { type: "number", description: "Custom viewport height (overrides device preset)" },
+        position: {
+          type: "object",
+          properties: {
+            x: { type: "number" },
+            y: { type: "number" },
+          },
+          description: "Canvas position. If omitted, auto-placed on grid.",
+        },
+        description: { type: "string", description: "Screen description for AI instruction generation" },
+        notes: { type: "string", description: "Implementation notes (technical context, edge cases)" },
+      },
+      required: ["html", "name"],
+    },
+  },
+  {
+    name: "create_blank_screen",
+    description: "Create a blank screen placeholder without an image. Useful for screens that are 'to be designed' later.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Screen name" },
+        description: { type: "string", description: "Screen description" },
+        notes: { type: "string", description: "Implementation notes" },
+        position: {
+          type: "object",
+          properties: { x: { type: "number" }, y: { type: "number" } },
+        },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "update_screen",
+    description: "Update properties of an existing screen (name, description, notes, status, etc.).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screenId: { type: "string", description: "ID of the screen to update" },
+        name: { type: "string" },
+        description: { type: "string" },
+        notes: { type: "string" },
+        status: { type: "string", enum: ["new", "existing"] },
+        tbd: { type: "boolean" },
+        tbdNote: { type: "string" },
+        roles: { type: "array", items: { type: "string" } },
+        codeRef: { type: "string" },
+      },
+      required: ["screenId"],
+    },
+  },
+  {
+    name: "delete_screen",
+    description: "Delete a screen and all its associated connections.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screenId: { type: "string", description: "ID of the screen to delete" },
+      },
+      required: ["screenId"],
+    },
+  },
+  {
+    name: "list_screens",
+    description: "List all screens in the current flow with summary info (without image data).",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "get_screen",
+    description: "Get full details of a specific screen, including hotspots. Image data is excluded by default to keep responses small.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screenId: { type: "string", description: "ID of the screen" },
+        includeImage: { type: "boolean", description: "Include base64 imageData in response (default: false)" },
+      },
+      required: ["screenId"],
+    },
+  },
+  {
+    name: "update_screen_image",
+    description: "Re-render a screen's image from new HTML content.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screenId: { type: "string", description: "ID of the screen to update" },
+        html: { type: "string", description: "New HTML content to render" },
+        device: {
+          type: "string",
+          enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
+        },
+      },
+      required: ["screenId", "html"],
+    },
+  },
+  {
+    name: "batch_create_screens",
+    description: "Create multiple screens at once with auto-layout grid placement. Each screen can have HTML content or be blank.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screens: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              html: { type: "string", description: "HTML content (omit for blank screen)" },
+              name: { type: "string" },
+              description: { type: "string" },
+              notes: { type: "string" },
+            },
+            required: ["name"],
+          },
+          description: "Array of screen definitions",
+        },
+        device: {
+          type: "string",
+          description: "Device preset for all screens (default: iphone-15-pro)",
+          enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
+        },
+      },
+      required: ["screens"],
+    },
+  },
+];
+
+export async function handleScreenTool(name, args, state, renderer) {
+  switch (name) {
+    case "create_screen": {
+      let imageData = null;
+      let imageWidth = null;
+      let imageHeight = null;
+
+      if (args.html) {
+        const result = await renderer.render(args.html, {
+          device: args.device,
+          width: args.width,
+          height: args.height,
+        });
+        imageData = renderer.toDataUri(result.pngBuffer);
+        imageWidth = result.width;
+        imageHeight = result.height;
+      }
+
+      const screen = state.addScreen({
+        name: args.name,
+        imageData,
+        imageWidth,
+        imageHeight,
+        position: args.position,
+        description: args.description,
+        notes: args.notes,
+      });
+
+      return {
+        screenId: screen.id,
+        name: screen.name,
+        x: screen.x,
+        y: screen.y,
+        imageWidth,
+        imageHeight,
+      };
+    }
+
+    case "create_blank_screen": {
+      const screen = state.addScreen({
+        name: args.name,
+        description: args.description,
+        notes: args.notes,
+        position: args.position,
+        tbd: true,
+      });
+      return { screenId: screen.id, name: screen.name, x: screen.x, y: screen.y };
+    }
+
+    case "update_screen": {
+      const { screenId, ...updates } = args;
+      const screen = state.updateScreen(screenId, updates);
+      return { success: true, screenId: screen.id };
+    }
+
+    case "delete_screen": {
+      const result = state.deleteScreen(args.screenId);
+      return { success: true, ...result };
+    }
+
+    case "list_screens": {
+      return {
+        screens: state.screens.map((s) => ({
+          id: s.id,
+          name: s.name,
+          x: s.x,
+          y: s.y,
+          hotspotCount: (s.hotspots || []).length,
+          hasImage: !!s.imageData,
+          description: s.description || "",
+          status: s.status || "new",
+          tbd: s.tbd || false,
+        })),
+      };
+    }
+
+    case "get_screen": {
+      const screen = state.getScreen(args.screenId);
+      if (!screen) throw new Error(`Screen not found: ${args.screenId}`);
+
+      const result = { ...screen };
+      if (!args.includeImage) {
+        delete result.imageData;
+        result.hasImage = !!screen.imageData;
+      }
+      return result;
+    }
+
+    case "update_screen_image": {
+      const screen = state.getScreen(args.screenId);
+      if (!screen) throw new Error(`Screen not found: ${args.screenId}`);
+
+      const result = await renderer.render(args.html, { device: args.device });
+      state.updateScreen(args.screenId, {
+        imageData: renderer.toDataUri(result.pngBuffer),
+        imageWidth: result.width,
+        imageHeight: result.height,
+      });
+
+      return { success: true, imageWidth: result.width, imageHeight: result.height };
+    }
+
+    case "batch_create_screens": {
+      const results = [];
+      for (const def of args.screens) {
+        let imageData = null;
+        let imageWidth = null;
+        let imageHeight = null;
+
+        if (def.html) {
+          const result = await renderer.render(def.html, { device: args.device });
+          imageData = renderer.toDataUri(result.pngBuffer);
+          imageWidth = result.width;
+          imageHeight = result.height;
+        }
+
+        const screen = state.addScreen({
+          name: def.name,
+          imageData,
+          imageWidth,
+          imageHeight,
+          description: def.description,
+          notes: def.notes,
+          tbd: !def.html,
+        });
+
+        results.push({ screenId: screen.id, name: screen.name, x: screen.x, y: screen.y });
+      }
+      return { screens: results };
+    }
+
+    default:
+      throw new Error(`Unknown screen tool: ${name}`);
+  }
+}

@@ -495,3 +495,123 @@ If the host leaves or closes their browser, all guests see a "Session Ended" mod
 - Guest undo is not available — applying remote state clears the undo history.
 - Very large flows with many high-resolution screen images may hit the Supabase broadcast payload limit (~1 MB). Consider using lower-resolution screenshots for collaboration.
 - State sync uses last-write-wins with a 500ms debounce. Rapid changes may appear slightly delayed on guest screens.
+
+## MCP Server (AI Agent Integration)
+
+The Drawd MCP server lets AI agents — such as Claude Code, Claude Desktop, or any MCP-compatible tool — programmatically create and edit app flows. An agent can design screens from HTML, add hotspots, connect screens, and generate build instructions, all without touching the Drawd UI.
+
+### How it works
+
+1. You install the MCP server as an npm package
+2. You configure it in your AI tool (Claude Code, Claude Desktop, etc.)
+3. The AI agent uses MCP tools to build a `.drawd` flow file on your machine
+4. You open the `.drawd` file in Drawd at {{DOMAIN}} to review, refine, and generate instructions
+
+### Installation
+
+Install globally from npm:
+
+```
+npm install -g drawd-mcp-server
+```
+
+Or run directly without installing:
+
+```
+npx drawd-mcp-server
+```
+
+> [!NOTE]
+> The MCP server requires Node.js 18 or later and Google Chrome (or Chromium) installed on your system for HTML-to-image rendering. If Chrome is not found automatically, set the `CHROME_PATH` environment variable to your Chrome executable path.
+
+### Configuring Claude Code
+
+Add the following to your project's `.mcp.json` file (or create one in your project root):
+
+```json
+{
+  "mcpServers": {
+    "drawd": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "drawd-mcp-server"]
+    }
+  }
+}
+```
+
+If you installed globally, use the shorter form:
+
+```json
+{
+  "mcpServers": {
+    "drawd": {
+      "type": "stdio",
+      "command": "drawd-mcp"
+    }
+  }
+}
+```
+
+### Configuring Claude Desktop
+
+Open Claude Desktop settings, go to the MCP section, and add a new server with:
+
+- Name: `drawd`
+- Command: `npx`
+- Arguments: `-y drawd-mcp-server`
+
+### Available tools
+
+The MCP server exposes 27 tools organized by category:
+
+- **File** — `create_flow`, `open_flow`, `save_flow`, `get_flow_info`
+- **Screen** — `create_screen` (from HTML), `create_blank_screen`, `update_screen`, `delete_screen`, `list_screens`, `get_screen`, `update_screen_image`, `batch_create_screens`
+- **Hotspot** — `create_hotspot`, `update_hotspot`, `delete_hotspot`, `list_hotspots`
+- **Connection** — `create_connection`, `update_connection`, `delete_connection`, `list_connections`
+- **Document** — `create_document`, `update_document`, `delete_document`, `list_documents`
+- **Data Model** — `create_data_model`, `update_data_model`, `delete_data_model`, `list_data_models`
+- **Annotation** — `create_sticky_note`, `create_screen_group`, `update_screen_group`, `delete_screen_group`
+- **Generation** — `validate_flow`, `generate_instructions`, `analyze_navigation`
+
+### Creating screens from HTML
+
+The `create_screen` tool accepts an HTML string and renders it as a PNG screenshot using headless Chrome. You can specify a device preset to control the viewport size:
+
+- `iphone-15-pro` (default) — 393 x 852
+- `iphone-se` — 375 x 667
+- `iphone-16-pro-max` — 440 x 956
+- `ipad` — 820 x 1180
+- `android` — 412 x 915
+
+The AI agent writes the full screen UI as HTML/CSS, and the MCP server screenshots it into a Drawd screen at 2x resolution.
+
+### Auto-connections from hotspots
+
+When a hotspot is created with `action: "navigate"` and a `targetScreenId`, the corresponding connection is automatically created — just like in the Drawd UI. The agent does not need to call `create_connection` separately for hotspot-driven navigation.
+
+### Example workflow
+
+A typical agent interaction looks like this:
+
+1. `create_flow` — create a new `.drawd` file
+2. `create_screen` (x3) — render Login, Sign Up, and Home screens from HTML
+3. `create_hotspot` — add a "Login" button on the Login screen pointing to Home
+4. `create_hotspot` — add a "Sign Up" link on the Login screen pointing to Sign Up
+5. `save_flow` — write the flow to disk
+6. `generate_instructions` — produce AI build instruction files
+
+You can then open the saved `.drawd` file in Drawd to visually inspect the flow, adjust screen positions, refine hotspots, and regenerate instructions.
+
+### Pre-loading a flow
+
+Start the MCP server with an existing `.drawd` file pre-loaded:
+
+```
+npx drawd-mcp-server -- --file path/to/your-flow.drawd
+```
+
+This lets the agent modify an existing flow without needing to call `open_flow` first.
+
+> [!TIP]
+> The MCP server works entirely with local `.drawd` files. There is no cloud connection required. Generated files are fully compatible with Drawd — open them via File > Open in any Chromium browser.

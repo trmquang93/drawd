@@ -1,0 +1,36 @@
+{
+  "name": "drawd-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Drawd — AI agent flow builder. Create app flow designs programmatically with AI agents.",
+  "type": "module",
+  "bin": {
+    "drawd-mcp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/index.js",
+    "dev": "node --import ./loader.js index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "puppeteer-core": "^24.9.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["mcp", "drawd", "flow-designer", "ai-agent", "app-design", "mobile-flow"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codeflow-studio/drawd",
+    "directory": "mcp-server"
+  }
+}

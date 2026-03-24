@@ -8,6 +8,17 @@ import rawGuide from "./userGuide.md?raw";
 const escapeHtml = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/** Lightweight syntax highlighting for code blocks (JSON, shell). */
+function highlightCode(escaped, lang) {
+  if (lang === "json") {
+    return escaped
+      .replace(/("(?:[^"\\]|\\.)*")\s*:/g, `<span style="color:#e06c75">$1</span>:`) // keys
+      .replace(/:\s*("(?:[^"\\]|\\.)*")/g, `: <span style="color:#98c379">$1</span>`) // string values
+      .replace(/:\s*(true|false|null|-?\d+(?:\.\d+)?)\b/g, `: <span style="color:#d19a66">$1</span>`); // literals
+  }
+  return escaped;
+}
+
 /** Convert inline markdown (bold, code spans) to HTML. Operates on pre-escaped text. */
 function inlineFmt(text) {
   return text
@@ -72,6 +83,32 @@ function renderSection(md) {
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     const trimmed = raw.trim();
+
+    // Fenced code block: ```language ... ```
+    const fenceOpen = trimmed.match(/^```(\w*)$/);
+    if (fenceOpen) {
+      closeUl();
+      flushCallout();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== "```") {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      // Dedent: find minimum leading whitespace across non-empty lines
+      const nonEmpty = codeLines.filter((l) => l.trim().length > 0);
+      const minIndent = nonEmpty.length > 0
+        ? Math.min(...nonEmpty.map((l) => l.match(/^(\s*)/)[1].length))
+        : 0;
+      const code = codeLines.map((l) => l.slice(minIndent)).join("\n");
+      const lang = fenceOpen[1] || "";
+      const escaped = escapeHtml(code);
+      const highlighted = highlightCode(escaped, lang);
+      html +=
+        `<pre style="font-family:${L_FONTS.mono};font-size:13px;line-height:1.6;color:${L_COLORS.textMuted};background:rgba(0,0,0,0.35);border:1px solid ${L_COLORS.border};border-radius:8px;padding:16px;margin-bottom:16px;overflow-x:auto;white-space:pre">` +
+        `<code>${highlighted}</code></pre>`;
+      continue;
+    }
 
     // Callout start: > [!TIP] or > [!NOTE]
     const calloutStart = trimmed.match(/^>\s*\[!(TIP|NOTE)\]\s*$/);
