@@ -14,7 +14,7 @@ No account or installation required. Everything runs in the browser. Your work i
 - Click "Generate" to produce AI build instructions
 
 > [!TIP]
-> For the best experience use Chrome or Edge. The auto-save feature (File System Access API) requires a Chromium-based browser. Firefox and Safari work but without auto-save.
+> For the best experience use Chrome or Edge. The auto-save feature requires a Chromium-based browser. Firefox and Safari work but without auto-save.
 
 ## Uploading Screens
 
@@ -36,9 +36,9 @@ You can replace the image on an existing screen by pasting from the clipboard or
 
 For pixel-perfect results, use `Shift+Cmd+C` (Copy as PNG) in Figma, then paste into Drawd with `Cmd/Ctrl+V`. Drawd automatically detects the Figma frame name and applies it to the screen.
 
-If you use regular `Cmd+C` in Figma, Drawd renders a layout preview using the clipboard scene graph. Text, shapes, gradients, vectors, and shared library components are rendered at their correct positions, while raster images (photos, backgrounds) appear as transparent areas since the clipboard does not include image pixel data. A loading overlay is shown during rendering.
+If you use regular `Cmd+C` in Figma, Drawd renders a layout preview. Text, shapes, gradients, vectors, and shared library components appear at their correct positions, while photos and background images show as transparent areas since regular copy does not include image data. A loading overlay is shown during rendering.
 
-After the layout preview is added, a tip appears suggesting `Shift+Cmd+C` for pixel-perfect results. If you follow the tip and paste within 30 seconds, the frame name and Figma metadata are automatically applied to the new paste.
+After the layout preview is added, a tip appears suggesting `Shift+Cmd+C` for pixel-perfect results. If you follow the tip and paste within 30 seconds, the frame name is automatically applied to the new paste.
 
 > [!TIP]
 > For best results, copy one frame at a time. Use `Shift+Cmd+C` in Figma (not regular `Cmd+C`) to get a pixel-perfect image with all raster content included.
@@ -136,7 +136,7 @@ Hold `Shift` and click multiple hotspots on the same screen to select them. Use 
 
 ## Connecting Screens
 
-Connections (navigation links) show how a user moves from one screen to another. They appear as bezier arrows on the canvas between screen cards.
+Connections (navigation links) show how a user moves from one screen to another. They appear as curved arrows on the canvas between screen cards.
 
 ### Creating a connection via hotspot
 
@@ -197,7 +197,7 @@ Each state has a name field visible in the sidebar (e.g., "Loading", "Error", "E
 State groups are reflected in the AI build instructions. Each variant screen is listed with its state name, and the instruction generator notes which screens share a group.
 
 > [!NOTE]
-> Deleting the only remaining variant in a state group automatically removes the group metadata, returning that screen to standalone status.
+> Deleting the only remaining variant in a state group automatically removes the group, returning that screen to standalone status.
 
 ## Sticky Notes
 
@@ -279,7 +279,7 @@ When you generate AI instructions, all data models are compiled into a `types.md
 
 ## API Connections
 
-The API action type on hotspots models asynchronous network calls — tapping a button triggers an API endpoint, with separate navigation paths for success and error responses.
+The API action type on hotspots models network requests — tapping a button triggers an API endpoint, with separate navigation paths for success and error responses.
 
 ### Configuring an API hotspot
 
@@ -325,7 +325,7 @@ If any documents are referenced by hotspots, a `documents.md` file is included i
 
 ## File Operations
 
-Drawd saves projects as `.drawd` files — a JSON format containing all screens, connections, hotspots, and documents.
+Drawd saves projects as `.drawd` files containing all screens, connections, hotspots, and documents.
 
 ### Auto-save (Chromium only)
 
@@ -350,7 +350,7 @@ You can drag a `.drawd` file directly onto the canvas. If the canvas is empty, t
 
 ### Import vs. Open
 
-Open replaces the current canvas entirely. Import merges the incoming screens and connections into the current project, remapping IDs to avoid collisions and offsetting positions to avoid overlap.
+Open replaces the current canvas entirely. Import merges the incoming screens and connections into the current project, automatically adjusting positions to avoid overlap.
 
 > [!TIP]
 > Export to .drawd before sharing with collaborators. They can open the file in any browser (auto-save requires Chromium, but manual export/import works everywhere).
@@ -435,11 +435,7 @@ Press `?` anywhere on the canvas to open the full keyboard shortcuts panel. The 
 
 ## Collaboration
 
-Drawd supports real-time collaboration so multiple people can view and edit the same flow simultaneously. The feature uses Supabase Realtime for message relay and presence tracking — no additional server setup required.
-
-### Requirements
-
-Collaboration requires a Supabase project. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to a `.env` file in the project root. See `.env.example` for the format. If these values are not configured, the Share button will show a configuration prompt.
+Drawd supports real-time collaboration so multiple people can view and edit the same flow simultaneously.
 
 ### Creating a room
 
@@ -451,7 +447,7 @@ Collaboration requires a Supabase project. Add `VITE_SUPABASE_URL` and `VITE_SUP
 
 ### Joining a room
 
-- Click Share and switch to the "Join" tab, or navigate directly to `https://drawd.app/#/editor?room=CODE`
+- Click Share and switch to the "Join" tab, or use the direct join link shared by the host
 - Enter a display name, choose a color, and type the 6-character room code
 - Click "Join Room"
 - The host's current flow will load automatically
@@ -492,9 +488,9 @@ If the host leaves or closes their browser, all guests see a "Session Ended" mod
 
 ### Known limitations
 
-- Guest undo is not available — applying remote state clears the undo history.
-- Very large flows with many high-resolution screen images may hit the Supabase broadcast payload limit (~1 MB). Consider using lower-resolution screenshots for collaboration.
-- State sync uses last-write-wins with a 500ms debounce. Rapid changes may appear slightly delayed on guest screens.
+- Guest undo is not available while connected to a room.
+- Very large flows with many high-resolution screen images may cause sync issues. Consider using lower-resolution screenshots for collaboration.
+- Rapid changes by multiple editors may appear slightly delayed on other screens.
 
 ## MCP Server (AI Agent Integration)
 
