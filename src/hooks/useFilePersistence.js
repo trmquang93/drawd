@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { buildPayload } from "../utils/buildPayload";
 import { importFlow } from "../utils/importFlow";
-import { FILE_EXTENSION, LEGACY_FILE_EXTENSION, DEFAULT_EXPORT_FILENAME, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "../constants";
+import { FILE_EXTENSION, LEGACY_FILE_EXTENSION, DEFAULT_EXPORT_FILENAME, AUTOSAVE_DEBOUNCE_MS, FILE_POLL_INTERVAL_MS, SAVE_STATUS_RESET_MS } from "../constants";
 
 const isFileSystemSupported = typeof window !== "undefined" && "showOpenFilePicker" in window;
 
@@ -12,7 +12,7 @@ const DRAWD_FILE_TYPES = [
   },
 ];
 
-export function useFilePersistence(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = []) {
+export function useFilePersistence(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = [], onExternalChange) {
   const fileHandleRef = useRef(null);
   const [connectedFileName, setConnectedFileName] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
@@ -24,6 +24,10 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
   const skipNextSaveRef = useRef(false);
   const debounceRef = useRef(null);
   const statusTimeoutRef = useRef(null);
+  const lastKnownModifiedRef = useRef(0);
+  const isWritingRef = useRef(false);
+  const isPollingRef = useRef(false);
+  const onExternalChangeRef = useRef(onExternalChange);
 
   // Keep viewport and metadata refs in sync without triggering auto-save
   useEffect(() => { panRef.current = pan; }, [pan]);
@@ -32,10 +36,14 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
   useEffect(() => { taskLinkRef.current = taskLink; }, [taskLink]);
   useEffect(() => { techStackRef.current = techStack; }, [techStack]);
 
+  // Keep callback ref up to date without restarting the polling interval
+  useEffect(() => { onExternalChangeRef.current = onExternalChange; }, [onExternalChange]);
+
   const writeToDisk = useCallback(async () => {
     const handle = fileHandleRef.current;
     if (!handle) return;
 
+    isWritingRef.current = true;
     setSaveStatus("saving");
     try {
       const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups);
@@ -43,6 +51,10 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       const writable = await handle.createWritable();
       await writable.write(json);
       await writable.close();
+
+      // Capture the new lastModified so the poller knows this write is ours
+      const updated = await handle.getFile();
+      lastKnownModifiedRef.current = updated.lastModified;
 
       setSaveStatus("saved");
       if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
@@ -53,6 +65,8 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       setSaveStatus("error");
       fileHandleRef.current = null;
       setConnectedFileName(null);
+    } finally {
+      isWritingRef.current = false;
     }
   }, [screens, connections, documents, dataModels, stickyNotes, screenGroups]);
 
@@ -75,6 +89,34 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
     };
   }, [screens, connections, documents, writeToDisk]);
 
+  // Poll for external file changes (e.g. from MCP server)
+  useEffect(() => {
+    if (!connectedFileName) return;
+
+    const intervalId = setInterval(async () => {
+      const handle = fileHandleRef.current;
+      if (!handle || isPollingRef.current || isWritingRef.current) return;
+
+      isPollingRef.current = true;
+      try {
+        const file = await handle.getFile();
+        if (file.lastModified !== lastKnownModifiedRef.current && lastKnownModifiedRef.current !== 0) {
+          const text = await file.text();
+          const payload = importFlow(text);
+          lastKnownModifiedRef.current = file.lastModified;
+          skipNextSaveRef.current = true;
+          onExternalChangeRef.current?.(payload);
+        }
+      } catch (err) {
+        console.warn("File poll failed:", err);
+      } finally {
+        isPollingRef.current = false;
+      }
+    }, FILE_POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [connectedFileName]);
+
   const openFile = useCallback(async () => {
     if (!isFileSystemSupported) return null;
     try {
@@ -87,6 +129,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       const payload = importFlow(text);
 
       fileHandleRef.current = handle;
+      lastKnownModifiedRef.current = file.lastModified;
       setConnectedFileName(file.name);
       setSaveStatus("idle");
       skipNextSaveRef.current = true;
@@ -100,6 +143,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
 
   const saveAs = useCallback(async () => {
     if (!isFileSystemSupported) return;
+    isWritingRef.current = true;
     try {
       const handle = await window.showSaveFilePicker({
         types: DRAWD_FILE_TYPES,
@@ -117,6 +161,10 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       await writable.write(json);
       await writable.close();
 
+      // Capture the new lastModified so the poller knows this write is ours
+      const updated = await handle.getFile();
+      lastKnownModifiedRef.current = updated.lastModified;
+
       setSaveStatus("saved");
       if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
       statusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
@@ -124,11 +172,14 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       if (err.name === "AbortError") return;
       console.error("Save As failed:", err);
       setSaveStatus("error");
+    } finally {
+      isWritingRef.current = false;
     }
   }, [screens, connections, documents, dataModels, stickyNotes, screenGroups]);
 
   const disconnect = useCallback(() => {
     fileHandleRef.current = null;
+    lastKnownModifiedRef.current = 0;
     setConnectedFileName(null);
     setSaveStatus("idle");
     if (debounceRef.current) clearTimeout(debounceRef.current);

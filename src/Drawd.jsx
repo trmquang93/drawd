@@ -130,10 +130,15 @@ export default function Drawd({ initialRoomCode }) {
   })() : null;
 
   // ── File persistence ────────────────────────────────────────────────────
+  // Ref bridge breaks the circular dep: useFilePersistence is called first,
+  // but needs applyPayload which comes from useFileActions below.
+  const externalChangeRef = useRef(null);
+  const onExternalChange = useCallback((payload) => { externalChangeRef.current?.(payload); }, []);
+
   const {
     connectedFileName, saveStatus, isFileSystemSupported,
     openFile, saveAs, saveNow, disconnect,
-  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups);
+  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups, onExternalChange);
 
   // ── File actions ───────────────────────────────────────────────────
   const { applyPayload, onOpen, onSaveAs, onNew } = useFileActions({
@@ -142,6 +147,8 @@ export default function Drawd({ initialRoomCode }) {
     setDataModels, setStickyNotes, setScreenGroups,
     setScopeRoot, openFile, saveAs, disconnect,
   });
+  // Complete the ref bridge so the poller can call applyPayload
+  externalChangeRef.current = applyPayload;
 
   // ── Modal state ────────────────────────────────────────────────────────
   const [hotspotModal, setHotspotModal] = useState(null);

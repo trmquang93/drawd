@@ -55,6 +55,7 @@ export const RUBBER_BAND_THRESHOLD = 3;
 
 // ── Timing ───────────────────────────────────
 export const AUTOSAVE_DEBOUNCE_MS = 1500;
+export const FILE_POLL_INTERVAL_MS = 1500;
 export const SAVE_STATUS_RESET_MS = 2000;
 export const COPY_FEEDBACK_MS = 2000;
 
