@@ -330,7 +330,7 @@ export class FlowState {
   // ── Connection Operations ───────────────────
 
   addConnection(options) {
-    const { fromScreenId, toScreenId, label, action, hotspotId, connectionPath, condition, conditionGroupId, transitionType, transitionLabel } = options;
+    const { fromScreenId, toScreenId, label, action, hotspotId, connectionPath, condition, conditionGroupId, transitionType, transitionLabel, dataFlow } = options;
 
     if (!this.getScreen(fromScreenId)) throw new Error(`Source screen not found: ${fromScreenId}`);
     if (!this.getScreen(toScreenId)) throw new Error(`Target screen not found: ${toScreenId}`);
@@ -355,6 +355,7 @@ export class FlowState {
       conditionGroupId: conditionGroupId || null,
       transitionType: transitionType || null,
       transitionLabel: transitionLabel || "",
+      dataFlow: dataFlow || [],
     };
 
     this.connections.push(conn);
@@ -368,7 +369,7 @@ export class FlowState {
     const allowed = [
       "label", "action", "fromScreenId", "toScreenId",
       "connectionPath", "condition", "conditionGroupId",
-      "transitionType", "transitionLabel",
+      "transitionType", "transitionLabel", "dataFlow",
     ];
     for (const key of allowed) {
       if (updates[key] !== undefined) {

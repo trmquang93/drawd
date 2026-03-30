@@ -362,7 +362,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
         if (exists) {
           return cleaned.map((c) =>
             c.fromScreenId === screenId && c.hotspotId === hotspot.id
-              ? { ...c, toScreenId: hotspot.targetScreenId, label: hotspot.label, connectionPath: "default" }
+              ? { ...c, toScreenId: hotspot.targetScreenId, label: hotspot.label, connectionPath: "default", dataFlow: hotspot.dataFlow || [] }
               : c
           );
         }
@@ -378,6 +378,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
             connectionPath: "default",
             transitionType: null,
             transitionLabel: "",
+            dataFlow: hotspot.dataFlow || [],
           },
         ];
       });
@@ -406,6 +407,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
             connectionPath: "api-success",
             transitionType: null,
             transitionLabel: "",
+            dataFlow: hotspot.onSuccessDataFlow || [],
           });
         }
 
@@ -421,6 +423,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
             connectionPath: "api-error",
             transitionType: null,
             transitionLabel: "",
+            dataFlow: hotspot.onErrorDataFlow || [],
           });
         }
 
@@ -446,6 +449,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
               condition: cond.label || "",
               transitionType: null,
               transitionLabel: "",
+              dataFlow: cond.dataFlow || [],
             });
           }
         });
@@ -589,6 +593,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
           action: "navigate",
           transitionType: null,
           transitionLabel: "",
+          dataFlow: [],
         },
       ];
     });
@@ -633,6 +638,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
           conditionGroupId: null,
           transitionType: payload.transitionType || null,
           transitionLabel: payload.transitionLabel || "",
+          dataFlow: payload.dataFlow || [],
         }];
       }
 
@@ -652,6 +658,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
             conditionGroupId: groupId,
             transitionType: payload.transitionType || null,
             transitionLabel: payload.transitionLabel || "",
+            dataFlow: cond.dataFlow || [],
           }));
         return [...cleaned, ...newConns];
       }
@@ -686,6 +693,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
         conditionGroupId: groupId,
         transitionType: null,
         transitionLabel: "",
+        dataFlow: [],
       }];
     });
     return groupId;
@@ -711,6 +719,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
         conditionGroupId,
         transitionType: null,
         transitionLabel: "",
+        dataFlow: [],
       }];
     });
   }, [screens, connections, documents, pushHistory]);
@@ -731,6 +740,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
         action: "navigate",
         transitionType: null,
         transitionLabel: "",
+        dataFlow: [],
       }];
     });
   }, [screens, connections, documents, pushHistory]);

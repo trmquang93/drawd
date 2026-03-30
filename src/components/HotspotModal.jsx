@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { COLORS, FONTS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
+import { DataFlowEditor } from "./DataFlowEditor";
 
 function FollowUpSection({ title, titleColor, action, setAction, targetId, setTargetId,
-                           customDesc, setCustomDesc, otherScreens }) {
+                           customDesc, setCustomDesc, otherScreens, dataFlow, onDataFlowChange }) {
   return (
     <div style={{
       border: `1px solid ${COLORS.border}`,
@@ -34,15 +35,22 @@ function FollowUpSection({ title, titleColor, action, setAction, targetId, setTa
       </label>
 
       {(action === "navigate" || action === "modal") && (
-        <label style={{ ...styles.monoLabel, marginTop: 10 }}>
-          TARGET SCREEN
-          <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={styles.select}>
-            <option value="">— Select screen —</option>
-            {otherScreens.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </label>
+        <>
+          <label style={{ ...styles.monoLabel, marginTop: 10 }}>
+            TARGET SCREEN
+            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={styles.select}>
+              <option value="">— Select screen —</option>
+              {otherScreens.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </label>
+          {dataFlow && onDataFlowChange && (
+            <div style={{ marginTop: 10 }}>
+              <DataFlowEditor items={dataFlow} onChange={onDataFlowChange} />
+            </div>
+          )}
+        </>
       )}
 
       {action === "custom" && (
@@ -104,6 +112,11 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
   const [onErrorAction, setOnErrorAction] = useState(hotspot?.onErrorAction || "");
   const [onErrorTargetId, setOnErrorTargetId] = useState(hotspot?.onErrorTargetId || "");
   const [onErrorCustomDesc, setOnErrorCustomDesc] = useState(hotspot?.onErrorCustomDesc || "");
+
+  // Data flow fields
+  const [dataFlow, setDataFlow] = useState(hotspot?.dataFlow || []);
+  const [onSuccessDataFlow, setOnSuccessDataFlow] = useState(hotspot?.onSuccessDataFlow || []);
+  const [onErrorDataFlow, setOnErrorDataFlow] = useState(hotspot?.onErrorDataFlow || []);
 
   // Conditional branching fields
   const [conditions, setConditions] = useState(
@@ -276,6 +289,9 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
             onErrorAction,
             onErrorTargetId: onErrorTargetId || null,
             onErrorCustomDesc,
+            dataFlow: (action === "navigate" || action === "modal") ? dataFlow : [],
+            onSuccessDataFlow: action === "api" ? onSuccessDataFlow : [],
+            onErrorDataFlow: action === "api" ? onErrorDataFlow : [],
             conditions: action === "conditional" ? conditions : [],
             x, y, w, h,
             transitionType,
@@ -365,65 +381,76 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
                 </div>
 
                 {conditions.map((cond, i) => (
-                  <div key={cond.id} style={{
-                    display: "flex",
-                    gap: 8,
-                    marginBottom: 8,
-                    alignItems: "flex-end",
-                  }}>
-                    <label style={{ ...styles.monoLabel, flex: 1 }}>
-                      {i === 0 ? "CONDITION" : ""}
-                      <input
-                        value={cond.label}
-                        onChange={(e) => {
+                  <div key={cond.id} style={{ marginBottom: 8 }}>
+                    <div style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "flex-end",
+                    }}>
+                      <label style={{ ...styles.monoLabel, flex: 1 }}>
+                        {i === 0 ? "CONDITION" : ""}
+                        <input
+                          value={cond.label}
+                          onChange={(e) => {
+                            const updated = [...conditions];
+                            updated[i] = { ...updated[i], label: e.target.value };
+                            setConditions(updated);
+                          }}
+                          placeholder={i === conditions.length - 1 ? "e.g. otherwise" : "e.g. user is subscriber"}
+                          style={styles.input}
+                        />
+                      </label>
+                      <label style={{ ...styles.monoLabel, flex: 1 }}>
+                        {i === 0 ? "TARGET SCREEN" : ""}
+                        <select
+                          value={cond.targetScreenId || ""}
+                          onChange={(e) => {
+                            const updated = [...conditions];
+                            updated[i] = { ...updated[i], targetScreenId: e.target.value || "" };
+                            setConditions(updated);
+                          }}
+                          style={styles.select}
+                        >
+                          <option value="">-- Select --</option>
+                          {otherScreens.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {conditions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setConditions(conditions.filter((_, j) => j !== i))}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: COLORS.danger,
+                            cursor: "pointer",
+                            fontSize: 16,
+                            padding: "6px",
+                            marginBottom: 6,
+                          }}
+                        >
+                          &#10005;
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 6, marginLeft: 8 }}>
+                      <DataFlowEditor
+                        items={cond.dataFlow || []}
+                        onChange={(newDataFlow) => {
                           const updated = [...conditions];
-                          updated[i] = { ...updated[i], label: e.target.value };
+                          updated[i] = { ...updated[i], dataFlow: newDataFlow };
                           setConditions(updated);
                         }}
-                        placeholder={i === conditions.length - 1 ? "e.g. otherwise" : "e.g. user is subscriber"}
-                        style={styles.input}
                       />
-                    </label>
-                    <label style={{ ...styles.monoLabel, flex: 1 }}>
-                      {i === 0 ? "TARGET SCREEN" : ""}
-                      <select
-                        value={cond.targetScreenId || ""}
-                        onChange={(e) => {
-                          const updated = [...conditions];
-                          updated[i] = { ...updated[i], targetScreenId: e.target.value || "" };
-                          setConditions(updated);
-                        }}
-                        style={styles.select}
-                      >
-                        <option value="">-- Select --</option>
-                        {otherScreens.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {conditions.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setConditions(conditions.filter((_, j) => j !== i))}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: COLORS.danger,
-                          cursor: "pointer",
-                          fontSize: 16,
-                          padding: "6px",
-                          marginBottom: 6,
-                        }}
-                      >
-                        &#10005;
-                      </button>
-                    )}
+                    </div>
                   </div>
                 ))}
 
                 <button
                   type="button"
-                  onClick={() => setConditions([...conditions, { id: generateId(), label: "", targetScreenId: "" }])}
+                  onClick={() => setConditions([...conditions, { id: generateId(), label: "", targetScreenId: "", dataFlow: [] }])}
                   style={{
                     width: "100%",
                     padding: "6px 0",
@@ -548,6 +575,8 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
                   customDesc={onSuccessCustomDesc}
                   setCustomDesc={setOnSuccessCustomDesc}
                   otherScreens={otherScreens}
+                  dataFlow={onSuccessDataFlow}
+                  onDataFlowChange={setOnSuccessDataFlow}
                 />
 
                 <FollowUpSection
@@ -560,6 +589,8 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
                   customDesc={onErrorCustomDesc}
                   setCustomDesc={setOnErrorCustomDesc}
                   otherScreens={otherScreens}
+                  dataFlow={onErrorDataFlow}
+                  onDataFlowChange={setOnErrorDataFlow}
                 />
               </>
             )}
@@ -578,15 +609,19 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
             )}
 
             {(action === "navigate" || action === "modal") && (
-              <label style={styles.monoLabel}>
-                TARGET SCREEN
-                <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={styles.select}>
-                  <option value="">— Select screen —</option>
-                  {otherScreens.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label style={styles.monoLabel}>
+                  TARGET SCREEN
+                  <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={styles.select}>
+                    <option value="">— Select screen —</option>
+                    {otherScreens.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <DataFlowEditor items={dataFlow} onChange={setDataFlow} />
+              </>
             )}
 
             {/* Validation rules (text-input only) */}

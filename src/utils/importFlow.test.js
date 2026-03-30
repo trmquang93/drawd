@@ -24,9 +24,9 @@ describe("importFlow", () => {
     );
   });
 
-  it("throws for future version > 10", () => {
+  it("throws for future version > 11", () => {
     expect(() =>
-      importFlow(JSON.stringify({ version: 11, screens: [], connections: [] }))
+      importFlow(JSON.stringify({ version: 12, screens: [], connections: [] }))
     ).toThrow("Unsupported file version");
   });
 

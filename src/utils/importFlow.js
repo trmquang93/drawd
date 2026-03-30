@@ -63,6 +63,9 @@ export function importFlow(fileText) {
         if (!hs.onErrorAction) hs.onErrorAction = "";
         if (!hs.onErrorTargetId) hs.onErrorTargetId = "";
         if (!hs.onErrorCustomDesc) hs.onErrorCustomDesc = "";
+        if (!Array.isArray(hs.dataFlow)) hs.dataFlow = [];
+        if (!Array.isArray(hs.onSuccessDataFlow)) hs.onSuccessDataFlow = [];
+        if (!Array.isArray(hs.onErrorDataFlow)) hs.onErrorDataFlow = [];
 
         // v4 -> v5 migration: promote inline apiDocs to a document
         if (data.version < 5) {
@@ -96,6 +99,7 @@ export function importFlow(fileText) {
     if (conn.conditionGroupId === undefined) conn.conditionGroupId = null;
     if (conn.transitionType === undefined) conn.transitionType = null;
     if (conn.transitionLabel === undefined) conn.transitionLabel = "";
+    if (!Array.isArray(conn.dataFlow)) conn.dataFlow = [];
   }
 
   // Backward compat: featureBrief

@@ -5,7 +5,7 @@ export const GITHUB_URL = "https://github.com/codeflow-studio/drawd";
 export const DOMAIN = "drawd.app";
 
 // ── File Format ──────────────────────────────
-export const FILE_VERSION = 10;
+export const FILE_VERSION = 11;
 export const FILE_EXTENSION = ".drawd";
 export const LEGACY_FILE_EXTENSION = ".flowforge";
 export const DEFAULT_EXPORT_FILENAME = "flow-export";

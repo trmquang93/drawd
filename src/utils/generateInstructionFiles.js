@@ -393,7 +393,7 @@ export function mostCommon(arr) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
-function generateScreenDetailMd(s, screens, images, documents = []) {
+function generateScreenDetailMd(s, screens, connections, images, documents = []) {
   let md = "";
 
   if (s.description) {
@@ -402,6 +402,22 @@ function generateScreenDetailMd(s, screens, images, documents = []) {
 
   if (s.codeRef) {
     md += `**File:** \`${s.codeRef}\`\n\n`;
+  }
+
+  // Input Parameters from incoming connections
+  const incoming = (connections || []).filter(c => c.toScreenId === s.id && c.dataFlow?.length > 0);
+  if (incoming.length > 0) {
+    md += `#### Input Parameters\n\n`;
+    md += `| Parameter | Type | From Screen | Via | Description |\n`;
+    md += `|-----------|------|-------------|-----|-------------|\n`;
+    for (const conn of incoming) {
+      const fromScreen = screens.find(fs => fs.id === conn.fromScreenId);
+      const trigger = resolveHotspotLabel(conn, screens) || conn.label || "\u2014";
+      for (const d of conn.dataFlow) {
+        md += `| ${d.name} | ${d.type || "Any"} | ${fromScreen?.name || "?"} | ${trigger} | ${d.description || "\u2014"} |\n`;
+      }
+    }
+    md += `\n`;
   }
 
   if (s.acceptanceCriteria && s.acceptanceCriteria.length > 0) {
@@ -541,7 +557,7 @@ function generateScreensMd(screens, connections, images, documents = []) {
       group.forEach((gs) => {
         output.add(gs.id);
         md += `### State: ${gs.stateName || gs.name}\n\n`;
-        md += generateScreenDetailMd(gs, screens, images, documents);
+        md += generateScreenDetailMd(gs, screens, connections, images, documents);
       });
 
       md += `---\n\n`;
@@ -551,7 +567,7 @@ function generateScreensMd(screens, connections, images, documents = []) {
       if (s.tbd && s.tbdNote) {
         md += `> ⚠️ **TBD:** ${s.tbdNote}\n\n`;
       }
-      md += generateScreenDetailMd(s, screens, images, documents);
+      md += generateScreenDetailMd(s, screens, connections, images, documents);
       md += `---\n\n`;
     }
   });
@@ -624,8 +640,8 @@ function generateNavigationMd(screens, connections, navAnalysis) {
   if (connections.length === 0) {
     md += `No connections defined yet.\n\n`;
   } else {
-    md += `| # | ID | From | To | Trigger | Action | Transition | Condition |\n`;
-    md += `|---|-------|------|----|---------|--------|------------|-----------|\n`;
+    md += `| # | ID | From | To | Trigger | Action | Transition | Condition | Data |\n`;
+    md += `|---|-------|------|----|---------|--------|------------|-----------|------|\n`;
     connections.forEach((c, i) => {
       const reqId = connectionReqId(c);
       const from = screens.find(s => s.id === c.fromScreenId);
@@ -639,7 +655,10 @@ function generateNavigationMd(screens, connections, navAnalysis) {
         ? (c.transitionType === "custom" ? (c.transitionLabel || "custom") : c.transitionType)
         : "\u2014";
       const conditionCol = c.condition || "\u2014";
-      md += `| ${i + 1} | \`${reqId}\` | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${transitionCol} | ${conditionCol} |\n`;
+      const dataCol = c.dataFlow?.length > 0
+        ? c.dataFlow.map(d => `${d.name}: ${d.type || "Any"}`).join(", ")
+        : "\u2014";
+      md += `| ${i + 1} | \`${reqId}\` | ${from?.name || "?"} | ${to?.name || "?"} | ${label || "\u2014"} | ${actionCol} | ${transitionCol} | ${conditionCol} | ${dataCol} |\n`;
     });
     md += `\n`;
   }
@@ -773,7 +792,10 @@ function generateTasksMd(screens, connections, options) {
       const toScreen = allScreens.find(ts => ts.id === conn.toScreenId);
       const label = conn.label || resolveHotspotLabel(conn, allScreens) || "tap";
       if (toScreen) {
-        md += `- [ ] Wire: ${label} → ${toScreen.name}\n`;
+        const dataSuffix = conn.dataFlow?.length > 0
+          ? ` (pass: ${conn.dataFlow.map(d => `${d.name}: ${d.type || "Any"}`).join(", ")})`
+          : "";
+        md += `- [ ] Wire: ${label} → ${toScreen.name}${dataSuffix}\n`;
       }
     });
 

@@ -161,6 +161,19 @@ Plain connections can have a label (e.g., "Tap submit"). Labels appear as small 
 > [!NOTE]
 > Deleting a connection removes only the arrow — the hotspot that created it remains on the screen.
 
+### Data flow annotations
+
+Annotate what data passes between screens along a connection. For example, "productId: String" flows from a product list to a product detail screen.
+
+- Double-click a connection line to open the edit modal. A "Data Passed" section lets you add data items, each with a name, type, and optional description.
+- For hotspot-backed connections, the same editor appears in the hotspot modal after the target screen selector.
+- For API hotspots, each follow-up path (On Success / On Error) has its own data flow editor.
+- Connections with data annotations show a teal badge on the canvas (e.g., "productId" or "3 params").
+- Generated instructions include an "Input Parameters" table per screen listing all incoming data, and the navigation table includes a "Data" column.
+
+> [!TIP]
+> Data flow annotations are the bridge between "where users go" and "what information each screen needs". They prevent AI agents from generating screens that lack required parameters.
+
 ## Conditional Branching
 
 Conditional branching lets you model flows where a single action leads to different screens depending on a condition — for example, different outcomes based on whether a user is authenticated.

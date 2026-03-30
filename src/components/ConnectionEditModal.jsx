@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { COLORS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
+import { DataFlowEditor } from "./DataFlowEditor";
 
 export function ConnectionEditModal({ connection, groupConnections, screens, fromScreen, onSave, onDelete, onClose }) {
   const isConditional = groupConnections.length > 1 || !!connection.conditionGroupId;
@@ -10,6 +11,7 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
   const [targetId, setTargetId] = useState(connection.toScreenId || "");
   const [transitionType, setTransitionType] = useState(connection.transitionType || "");
   const [transitionLabel, setTransitionLabel] = useState(connection.transitionLabel || "");
+  const [dataFlow, setDataFlow] = useState(connection.dataFlow || []);
 
   const [conditions, setConditions] = useState(() => {
     if (isConditional) {
@@ -17,9 +19,10 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
         id: c.id,
         label: c.condition || c.label || "",
         targetScreenId: c.toScreenId || "",
+        dataFlow: c.dataFlow || [],
       }));
     }
-    return [{ id: generateId(), label: "", targetScreenId: connection.toScreenId || "" }];
+    return [{ id: generateId(), label: "", targetScreenId: connection.toScreenId || "", dataFlow: [] }];
   });
 
   const otherScreens = screens.filter((s) => s.id !== fromScreen.id);
@@ -35,6 +38,7 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
       conditionGroupId: connection.conditionGroupId || null,
       transitionType: transitionType || null,
       transitionLabel: transitionType === "custom" ? transitionLabel : "",
+      dataFlow: mode === "navigate" ? dataFlow : [],
     });
   };
 
@@ -103,6 +107,8 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
                     ))}
                   </select>
                 </label>
+
+                <DataFlowEditor items={dataFlow} onChange={setDataFlow} />
               </>
             )}
 
@@ -126,65 +132,76 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
                 </div>
 
                 {conditions.map((cond, i) => (
-                  <div key={cond.id} style={{
-                    display: "flex",
-                    gap: 8,
-                    marginBottom: 8,
-                    alignItems: "flex-end",
-                  }}>
-                    <label style={{ ...styles.monoLabel, flex: 1 }}>
-                      {i === 0 ? "CONDITION" : ""}
-                      <input
-                        value={cond.label}
-                        onChange={(e) => {
+                  <div key={cond.id} style={{ marginBottom: 8 }}>
+                    <div style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "flex-end",
+                    }}>
+                      <label style={{ ...styles.monoLabel, flex: 1 }}>
+                        {i === 0 ? "CONDITION" : ""}
+                        <input
+                          value={cond.label}
+                          onChange={(e) => {
+                            const updated = [...conditions];
+                            updated[i] = { ...updated[i], label: e.target.value };
+                            setConditions(updated);
+                          }}
+                          placeholder={i === conditions.length - 1 ? "e.g. otherwise" : "e.g. user is subscriber"}
+                          style={styles.input}
+                        />
+                      </label>
+                      <label style={{ ...styles.monoLabel, flex: 1 }}>
+                        {i === 0 ? "TARGET SCREEN" : ""}
+                        <select
+                          value={cond.targetScreenId || ""}
+                          onChange={(e) => {
+                            const updated = [...conditions];
+                            updated[i] = { ...updated[i], targetScreenId: e.target.value || "" };
+                            setConditions(updated);
+                          }}
+                          style={styles.select}
+                        >
+                          <option value="">-- Select --</option>
+                          {otherScreens.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {conditions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setConditions(conditions.filter((_, j) => j !== i))}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: COLORS.danger,
+                            cursor: "pointer",
+                            fontSize: 16,
+                            padding: "6px",
+                            marginBottom: 6,
+                          }}
+                        >
+                          &#10005;
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 6, marginLeft: 8 }}>
+                      <DataFlowEditor
+                        items={cond.dataFlow || []}
+                        onChange={(newDataFlow) => {
                           const updated = [...conditions];
-                          updated[i] = { ...updated[i], label: e.target.value };
+                          updated[i] = { ...updated[i], dataFlow: newDataFlow };
                           setConditions(updated);
                         }}
-                        placeholder={i === conditions.length - 1 ? "e.g. otherwise" : "e.g. user is subscriber"}
-                        style={styles.input}
                       />
-                    </label>
-                    <label style={{ ...styles.monoLabel, flex: 1 }}>
-                      {i === 0 ? "TARGET SCREEN" : ""}
-                      <select
-                        value={cond.targetScreenId || ""}
-                        onChange={(e) => {
-                          const updated = [...conditions];
-                          updated[i] = { ...updated[i], targetScreenId: e.target.value || "" };
-                          setConditions(updated);
-                        }}
-                        style={styles.select}
-                      >
-                        <option value="">-- Select --</option>
-                        {otherScreens.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {conditions.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setConditions(conditions.filter((_, j) => j !== i))}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: COLORS.danger,
-                          cursor: "pointer",
-                          fontSize: 16,
-                          padding: "6px",
-                          marginBottom: 6,
-                        }}
-                      >
-                        &#10005;
-                      </button>
-                    )}
+                    </div>
                   </div>
                 ))}
 
                 <button
                   type="button"
-                  onClick={() => setConditions([...conditions, { id: generateId(), label: "", targetScreenId: "" }])}
+                  onClick={() => setConditions([...conditions, { id: generateId(), label: "", targetScreenId: "", dataFlow: [] }])}
                   style={{
                     width: "100%",
                     padding: "6px 0",

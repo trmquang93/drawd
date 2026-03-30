@@ -249,6 +249,41 @@ export function ConnectionLines({
                 </g>
               );
             })()}
+            {/* Data flow badge */}
+            {conn.dataFlow?.length > 0 && (() => {
+              const mx = (fromX + toX) / 2;
+              const hasLabel = conn.label || conn.condition;
+              const hasTransition = conn.transitionType;
+              let badgeY = (fromY + toY) / 2 + (hasLabel ? 12 : 0) + (hasTransition ? 16 : 0);
+              const dataLabel = conn.dataFlow.length === 1
+                ? conn.dataFlow[0].name || "1 param"
+                : `${conn.dataFlow.length} params`;
+              const dataBadgeW = dataLabel.length * 5.5 + 10;
+              return (
+                <g>
+                  <rect
+                    x={mx - dataBadgeW / 2}
+                    y={badgeY - 8}
+                    width={dataBadgeW}
+                    height={14}
+                    rx={4}
+                    fill="rgba(0,210,211,0.18)"
+                    stroke="rgba(0,210,211,0.35)"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={mx}
+                    y={badgeY + 2}
+                    fill="#00d2d3"
+                    fontSize={9}
+                    fontFamily={FONTS.mono}
+                    textAnchor="middle"
+                  >
+                    {dataLabel}
+                  </text>
+                </g>
+              );
+            })()}
             {/* Endpoint handles when selected */}
             {isSelected && (
               <>
