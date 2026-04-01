@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   renderHotspotDetailBlock,
   renderBuildGuideActionTable,
+  renderBuildGuideTransitionTable,
 } from "./instructionRenderers.js";
 
 const makeScreen = (id, name) => ({ id, name });
@@ -148,6 +149,59 @@ describe("renderBuildGuideActionTable", () => {
     expect(result).toContain("**modal**");
     expect(result).toContain("**conditional**");
     expect(result).toContain("**api**");
+    expect(result).toContain("**custom**");
+  });
+});
+
+describe("renderBuildGuideTransitionTable", () => {
+  it("returns null for platform 'auto'", () => {
+    expect(renderBuildGuideTransitionTable("auto")).toBeNull();
+  });
+
+  it("returns null for unknown platform", () => {
+    expect(renderBuildGuideTransitionTable("cobol")).toBeNull();
+  });
+
+  it("returns a table string for swiftui with platform-specific patterns", () => {
+    const result = renderBuildGuideTransitionTable("swiftui");
+    expect(result).toContain("### Transition Types");
+    expect(result).toContain(".sheet");
+    expect(result).toContain(".fullScreenCover");
+    expect(result).toContain(".transition(.opacity)");
+  });
+
+  it("returns a table string for react-native with platform-specific patterns", () => {
+    const result = renderBuildGuideTransitionTable("react-native");
+    expect(result).toContain("### Transition Types");
+    expect(result).toContain("fullScreenModal");
+    expect(result).toContain("slide_from_bottom");
+  });
+
+  it("returns a table string for flutter with platform-specific patterns", () => {
+    const result = renderBuildGuideTransitionTable("flutter");
+    expect(result).toContain("### Transition Types");
+    expect(result).toContain("FadeTransition");
+    expect(result).toContain("fullscreenDialog");
+  });
+
+  it("returns a table string for jetpack-compose with platform-specific patterns", () => {
+    const result = renderBuildGuideTransitionTable("jetpack-compose");
+    expect(result).toContain("### Transition Types");
+    expect(result).toContain("fadeIn");
+    expect(result).toContain("slideInVertically");
+  });
+
+  it("includes all 10 transition types in the generated table", () => {
+    const result = renderBuildGuideTransitionTable("swiftui");
+    expect(result).toContain("**push**");
+    expect(result).toContain("**modal**");
+    expect(result).toContain("**fullScreenCover**");
+    expect(result).toContain("**replace**");
+    expect(result).toContain("**pop**");
+    expect(result).toContain("**tab**");
+    expect(result).toContain("**fade**");
+    expect(result).toContain("**slideUp**");
+    expect(result).toContain("**slideLeft**");
     expect(result).toContain("**custom**");
   });
 });

@@ -11,6 +11,18 @@ export const PLATFORM_TERMINOLOGY = {
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up a `NavigationStack` with a path-based router using `@State private var path = NavigationPath()`.",
     tabs: "Use `TabView` with `.tabItem { Label(\"Title\", systemImage: \"icon\") }` for each tab.",
+    transitions: {
+      push: "Standard `NavigationStack` push via `.navigationDestination(for:)`.",
+      modal: "`.sheet(isPresented:)` — presents as a card that slides up from the bottom.",
+      fullScreenCover: "`.fullScreenCover(isPresented:)` — covers the entire screen including safe areas.",
+      replace: "Replace the navigation path: `path = NavigationPath([newScreen])`.",
+      pop: "`dismiss()` via `@Environment(\\.dismiss)` to pop the current view.",
+      tab: "`TabView` selection binding: `@State private var selectedTab: Int`.",
+      fade: "`.transition(.opacity)` inside `withAnimation(.easeInOut(duration: 0.3))`.",
+      slideUp: "`.transition(.move(edge: .bottom))` inside `withAnimation(.easeOut(duration: 0.3))`.",
+      slideLeft: "`.transition(.move(edge: .trailing))` inside `withAnimation(.easeOut(duration: 0.3))`.",
+      custom: "Custom `AnyTransition` — see connection label for transition description.",
+    },
   },
   "react-native": {
     name: "React Native",
@@ -22,6 +34,18 @@ export const PLATFORM_TERMINOLOGY = {
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up `createNativeStackNavigator()` with `NavigationContainer` wrapping `Stack.Navigator`.",
     tabs: "Use `createBottomTabNavigator()` with `Tab.Screen` for each tab.",
+    transitions: {
+      push: "Default stack push — `navigation.navigate('ScreenName')` with no extra options.",
+      modal: "`presentation: 'modal'` on the `Stack.Screen` options.",
+      fullScreenCover: "`presentation: 'fullScreenModal'` on the `Stack.Screen` options.",
+      replace: "`navigation.replace('ScreenName')` to swap without adding to the stack.",
+      pop: "`navigation.goBack()` or `navigation.pop()` to return to the previous screen.",
+      tab: "`navigation.navigate('TabName')` targeting a tab in `createBottomTabNavigator()`.",
+      fade: "`animation: 'fade'` in `Stack.Screen` options — fades between screens.",
+      slideUp: "`animation: 'slide_from_bottom'` in `Stack.Screen` options.",
+      slideLeft: "`animation: 'slide_from_right'` in `Stack.Screen` options (default for iOS push).",
+      custom: "Custom `cardStyleInterpolator` or `transitionSpec` in `Stack.Screen` options — see connection label.",
+    },
   },
   flutter: {
     name: "Flutter",
@@ -33,6 +57,18 @@ export const PLATFORM_TERMINOLOGY = {
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up `MaterialApp` with named routes or `GoRouter` for declarative routing.",
     tabs: "Use `BottomNavigationBar` inside a `Scaffold` with an `IndexedStack` for tab content.",
+    transitions: {
+      push: "`Navigator.push(context, MaterialPageRoute(builder: (_) => TargetScreen()))` — default slide-from-right.",
+      modal: "`showModalBottomSheet(context: context, builder: (_) => TargetWidget())`.",
+      fullScreenCover: "`MaterialPageRoute(builder: (_) => TargetScreen(), fullscreenDialog: true)`.",
+      replace: "`Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => TargetScreen()))`.",
+      pop: "`Navigator.pop(context)` to return to the previous route.",
+      tab: "`DefaultTabController` with `TabBar` + `TabBarView`, or update `_selectedIndex` for `BottomNavigationBar`.",
+      fade: "`PageRouteBuilder` with `FadeTransition(opacity: animation, child: page)` as `transitionsBuilder`.",
+      slideUp: "`PageRouteBuilder` with `SlideTransition(position: Tween(begin: Offset(0, 1)).animate(animation))`.",
+      slideLeft: "`PageRouteBuilder` with `SlideTransition(position: Tween(begin: Offset(-1, 0)).animate(animation))`.",
+      custom: "Custom `PageRouteBuilder` with a `transitionsBuilder` — see connection label for details.",
+    },
   },
   "jetpack-compose": {
     name: "Jetpack Compose",
@@ -44,6 +80,18 @@ export const PLATFORM_TERMINOLOGY = {
     custom: "Add a `// TODO: custom action` comment with the description.",
     stack: "Set up `NavHost(navController, startDestination)` with `composable(\"route\") { }` for each screen.",
     tabs: "Use `Scaffold` with `NavigationBar` and `NavigationBarItem` for each tab.",
+    transitions: {
+      push: "`navController.navigate(\"route\")` — pair with `enterTransition`/`exitTransition` on `composable()`.",
+      modal: "`ModalBottomSheet { }` or `Dialog { }` composable for overlay presentation.",
+      fullScreenCover: "`composable()` with `enterTransition = { slideInVertically(initialOffsetY = { it }) }` covering the full screen.",
+      replace: "`navController.navigate(\"route\") { popUpTo(currentRoute) { inclusive = true } }` to replace without backstack.",
+      pop: "`navController.popBackStack()` to return to the previous destination.",
+      tab: "`NavigationBar` with `NavigationBarItem`, update `selectedDestination` state to switch tabs.",
+      fade: "`enterTransition = { fadeIn() }` and `exitTransition = { fadeOut() }` on `composable()`.",
+      slideUp: "`enterTransition = { slideInVertically(initialOffsetY = { it }) }` on `composable()`.",
+      slideLeft: "`enterTransition = { slideInHorizontally(initialOffsetX = { -it }) }` on `composable()`.",
+      custom: "Custom `EnterTransition`/`ExitTransition` on `composable()` — see connection label for details.",
+    },
   },
 };
 
@@ -145,6 +193,27 @@ export function renderHotspotDetailBlock(h, screens, documents) {
   const renderer = HOTSPOT_ACTION_RENDERERS[h.action];
   if (!renderer) return null;
   return renderer.detailBlock(h, screens, documents);
+}
+
+// Generate the full ### Transition Types table for a specific platform.
+// Returns null when platform is "auto" or unknown — callers handle those paths separately.
+export function renderBuildGuideTransitionTable(platform) {
+  const pt = PLATFORM_TERMINOLOGY[platform];
+  if (!pt || !pt.transitions) return null;
+
+  let md = `### Transition Types\n\n`;
+  md += `| Transition | Implementation |\n`;
+  md += `|------------|---------------|\n`;
+
+  const transitionOrder = ["push", "modal", "fullScreenCover", "replace", "pop", "tab", "fade", "slideUp", "slideLeft", "custom"];
+  for (const t of transitionOrder) {
+    if (pt.transitions[t]) {
+      md += `| **${t}** | ${pt.transitions[t]} |\n`;
+    }
+  }
+  md += `\n`;
+
+  return md;
 }
 
 // Generate the full ### Action Types table for a specific platform.

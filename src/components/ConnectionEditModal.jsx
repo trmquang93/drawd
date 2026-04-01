@@ -2,6 +2,7 @@ import { useState } from "react";
 import { COLORS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
 import { DataFlowEditor } from "./DataFlowEditor";
+import { TRANSITION_TYPES } from "../constants";
 
 export function ConnectionEditModal({ connection, groupConnections, screens, fromScreen, onSave, onDelete, onClose }) {
   const isConditional = groupConnections.length > 1 || !!connection.conditionGroupId;
@@ -230,12 +231,9 @@ export function ConnectionEditModal({ connection, groupConnections, screens, fro
               style={styles.select}
             >
               <option value="">— Unspecified —</option>
-              <option value="push">Push (stack navigation)</option>
-              <option value="modal">Modal sheet</option>
-              <option value="replace">Replace stack</option>
-              <option value="pop">Pop (go back)</option>
-              <option value="tab">Tab switch</option>
-              <option value="custom">Custom…</option>
+              {TRANSITION_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
           </label>
 

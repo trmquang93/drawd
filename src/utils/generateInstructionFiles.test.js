@@ -184,4 +184,38 @@ describe("generateInstructionFiles", () => {
     const navFile = result.files.find((f) => f.name === "navigation.md");
     expect(navFile.content).toContain("Settings");
   });
+
+  it("renders human-readable transition labels in navigation.md", () => {
+    const screens = [
+      { ...minimalScreen, id: "s1", name: "Home" },
+      { ...minimalScreen, id: "s2", name: "Detail", x: 400 },
+    ];
+    const connections = [
+      { id: "c1", fromScreenId: "s1", toScreenId: "s2", transitionType: "fullScreenCover" },
+      { id: "c2", fromScreenId: "s1", toScreenId: "s2", transitionType: "slideUp" },
+      { id: "c3", fromScreenId: "s1", toScreenId: "s2", transitionType: "fade" },
+    ];
+    const result = generateInstructionFiles(screens, connections, defaultOptions);
+    const navFile = result.files.find((f) => f.name === "navigation.md");
+    expect(navFile.content).toContain("Full-screen cover");
+    expect(navFile.content).toContain("Slide up");
+    expect(navFile.content).toContain("Fade");
+    expect(navFile.content).not.toContain("fullScreenCover");
+    expect(navFile.content).not.toContain("slideUp");
+  });
+
+  it("includes Transition Types section in build-guide.md for platform-specific output", () => {
+    const result = generateInstructionFiles([minimalScreen], [], { platform: "swiftui" });
+    const buildGuide = result.files.find((f) => f.name === "build-guide.md");
+    expect(buildGuide.content).toContain("### Transition Types");
+    expect(buildGuide.content).toContain(".fullScreenCover");
+    expect(buildGuide.content).toContain(".transition(.opacity)");
+  });
+
+  it("includes transition type guidance in build-guide.md for auto platform", () => {
+    const result = generateInstructionFiles([minimalScreen], [], { platform: "auto" });
+    const buildGuide = result.files.find((f) => f.name === "build-guide.md");
+    expect(buildGuide.content).toContain("fullScreenCover");
+    expect(buildGuide.content).toContain("slideUp");
+  });
 });

@@ -1,6 +1,7 @@
 import { analyzeNavGraph } from "./analyzeNavGraph.js";
-import { PLATFORM_TERMINOLOGY, renderHotspotDetailBlock, renderBuildGuideActionTable } from "./instructionRenderers.js";
+import { PLATFORM_TERMINOLOGY, renderHotspotDetailBlock, renderBuildGuideActionTable, renderBuildGuideTransitionTable } from "./instructionRenderers.js";
 import { screenReqId, connectionReqId } from "./generateReqIds.js";
+import { TRANSITION_LABELS } from "../constants.js";
 
 // --- Helpers ---
 
@@ -664,7 +665,9 @@ function generateNavigationMd(screens, connections, navAnalysis) {
       else if (c.connectionPath === "api-error") actionCol += " (error)";
       else if (c.connectionPath && c.connectionPath.startsWith("condition-")) actionCol += " (conditional)";
       const transitionCol = c.transitionType
-        ? (c.transitionType === "custom" ? (c.transitionLabel || "custom") : c.transitionType)
+        ? (c.transitionType === "custom"
+          ? (c.transitionLabel || "custom")
+          : (TRANSITION_LABELS[c.transitionType] || c.transitionType))
         : "\u2014";
       const conditionCol = c.condition || "\u2014";
       const dataCol = c.dataFlow?.length > 0
@@ -726,7 +729,17 @@ function generateBuildGuideMd(screens, connections, options, screenGroups = []) 
     md += `   - **conditional** — Branch to different screens based on a condition (see screens.md for branch definitions)\n`;
     md += `   - **custom** — Implement custom logic as described in screens.md\n`;
     md += `6. Set up proper navigation stack/router with all routes\n`;
-    md += `7. Add smooth transitions between screens matching platform conventions\n`;
+    md += `7. For connections with a specified transition type (see Transition column in navigation.md), implement the matching animation:\n`;
+    md += `   - **push** — Standard stack push (default slide-from-right)\n`;
+    md += `   - **modal** — Modal sheet sliding up from the bottom\n`;
+    md += `   - **fullScreenCover** — Full-screen modal covering the entire display\n`;
+    md += `   - **replace** — Replace the current screen without adding to the back stack\n`;
+    md += `   - **pop** — Dismiss/pop back to the previous screen\n`;
+    md += `   - **tab** — Switch to a tab in the tab bar\n`;
+    md += `   - **fade** — Cross-fade between screens\n`;
+    md += `   - **slideUp** — Slide in from the bottom\n`;
+    md += `   - **slideLeft** — Slide in from the right (left direction)\n`;
+    md += `   - **custom** — See connection label for transition description\n`;
     md += `8. Ensure responsive layout that adapts to different screen sizes\n`;
     md += `\n`;
     md += `## Sub-Agent Implementation Workflow\n\n`;
@@ -755,12 +768,15 @@ function generateBuildGuideMd(screens, connections, options, screenGroups = []) 
 
     md += renderBuildGuideActionTable(platform);
 
+    const transitionTable = renderBuildGuideTransitionTable(platform);
+    if (transitionTable) md += transitionTable;
+
     md += `### Steps\n\n`;
     md += `1. Implement each screen from screens.md as a separate ${pt.name} view/component\n`;
     md += `2. For EACH screen, open its reference image from the \`images/\` folder and replicate the visual design exactly — colors, typography, spacing, layout, and component hierarchy\n`;
     md += `3. Wire up navigation flows from navigation.md using the patterns above\n`;
     md += `4. Handle API actions with proper error handling and loading states\n`;
-    md += `5. Add smooth transitions matching ${pt.name} platform conventions\n`;
+    md += `5. For each connection with a specified transition type, use the matching pattern from the Transition Types table above\n`;
     md += `\n`;
     md += `## Sub-Agent Implementation Workflow\n\n`;
     md += `Each screen is implemented by a dedicated sub-agent. The sub-agent MUST follow these\n`;

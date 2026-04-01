@@ -71,3 +71,21 @@ export const COLLAB_CURSOR_FADE_MS = 3000;
 
 // ── Sticky Notes ─────────────────────────────
 export const STICKY_NOTE_MIN_WIDTH = 150;
+
+// ── Transition Types ─────────────────────────
+export const TRANSITION_TYPES = [
+  { value: "push",            label: "Push (stack navigation)" },
+  { value: "modal",           label: "Modal sheet" },
+  { value: "fullScreenCover", label: "Full-screen cover" },
+  { value: "replace",         label: "Replace stack" },
+  { value: "pop",             label: "Pop (go back)" },
+  { value: "tab",             label: "Tab switch" },
+  { value: "fade",            label: "Fade" },
+  { value: "slideUp",         label: "Slide up" },
+  { value: "slideLeft",       label: "Slide from left" },
+  { value: "custom",          label: "Custom..." },
+];
+
+export const TRANSITION_LABELS = Object.fromEntries(
+  TRANSITION_TYPES.map(t => [t.value, t.label])
+);

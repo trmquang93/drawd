@@ -1,6 +1,57 @@
 import { COLORS, FONTS } from "../styles/theme";
 import { HEADER_HEIGHT, BORDER_WIDTH, DEFAULT_SCREEN_WIDTH, DEFAULT_IMAGE_HEIGHT, BEZIER_FACTOR, BEZIER_MIN_CP } from "../constants";
 
+// Small SVG icon renderers for transition types, each drawn into a ~10x10px space.
+// Each function takes (cx, cy, fill) where cx/cy is the icon center point.
+const TRANSITION_ICONS = {
+  push: (cx, cy, fill) => (
+    <path d={`M${cx-3} ${cy} L${cx+3} ${cy} M${cx} ${cy-3} L${cx+3} ${cy} L${cx} ${cy+3}`}
+      fill="none" stroke={fill} strokeWidth={1.5} strokeLinejoin="round" />
+  ),
+  modal: (cx, cy, fill) => (
+    <rect x={cx-4} y={cy-4} width={8} height={7} rx={2} fill="none" stroke={fill} strokeWidth={1.5} />
+  ),
+  fullScreenCover: (cx, cy, fill) => (
+    <rect x={cx-4} y={cy-4} width={8} height={8} rx={1} fill={fill} opacity={0.7} />
+  ),
+  replace: (cx, cy, fill) => (
+    <>
+      <path d={`M${cx-3} ${cy-2} L${cx+3} ${cy-2}`} fill="none" stroke={fill} strokeWidth={1.5} />
+      <path d={`M${cx+3} ${cy+2} L${cx-3} ${cy+2}`} fill="none" stroke={fill} strokeWidth={1.5} />
+      <path d={`M${cx+1} ${cy-4} L${cx+3} ${cy-2} L${cx+1} ${cy}`} fill="none" stroke={fill} strokeWidth={1.2} />
+      <path d={`M${cx-1} ${cy} L${cx-3} ${cy+2} L${cx-1} ${cy+4}`} fill="none" stroke={fill} strokeWidth={1.2} />
+    </>
+  ),
+  pop: (cx, cy, fill) => (
+    <path d={`M${cx+3} ${cy} L${cx-3} ${cy} M${cx} ${cy-3} L${cx-3} ${cy} L${cx} ${cy+3}`}
+      fill="none" stroke={fill} strokeWidth={1.5} strokeLinejoin="round" />
+  ),
+  tab: (cx, cy, fill) => (
+    <>
+      <circle cx={cx-3} cy={cy} r={1.2} fill={fill} />
+      <circle cx={cx} cy={cy} r={1.2} fill={fill} />
+      <circle cx={cx+3} cy={cy} r={1.2} fill={fill} />
+    </>
+  ),
+  fade: (cx, cy, fill) => (
+    <>
+      <circle cx={cx} cy={cy} r={4} fill={fill} opacity={0.2} />
+      <circle cx={cx} cy={cy} r={2} fill={fill} opacity={0.6} />
+    </>
+  ),
+  slideUp: (cx, cy, fill) => (
+    <path d={`M${cx} ${cy+3} L${cx} ${cy-3} M${cx-3} ${cy} L${cx} ${cy-3} L${cx+3} ${cy}`}
+      fill="none" stroke={fill} strokeWidth={1.5} strokeLinejoin="round" />
+  ),
+  slideLeft: (cx, cy, fill) => (
+    <path d={`M${cx+3} ${cy} L${cx-3} ${cy} M${cx} ${cy-3} L${cx-3} ${cy} L${cx} ${cy+3}`}
+      fill="none" stroke={fill} strokeWidth={1.5} strokeLinejoin="round" />
+  ),
+  custom: (cx, cy, fill) => (
+    <text x={cx} y={cy+3} fill={fill} fontSize={10} fontFamily="monospace" textAnchor="middle">*</text>
+  ),
+};
+
 const BORDER = BORDER_WIDTH;
 
 function getScreenCenterY(screen) {
@@ -220,14 +271,17 @@ export function ConnectionLines({
             {conn.transitionType && (() => {
               const mx = (fromX + toX) / 2;
               const my = (fromY + toY) / 2 + (conn.label || conn.condition ? 12 : 0);
-              const badgeLabel = conn.transitionType === "custom"
+              const shortLabel = conn.transitionType === "custom"
                 ? (conn.transitionLabel || "custom")
                 : conn.transitionType;
-              const badgeW = badgeLabel.length * 5.5 + 10;
+              const iconFn = TRANSITION_ICONS[conn.transitionType];
+              const iconW = iconFn ? 14 : 0;
+              const badgeW = shortLabel.length * 5.5 + 10 + iconW;
+              const badgeX = mx - badgeW / 2;
               return (
                 <g>
                   <rect
-                    x={mx - badgeW / 2}
+                    x={badgeX}
                     y={my - 8}
                     width={badgeW}
                     height={14}
@@ -236,15 +290,16 @@ export function ConnectionLines({
                     stroke="rgba(97,175,239,0.35)"
                     strokeWidth={1}
                   />
+                  {iconFn && iconFn(badgeX + 7, my, COLORS.accentLight)}
                   <text
-                    x={mx}
+                    x={mx + iconW / 2}
                     y={my + 2}
                     fill={COLORS.accentLight}
                     fontSize={9}
                     fontFamily={FONTS.mono}
                     textAnchor="middle"
                   >
-                    {badgeLabel}
+                    {shortLabel}
                   </text>
                 </g>
               );
