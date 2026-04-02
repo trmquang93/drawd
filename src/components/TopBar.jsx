@@ -94,7 +94,7 @@ function ShareIcon() {
   );
 }
 
-export function TopBar({ screenCount, connectionCount, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0, collabState, onShare, collabBadge, collabPresence, onToggleParticipants, showParticipants }) {
+export function TopBar({ screenCount, connectionCount, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0, collabState, onShare, collabBadge, collabPresence, onToggleParticipants, showParticipants, onTemplates }) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef(null);
 
@@ -358,6 +358,15 @@ export function TopBar({ screenCount, connectionCount, onExport, onImport, onGen
                 style={menuItemStyle(false)}
               >
                 <span>New</span>
+              </button>
+
+              <button
+                className="ff-menu-item"
+                onClick={() => { setFileMenuOpen(false); onTemplates(); }}
+                style={menuItemStyle(false)}
+              >
+                <span>New from Template</span>
+                <span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 400 }}>T</span>
               </button>
 
               {isFileSystemSupported && (

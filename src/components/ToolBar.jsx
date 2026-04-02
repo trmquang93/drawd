@@ -1,4 +1,5 @@
 import { COLORS, FONTS } from "../styles/theme";
+import { TemplateIcon as TemplateIconBase } from "./TemplateBrowserModal";
 
 const SelectIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -89,7 +90,9 @@ function ActionButton({ icon: Icon, label, shortcutKey, onClick }) {
   );
 }
 
-export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddStickyNote, isReadOnly }) {
+const TemplateIcon = () => <TemplateIconBase size={16} stroke="currentColor" strokeWidth={1.8} />;
+
+export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddStickyNote, isReadOnly, onTemplates }) {
   return (
     <div
       style={{
@@ -158,6 +161,8 @@ export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddS
           <ActionButton icon={UploadIcon} label="Upload Screens" shortcutKey="U" onClick={onUpload} />
           <ActionButton icon={BlankScreenIcon} label="Add Blank Screen" shortcutKey="B" onClick={onAddBlank} />
           <ActionButton icon={StickyNoteIcon} label="Add Sticky Note" shortcutKey="N" onClick={onAddStickyNote} />
+          <div style={dividerStyle} />
+          <ActionButton icon={TemplateIcon} label="Insert Template" shortcutKey="T" onClick={onTemplates} />
         </>
       )}
     </div>

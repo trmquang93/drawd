@@ -94,7 +94,41 @@ With the Select tool active (`V`), click and drag on an empty area of the canvas
 
 ### Floating toolbar
 
-The floating toolbar at the bottom center of the canvas provides quick access to tools and actions. It contains a tool switcher (Select `V` and Pan `H`) and action buttons for uploading screens (`U`), adding blank screens (`B`), and creating sticky notes (`N`).
+The floating toolbar at the bottom center of the canvas provides quick access to tools and actions. It contains a tool switcher (Select `V` and Pan `H`) and action buttons for uploading screens (`U`), adding blank screens (`B`), creating sticky notes (`N`), and inserting templates (`T`).
+
+## Templates
+
+Templates are pre-built flow patterns that help you get started quickly. Instead of building common flows from scratch, you can insert a template and customize it.
+
+### Available templates
+
+- **Authentication** — Login, signup, forgot password, and email verification screens with API endpoints
+- **Onboarding** — Welcome, permissions, tutorial, and get started screens
+- **Settings** — Profile editing, preferences, and notification settings
+- **Tab Bar App** — Four-tab navigation with Home, Search, Profile, and Settings
+- **E-Commerce** — Product listing, detail, cart, and checkout flow
+- **Social Feed** — Feed, post detail, create post, and user profile screens
+
+### Inserting a template
+
+- Press `T` or click the template icon in the floating toolbar
+- From the File menu, choose **New from Template**
+- On an empty canvas, click the **Start from Template** button
+
+### What gets inserted
+
+Each template includes screens with wireframe placeholders, hotspots with configured actions (including API endpoints where appropriate), and connections between screens. All IDs are regenerated on insert so templates can be inserted multiple times without conflicts.
+
+### Customizing
+
+After inserting a template, you can:
+- Replace placeholder images with your actual designs (drag and drop or paste)
+- Edit hotspot labels, actions, and API configurations
+- Add or remove screens and connections
+- Modify screen descriptions and notes
+
+> [!TIP]
+> Templates insert at the center of your current viewport. If you already have screens on the canvas, the template will appear at the viewport center without overlapping existing content.
 
 ## Creating Hotspots
 
@@ -452,6 +486,7 @@ Press `?` anywhere on the canvas to open the full keyboard shortcuts panel. The 
 | `U` | Upload screens |
 | `B` | Add blank screen |
 | `N` | Add sticky note |
+| `T` | Insert template |
 
 ### Canvas
 
