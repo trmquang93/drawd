@@ -66,6 +66,7 @@ export function importFlow(fileText) {
         if (!Array.isArray(hs.dataFlow)) hs.dataFlow = [];
         if (!Array.isArray(hs.onSuccessDataFlow)) hs.onSuccessDataFlow = [];
         if (!Array.isArray(hs.onErrorDataFlow)) hs.onErrorDataFlow = [];
+        if (hs.accessibility === undefined) hs.accessibility = null;
 
         // v4 -> v5 migration: promote inline apiDocs to a document
         if (data.version < 5) {

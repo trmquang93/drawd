@@ -243,6 +243,7 @@ export class FlowState {
       validation: hotspot.validation || null,
       transitionType: hotspot.transitionType || null,
       transitionLabel: hotspot.transitionLabel || "",
+      accessibility: hotspot.accessibility || null,
     };
 
     if (!screen.hotspots) screen.hotspots = [];
@@ -304,7 +305,7 @@ export class FlowState {
       "requestSchema", "responseSchema", "customDescription", "documentId",
       "conditions", "onSuccessAction", "onSuccessTargetId", "onSuccessCustomDesc",
       "onErrorAction", "onErrorTargetId", "onErrorCustomDesc",
-      "tbd", "tbdNote", "validation", "transitionType", "transitionLabel",
+      "tbd", "tbdNote", "validation", "transitionType", "transitionLabel", "accessibility",
     ];
     for (const key of allowed) {
       if (updates[key] !== undefined) {
