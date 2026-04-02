@@ -1,5 +1,5 @@
 import { analyzeNavGraph } from "./analyzeNavGraph.js";
-import { PLATFORM_TERMINOLOGY, renderHotspotDetailBlock, renderBuildGuideActionTable, renderBuildGuideTransitionTable } from "./instructionRenderers.js";
+import { PLATFORM_TERMINOLOGY, renderHotspotDetailBlock, renderBuildGuideActionTable, renderBuildGuideTransitionTable, renderAccessibilityBlock, renderAccessibilityGuidance } from "./instructionRenderers.js";
 import { screenReqId, connectionReqId } from "./generateReqIds.js";
 import { TRANSITION_LABELS } from "../constants.js";
 
@@ -501,6 +501,10 @@ function generateScreenDetailMd(s, screens, connections, images, documents = [])
         md += `> **Note:** ${missing.length} field(s) marked with \u26A0\uFE0F have no validation rules configured.\n\n`;
       }
     }
+
+    // Accessibility subsection
+    const a11yBlock = renderAccessibilityBlock(s.hotspots, "auto");
+    if (a11yBlock) md += a11yBlock;
   } else {
     md += `*No interactive elements defined*\n\n`;
   }
@@ -770,6 +774,9 @@ function generateBuildGuideMd(screens, connections, options, screenGroups = []) 
 
     const transitionTable = renderBuildGuideTransitionTable(platform);
     if (transitionTable) md += transitionTable;
+
+    const a11yGuide = renderAccessibilityGuidance(platform);
+    if (a11yGuide) md += a11yGuide;
 
     md += `### Steps\n\n`;
     md += `1. Implement each screen from screens.md as a separate ${pt.name} view/component\n`;

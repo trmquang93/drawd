@@ -218,4 +218,53 @@ describe("generateInstructionFiles", () => {
     expect(buildGuide.content).toContain("fullScreenCover");
     expect(buildGuide.content).toContain("slideUp");
   });
+
+  it("includes Accessibility section in screens.md when hotspots have accessibility data", () => {
+    const screenWithA11y = {
+      ...minimalScreen,
+      hotspots: [{
+        id: "h1",
+        label: "Login",
+        elementType: "button",
+        interactionType: "tap",
+        action: "navigate",
+        x: 10, y: 10, w: 80, h: 15,
+        accessibility: { label: "Sign in", role: "button", hint: "Double tap to sign in", traits: [] },
+      }],
+    };
+    const result = generateInstructionFiles([screenWithA11y], [], defaultOptions);
+    const screensFile = result.files.find((f) => f.name === "screens.md");
+    expect(screensFile.content).toContain("#### Accessibility");
+    expect(screensFile.content).toContain("Sign in");
+  });
+
+  it("does not include Accessibility section when no hotspots have accessibility data", () => {
+    const screenNoA11y = {
+      ...minimalScreen,
+      hotspots: [{
+        id: "h1",
+        label: "Button",
+        elementType: "button",
+        interactionType: "tap",
+        action: "navigate",
+        x: 10, y: 10, w: 80, h: 15,
+      }],
+    };
+    const result = generateInstructionFiles([screenNoA11y], [], defaultOptions);
+    const screensFile = result.files.find((f) => f.name === "screens.md");
+    expect(screensFile.content).not.toContain("#### Accessibility");
+  });
+
+  it("includes Accessibility guidance in build-guide.md for platform-specific output", () => {
+    const result = generateInstructionFiles([minimalScreen], [], { platform: "swiftui" });
+    const buildGuide = result.files.find((f) => f.name === "build-guide.md");
+    expect(buildGuide.content).toContain("### Accessibility");
+    expect(buildGuide.content).toContain(".accessibilityLabel");
+  });
+
+  it("does not include platform Accessibility guidance in build-guide.md for auto platform", () => {
+    const result = generateInstructionFiles([minimalScreen], [], { platform: "auto" });
+    const buildGuide = result.files.find((f) => f.name === "build-guide.md");
+    expect(buildGuide.content).not.toContain(".accessibilityLabel");
+  });
 });

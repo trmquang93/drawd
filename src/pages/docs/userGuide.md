@@ -145,6 +145,20 @@ When a screen has text-input hotspots, a yellow `Form` button appears in the scr
 > [!TIP]
 > Use the Form Summary to audit your form screens before generating instructions. Missing validations are easy to overlook in individual hotspot modals.
 
+### Accessibility annotations
+
+Every hotspot has an optional Accessibility section. Expand it to define how screen readers should announce the element:
+
+- **Label** -- What VoiceOver or TalkBack reads aloud (e.g. "Sign in button")
+- **Role** -- The semantic role: button, link, image, heading, text, search-field, toggle, slider, tab, alert, menu, or other
+- **Hint** -- A usage hint describing the result of activating the element (e.g. "Double tap to sign in")
+- **Traits** -- Additional traits: selected, disabled, adjustable, header, summary, plays-sound, starts-media, allows-direct-interaction
+
+When you generate instructions, screens with accessibility annotations include an **Accessibility** table listing each annotated element. If a specific platform is selected (SwiftUI, React Native, Flutter, Jetpack Compose), the build guide includes platform-specific implementation patterns for accessibility modifiers.
+
+> [!TIP]
+> Accessibility annotations are saved with presets, so you can reuse common patterns across hotspots.
+
 ## Connecting Screens
 
 Connections (navigation links) show how a user moves from one screen to another. They appear as curved arrows on the canvas between screen cards.

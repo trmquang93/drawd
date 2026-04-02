@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { COLORS, FONTS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
 import { DataFlowEditor } from "./DataFlowEditor";
-import { TRANSITION_TYPES } from "../constants";
+import { TRANSITION_TYPES, ACCESSIBILITY_ROLES, ACCESSIBILITY_TRAITS } from "../constants";
 
 function FollowUpSection({ title, titleColor, action, setAction, targetId, setTargetId,
                            customDesc, setCustomDesc, otherScreens, dataFlow, onDataFlowChange }) {
@@ -143,6 +143,13 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
   const [validationPattern, setValidationPattern] = useState(hotspot?.validation?.pattern || "");
   const [validationErrorMessage, setValidationErrorMessage] = useState(hotspot?.validation?.errorMessage || "");
 
+  // Accessibility annotations
+  const [a11yExpanded, setA11yExpanded] = useState(!!(hotspot?.accessibility));
+  const [a11yLabel, setA11yLabel] = useState(hotspot?.accessibility?.label || "");
+  const [a11yRole, setA11yRole] = useState(hotspot?.accessibility?.role || "");
+  const [a11yHint, setA11yHint] = useState(hotspot?.accessibility?.hint || "");
+  const [a11yTraits, setA11yTraits] = useState(hotspot?.accessibility?.traits || []);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") onClose();
@@ -200,6 +207,13 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
               setW(preset.w ?? w);
               setH(preset.h ?? h);
               if (preset.customDescription) setCustomDescription(preset.customDescription);
+              if (preset.accessibility) {
+                setA11yExpanded(true);
+                setA11yLabel(preset.accessibility.label || "");
+                setA11yRole(preset.accessibility.role || "");
+                setA11yHint(preset.accessibility.hint || "");
+                setA11yTraits(preset.accessibility.traits || []);
+              }
             }}
             style={{ ...styles.select, flex: 1, marginTop: 0 }}
           >
@@ -222,6 +236,7 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
                 w,
                 h,
                 customDescription,
+                accessibility: a11yExpanded ? { label: a11yLabel, role: a11yRole, hint: a11yHint, traits: a11yTraits } : null,
               };
               const updated = [...presets, preset];
               setPresets(updated);
@@ -306,6 +321,12 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
               maxLength: validationMaxLength !== "" ? Number(validationMaxLength) : null,
               pattern: validationPattern,
               errorMessage: validationErrorMessage,
+            } : null,
+            accessibility: a11yExpanded ? {
+              label: a11yLabel,
+              role: a11yRole,
+              hint: a11yHint,
+              traits: a11yTraits,
             } : null,
           });
         }}>
@@ -737,6 +758,115 @@ export function HotspotModal({ screen, hotspot, connection, screens, documents =
                 )}
               </div>
             )}
+
+            {/* Accessibility annotations */}
+            <div style={{
+              border: `1px solid ${a11yExpanded ? "rgba(198,120,221,0.25)" : COLORS.border}`,
+              borderRadius: 8,
+              overflow: "hidden",
+            }}>
+              <button
+                type="button"
+                onClick={() => setA11yExpanded(!a11yExpanded)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 12px",
+                  background: a11yExpanded ? "rgba(198,120,221,0.06)" : "rgba(255,255,255,0.02)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: FONTS.mono,
+                }}
+              >
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: a11yExpanded ? "#c678dd" : COLORS.textMuted,
+                  textTransform: "uppercase",
+                }}>
+                  Accessibility
+                </span>
+                <span style={{ color: COLORS.textDim, fontSize: 12 }}>{a11yExpanded ? "\u25B2" : "\u25BC"}</span>
+              </button>
+              {a11yExpanded && (
+                <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <label style={{ ...styles.monoLabel, marginTop: 8 }}>
+                    ACCESSIBILITY LABEL
+                    <input
+                      value={a11yLabel}
+                      onChange={(e) => setA11yLabel(e.target.value)}
+                      placeholder="e.g. Sign in button"
+                      style={styles.input}
+                    />
+                  </label>
+                  <label style={styles.monoLabel}>
+                    ROLE
+                    <select value={a11yRole} onChange={(e) => setA11yRole(e.target.value)} style={styles.select}>
+                      <option value="">-- None --</option>
+                      {ACCESSIBILITY_ROLES.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={styles.monoLabel}>
+                    HINT
+                    <input
+                      value={a11yHint}
+                      onChange={(e) => setA11yHint(e.target.value)}
+                      placeholder="e.g. Double tap to sign in"
+                      style={styles.input}
+                    />
+                  </label>
+                  <div>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      color: COLORS.textMuted,
+                      textTransform: "uppercase",
+                      fontFamily: FONTS.mono,
+                      display: "block",
+                      marginBottom: 6,
+                    }}>
+                      TRAITS
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {ACCESSIBILITY_TRAITS.map((trait) => {
+                        const isActive = a11yTraits.includes(trait);
+                        return (
+                          <button
+                            key={trait}
+                            type="button"
+                            onClick={() => {
+                              setA11yTraits(isActive
+                                ? a11yTraits.filter((t) => t !== trait)
+                                : [...a11yTraits, trait]
+                              );
+                            }}
+                            style={{
+                              padding: "3px 9px",
+                              borderRadius: 4,
+                              border: `1px solid ${isActive ? "rgba(198,120,221,0.35)" : COLORS.border}`,
+                              background: isActive ? "rgba(198,120,221,0.12)" : "rgba(255,255,255,0.05)",
+                              color: isActive ? "#c678dd" : COLORS.textDim,
+                              fontFamily: FONTS.mono,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {trait}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Transition type — only visible when editing a connection-backed hotspot */}
             {connection && (action === "navigate" || action === "back" || action === "modal" || action === "api") && (

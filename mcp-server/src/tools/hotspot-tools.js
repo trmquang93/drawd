@@ -43,6 +43,27 @@ export const hotspotTools = [
         onErrorAction: { type: "string", enum: ["navigate", "back", "modal", "custom", ""] },
         onErrorTargetId: { type: "string" },
         onErrorCustomDesc: { type: "string" },
+        accessibility: {
+          type: "object",
+          properties: {
+            label: { type: "string", description: "Accessibility label (VoiceOver/TalkBack)" },
+            role: {
+              type: "string",
+              enum: ["button", "link", "image", "heading", "text", "search-field",
+                     "toggle", "slider", "tab", "alert", "menu", "other"],
+            },
+            hint: { type: "string", description: "Usage hint (e.g. 'Double tap to sign in')" },
+            traits: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["selected", "disabled", "adjustable", "header", "summary",
+                       "plays-sound", "starts-media", "allows-direct-interaction"],
+              },
+            },
+          },
+          description: "Accessibility annotations for screen readers",
+        },
       },
       required: ["screenId", "label", "x", "y", "w", "h", "action"],
     },
@@ -66,6 +87,27 @@ export const hotspotTools = [
         apiEndpoint: { type: "string" },
         apiMethod: { type: "string" },
         customDescription: { type: "string" },
+        accessibility: {
+          type: "object",
+          properties: {
+            label: { type: "string", description: "Accessibility label (VoiceOver/TalkBack)" },
+            role: {
+              type: "string",
+              enum: ["button", "link", "image", "heading", "text", "search-field",
+                     "toggle", "slider", "tab", "alert", "menu", "other"],
+            },
+            hint: { type: "string", description: "Usage hint (e.g. 'Double tap to sign in')" },
+            traits: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["selected", "disabled", "adjustable", "header", "summary",
+                       "plays-sound", "starts-media", "allows-direct-interaction"],
+              },
+            },
+          },
+          description: "Accessibility annotations for screen readers",
+        },
       },
       required: ["screenId", "hotspotId"],
     },
