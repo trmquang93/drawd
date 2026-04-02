@@ -19,6 +19,7 @@ import { useFileActions } from "./hooks/useFileActions";
 import { useCollabSync } from "./hooks/useCollabSync";
 import { useInteractionCallbacks } from "./hooks/useInteractionCallbacks";
 import { useDerivedCanvasState } from "./hooks/useDerivedCanvasState";
+import { useTemplateInserter } from "./hooks/useTemplateInserter";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { StickyNoteSidebar } from "./components/StickyNoteSidebar";
@@ -158,6 +159,18 @@ export default function Drawd({ initialRoomCode }) {
   const [renameModal, setRenameModal] = useState(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [formSummaryScreen, setFormSummaryScreen] = useState(null);
+  const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
+
+  // ── Template inserter ─────────────────────────────────────────────────
+  const { insertTemplate } = useTemplateInserter({
+    screens, mergeAll, replaceAll, pan, zoom, canvasRef,
+  });
+
+  const onTemplates = useCallback(() => setShowTemplateBrowser(true), []);
+  const onInsertTemplate = useCallback((data) => {
+    insertTemplate(data);
+    setShowTemplateBrowser(false);
+  }, [insertTemplate]);
 
   // ── Instruction generation ─────────────────────────────────────────────
   const { instructions, showInstructions, setShowInstructions, onGenerate, buildInstructionResult } =
@@ -315,6 +328,7 @@ export default function Drawd({ initialRoomCode }) {
     selectedScreenGroup, setSelectedScreenGroup, deleteScreenGroup,
     undo, redo, saveNow, isFileSystemSupported, onSaveAs, onExport, onOpen,
     setActiveTool,
+    onTemplates,
     isReadOnly,
   });
 
@@ -379,6 +393,7 @@ export default function Drawd({ initialRoomCode }) {
         ) : null}
         onToggleParticipants={() => setShowParticipants((v) => !v)}
         showParticipants={showParticipants}
+        onTemplates={onTemplates}
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -488,6 +503,7 @@ export default function Drawd({ initialRoomCode }) {
           setGroupContextMenu={setGroupContextMenu}
           handleImageUpload={handleImageUpload}
           addScreenAtCenter={addScreenAtCenter}
+          onTemplates={onTemplates}
         />
 
         {selectedScreenData && (
@@ -573,6 +589,9 @@ export default function Drawd({ initialRoomCode }) {
         setFigmaError={setFigmaError}
         formSummaryScreen={formSummaryScreen}
         setFormSummaryScreen={setFormSummaryScreen}
+        showTemplateBrowser={showTemplateBrowser}
+        setShowTemplateBrowser={setShowTemplateBrowser}
+        onInsertTemplate={onInsertTemplate}
       />
     </div>
   );

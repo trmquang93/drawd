@@ -19,6 +19,7 @@ const SHORTCUTS = [
       { keys: ["Scroll"], desc: "Zoom in / out" },
       { keys: ["Alt", "Click hotspot"], desc: "Drag to connect" },
       { keys: ["Shift", "Click hotspot"], desc: "Multi-select hotspots" },
+      { keys: ["T"], desc: "Insert template" },
     ],
   },
   {
