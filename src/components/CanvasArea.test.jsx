@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 
 const { screenNodeSpy } = vi.hoisted(() => ({
   screenNodeSpy: vi.fn(),
@@ -140,6 +140,9 @@ function makeProps(overrides = {}) {
     setActiveTool: vi.fn(),
     handleImageUpload: vi.fn(),
     addScreenAtCenter: vi.fn(),
+    isDraggingOver: false,
+    onCanvasDragEnter: vi.fn(),
+    onCanvasDragLeave: vi.fn(),
     ...overrides,
   };
 }
@@ -147,6 +150,10 @@ function makeProps(overrides = {}) {
 describe("CanvasArea", () => {
   beforeEach(() => {
     screenNodeSpy.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders screens without throwing when form summary handler is provided", () => {
@@ -163,5 +170,16 @@ describe("CanvasArea", () => {
     expect(screen.getByTestId("screen-node-screen-1").textContent).toBe("Login");
     expect(screenNodeSpy).toHaveBeenCalledTimes(1);
     expect(screenNodeSpy.mock.calls[0][0].onFormSummary).toBe(onFormSummary);
+  });
+
+  it("renders drop zone overlay when isDraggingOver is true", () => {
+    render(<CanvasArea {...makeProps({ isDraggingOver: true })} />);
+    expect(screen.getByTestId("drop-zone-overlay")).toBeTruthy();
+    expect(screen.getByText("Drop images to create screens")).toBeTruthy();
+  });
+
+  it("does not render drop zone overlay when isDraggingOver is false", () => {
+    render(<CanvasArea {...makeProps({ isDraggingOver: false })} />);
+    expect(screen.queryByTestId("drop-zone-overlay")).toBeNull();
   });
 });

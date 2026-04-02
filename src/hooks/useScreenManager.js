@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { generateId } from "../utils/generateId";
+import { screenBounds } from "../utils/canvasMath";
+import { filenameToScreenName, gridPositions, resolveOverlaps } from "../utils/dropImport";
 import {
   DEFAULT_SCREEN_WIDTH,
   CENTER_HEIGHT_ESTIMATE,
@@ -14,6 +16,7 @@ import {
   VIEWPORT_FALLBACK_HEIGHT,
   DEFAULT_STATE_NAME,
   SCREEN_NAME_TEMPLATE,
+  HEADER_HEIGHT,
 } from "../constants";
 
 export function useScreenManager(pan, zoom, canvasRef) {
@@ -162,6 +165,35 @@ export function useScreenManager(pan, zoom, canvasRef) {
     setScreens((prev) => [...prev, newScreen]);
     setSelectedScreen(newScreen.id);
   }, [screens, connections, documents, pushHistory, pan, zoom, canvasRef]);
+
+  const addScreensBatch = useCallback((screenDefs) => {
+    if (screenDefs.length === 0) return 0;
+    pushHistory(screens, connections, documents);
+    const newScreens = screenDefs.map((def) => ({
+      id: generateId(),
+      name: def.name,
+      x: def.x,
+      y: def.y,
+      width: DEFAULT_SCREEN_WIDTH,
+      imageData: def.imageData,
+      description: "",
+      notes: "",
+      codeRef: "",
+      status: "new",
+      acceptanceCriteria: [],
+      hotspots: [],
+      stateGroup: null,
+      stateName: "",
+      tbd: false,
+      tbdNote: "",
+      roles: [],
+      figmaSource: null,
+    }));
+    setScreens((prev) => [...prev, ...newScreens]);
+    setSelectedScreen(newScreens[0].id);
+    screenCounter.current += newScreens.length;
+    return newScreens.length;
+  }, [screens, connections, documents, pushHistory]);
 
   const removeScreen = useCallback((id) => {
     pushHistory(screens, connections, documents);
@@ -325,17 +357,59 @@ export function useScreenManager(pan, zoom, canvasRef) {
     });
   }, [addScreenAtCenter, selectedScreen, screens, assignScreenImage]);
 
-  const handleCanvasDrop = useCallback((e) => {
+  const handleCanvasDrop = useCallback((e, worldX, worldY) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        addScreen(ev.target.result, file.name.replace(/\.[^.]+$/, ""));
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.dataTransfer.files).filter(
+      (f) => f.type === "image/png" || f.type === "image/jpeg"
+    );
+    if (files.length === 0) return;
+
+    Promise.all(
+      files.map(
+        (file) =>
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const dataUrl = ev.target.result;
+              const img = new Image();
+              img.onload = () => {
+                const renderedHeight = (img.naturalHeight / img.naturalWidth) * DEFAULT_SCREEN_WIDTH;
+                resolve({
+                  imageData: dataUrl,
+                  filename: file.name,
+                  imageHeight: renderedHeight,
+                });
+              };
+              img.onerror = () => {
+                resolve({ imageData: dataUrl, filename: file.name, imageHeight: 120 });
+              };
+              img.src = dataUrl;
+            };
+            reader.readAsDataURL(file);
+          })
+      )
+    ).then((results) => {
+      const itemHeights = results.map((r) => r.imageHeight + HEADER_HEIGHT);
+      const positions = gridPositions(itemHeights, worldX, worldY);
+      const candidateRects = positions.map((pos, i) => ({
+        x: pos.x,
+        y: pos.y,
+        width: DEFAULT_SCREEN_WIDTH,
+        height: itemHeights[i],
+      }));
+      const existingRects = screens.map((s) => screenBounds(s, HEADER_HEIGHT));
+      const adjusted = resolveOverlaps(candidateRects, existingRects);
+
+      const screenDefs = results.map((r, i) => ({
+        imageData: r.imageData,
+        name: filenameToScreenName(r.filename),
+        x: adjusted[i].x,
+        y: adjusted[i].y,
+      }));
+
+      addScreensBatch(screenDefs);
     });
-  }, [addScreen]);
+  }, [screens, addScreensBatch]);
 
   const saveHotspot = useCallback((screenId, hotspot) => {
     pushHistory(screens, connections, documents);
@@ -872,6 +946,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
     fileInputRef,
     addScreen,
     addScreenAtCenter,
+    addScreensBatch,
     removeScreen,
     removeScreens,
     renameScreen,

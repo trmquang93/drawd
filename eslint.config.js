@@ -29,6 +29,7 @@ const browserGlobals = {
   KeyboardEvent: "readonly",
   MouseEvent: "readonly",
   CustomEvent: "readonly",
+  Image: "readonly",
 };
 
 export default [

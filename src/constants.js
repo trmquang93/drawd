@@ -43,6 +43,7 @@ export const GRID_MARGIN = 60;
 export const PASTE_STAGGER = 30;
 export const STATE_VARIANT_OFFSET = 250;
 export const MERGE_GAP = 300;
+export const DROP_OVERLAP_MARGIN = 40;
 export const CENTER_HEIGHT_ESTIMATE = 160;
 export const VIEWPORT_FALLBACK_WIDTH = 800;
 export const VIEWPORT_FALLBACK_HEIGHT = 600;

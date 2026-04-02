@@ -26,6 +26,7 @@ import { StickyNoteSidebar } from "./components/StickyNoteSidebar";
 import { ScreensPanel } from "./components/ScreensPanel";
 import { CanvasArea } from "./components/CanvasArea";
 import { ModalsLayer } from "./components/ModalsLayer";
+import { Toast } from "./components/Toast";
 import { CollabPresence } from "./components/CollabPresence";
 import { CollabBadge } from "./components/CollabBadge";
 import { importFlow } from "./utils/importFlow";
@@ -275,12 +276,45 @@ export default function Drawd({ initialRoomCode }) {
   const { importConfirm, setImportConfirm, importFileRef, onExport, onImport, onImportFileChange, onImportReplace, onImportMerge } =
     useImportExport({ screens, connections, documents, dataModels, stickyNotes, screenGroups, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom, setStickyNotes, setScreenGroups });
 
+  // ── Toast notification ─────────────────────────────────────────────────────────────
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+  const showToast = useCallback((message, duration = 3000) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(null), duration);
+  }, []);
+
+  // ── Drag-over state (drop zone overlay) ───────────────────────────────────────────
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounterRef = useRef(0);
+  const onCanvasDragEnter = useCallback((e) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) setIsDraggingOver(true);
+  }, []);
+  const onCanvasDragLeave = useCallback(() => {
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) setIsDraggingOver(false);
+  }, []);
+
   // ── Canvas drop (intercepts .drawd files, delegates images) ────────────────────────
   const onCanvasDrop = useCallback(async (e) => {
     e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+
     const drawdFile = detectDrawdFile(e.dataTransfer.files);
     if (!drawdFile) {
-      handleCanvasDrop(e);
+      const imageFiles = Array.from(e.dataTransfer.files).filter(
+        (f) => f.type === "image/png" || f.type === "image/jpeg"
+      );
+      if (imageFiles.length === 0) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - pan.x) / zoom;
+      const worldY = (e.clientY - rect.top - pan.y) / zoom;
+      handleCanvasDrop(e, worldX, worldY);
+      showToast(`Created ${imageFiles.length} screen${imageFiles.length > 1 ? "s" : ""} from dropped images`);
       return;
     }
 
@@ -309,7 +343,7 @@ export default function Drawd({ initialRoomCode }) {
     } catch (err) {
       alert(err.message);
     }
-  }, [screens.length, handleCanvasDrop, applyPayload, setImportConfirm, connectHandle, isFileSystemSupported]);
+  }, [screens.length, handleCanvasDrop, applyPayload, setImportConfirm, connectHandle, isFileSystemSupported, pan, zoom, showToast]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────────────
   useKeyboardShortcuts({
@@ -503,6 +537,9 @@ export default function Drawd({ initialRoomCode }) {
           setGroupContextMenu={setGroupContextMenu}
           handleImageUpload={handleImageUpload}
           addScreenAtCenter={addScreenAtCenter}
+          isDraggingOver={isDraggingOver}
+          onCanvasDragEnter={onCanvasDragEnter}
+          onCanvasDragLeave={onCanvasDragLeave}
           onTemplates={onTemplates}
         />
 
@@ -593,6 +630,7 @@ export default function Drawd({ initialRoomCode }) {
         setShowTemplateBrowser={setShowTemplateBrowser}
         onInsertTemplate={onInsertTemplate}
       />
+      <Toast message={toast} />
     </div>
   );
 }

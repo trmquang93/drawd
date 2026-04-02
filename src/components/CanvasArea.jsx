@@ -52,6 +52,8 @@ export function CanvasArea({
   groupContextMenu, setGroupContextMenu,
   // ToolBar
   setActiveTool, handleImageUpload, addScreenAtCenter,
+  // Drop zone overlay
+  isDraggingOver, onCanvasDragEnter, onCanvasDragLeave,
   // Templates
   onTemplates,
 }) {
@@ -66,6 +68,8 @@ export function CanvasArea({
       onMouseUp={onCanvasMouseUp}
       onMouseLeave={onCanvasMouseLeave}
       onDragOver={(e) => e.preventDefault()}
+      onDragEnter={onCanvasDragEnter}
+      onDragLeave={onCanvasDragLeave}
       onDrop={onCanvasDrop}
       onClick={() => {
         if (groupContextMenu) setGroupContextMenu(null);
@@ -88,6 +92,32 @@ export function CanvasArea({
         backgroundPosition: `${pan.x}px ${pan.y}px`,
       }}
     >
+      {isDraggingOver && (
+        <div
+          data-testid="drop-zone-overlay"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(97,175,239,0.08)",
+            border: `2px dashed ${COLORS.accent}`,
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: Z_INDEX.contextMenu,
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{
+            color: COLORS.accent,
+            fontFamily: FONTS.mono,
+            fontSize: 16,
+            fontWeight: 600,
+          }}>
+            Drop images to create screens
+          </span>
+        </div>
+      )}
       <div
         className="canvas-inner"
         style={{

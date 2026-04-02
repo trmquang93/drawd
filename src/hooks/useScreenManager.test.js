@@ -961,3 +961,82 @@ describe("document CRUD", () => {
     expect(result.current.documents).toHaveLength(0);
   });
 });
+
+describe("addScreensBatch", () => {
+  it("creates multiple screens at specified positions", () => {
+    const { result } = setup();
+
+    act(() =>
+      result.current.addScreensBatch([
+        { imageData: null, name: "A", x: 0, y: 0 },
+        { imageData: null, name: "B", x: 300, y: 0 },
+        { imageData: null, name: "C", x: 600, y: 0 },
+      ])
+    );
+
+    expect(result.current.screens).toHaveLength(3);
+    expect(result.current.screens[0].name).toBe("A");
+    expect(result.current.screens[1].name).toBe("B");
+    expect(result.current.screens[2].name).toBe("C");
+    expect(result.current.screens[0].x).toBe(0);
+    expect(result.current.screens[1].x).toBe(300);
+    expect(result.current.screens[2].x).toBe(600);
+  });
+
+  it("single undo removes all screens from the batch", () => {
+    const { result } = setup();
+
+    act(() =>
+      result.current.addScreensBatch([
+        { imageData: null, name: "A", x: 0, y: 0 },
+        { imageData: null, name: "B", x: 300, y: 0 },
+      ])
+    );
+    expect(result.current.screens).toHaveLength(2);
+
+    act(() => result.current.undo());
+    expect(result.current.screens).toHaveLength(0);
+  });
+
+  it("redo restores all screens from the batch", () => {
+    const { result } = setup();
+
+    act(() =>
+      result.current.addScreensBatch([
+        { imageData: null, name: "A", x: 0, y: 0 },
+        { imageData: null, name: "B", x: 300, y: 0 },
+      ])
+    );
+
+    act(() => result.current.undo());
+    expect(result.current.screens).toHaveLength(0);
+
+    act(() => result.current.redo());
+    expect(result.current.screens).toHaveLength(2);
+    expect(result.current.screens[0].name).toBe("A");
+    expect(result.current.screens[1].name).toBe("B");
+  });
+
+  it("selects the first screen in the batch", () => {
+    const { result } = setup();
+
+    act(() =>
+      result.current.addScreensBatch([
+        { imageData: null, name: "A", x: 0, y: 0 },
+        { imageData: null, name: "B", x: 300, y: 0 },
+      ])
+    );
+
+    expect(result.current.selectedScreen).toBe(result.current.screens[0].id);
+  });
+
+  it("returns 0 and does not push history for empty batch", () => {
+    const { result } = setup();
+
+    let count;
+    act(() => { count = result.current.addScreensBatch([]); });
+    expect(count).toBe(0);
+    expect(result.current.screens).toHaveLength(0);
+    expect(result.current.canUndo).toBe(false);
+  });
+});
