@@ -24,9 +24,9 @@ describe("importFlow", () => {
     );
   });
 
-  it("throws for future version > 11", () => {
+  it("throws for future version > 12", () => {
     expect(() =>
-      importFlow(JSON.stringify({ version: 12, screens: [], connections: [] }))
+      importFlow(JSON.stringify({ version: 13, screens: [], connections: [] }))
     ).toThrow("Unsupported file version");
   });
 
@@ -100,6 +100,46 @@ describe("importFlow", () => {
     expect(hs.apiMethod).toBe("");
     expect(hs.onSuccessAction).toBe("");
     expect(hs.onErrorAction).toBe("");
+  });
+
+  it("backfills accessibility to null for older hotspots", () => {
+    const file = makeValidFile({
+      screens: [
+        {
+          id: "s1",
+          name: "Home",
+          hotspots: [{ id: "h1", label: "Tap", action: "navigate" }],
+        },
+      ],
+    });
+    const result = importFlow(file);
+    const hs = result.screens[0].hotspots[0];
+    expect(hs.accessibility).toBeNull();
+  });
+
+  it("preserves existing accessibility data on hotspots", () => {
+    const file = makeValidFile({
+      screens: [
+        {
+          id: "s1",
+          name: "Home",
+          hotspots: [{
+            id: "h1",
+            label: "Login",
+            action: "navigate",
+            accessibility: { label: "Sign in", role: "button", hint: "Double tap to sign in", traits: ["selected"] },
+          }],
+        },
+      ],
+    });
+    const result = importFlow(file);
+    const hs = result.screens[0].hotspots[0];
+    expect(hs.accessibility).toEqual({
+      label: "Sign in",
+      role: "button",
+      hint: "Double tap to sign in",
+      traits: ["selected"],
+    });
   });
 
   // --- v4 -> v5 migration ---

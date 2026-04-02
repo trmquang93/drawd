@@ -54,6 +54,8 @@ export function CanvasArea({
   setActiveTool, handleImageUpload, addScreenAtCenter,
   // Drop zone overlay
   isDraggingOver, onCanvasDragEnter, onCanvasDragLeave,
+  // Templates
+  onTemplates,
 }) {
   return (
     <div
@@ -283,7 +285,7 @@ export function CanvasArea({
         )}
       </div>
 
-      {screens.length === 0 && <EmptyState />}
+      {screens.length === 0 && <EmptyState onTemplates={onTemplates} />}
 
       {/* Zoom indicator */}
       <div
@@ -413,6 +415,7 @@ export function CanvasArea({
           const worldY = (rect.height / 2 - pan.y) / zoom;
           addStickyNote(worldX, worldY);
         }}
+        onTemplates={onTemplates}
       />
     </div>
   );

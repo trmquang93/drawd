@@ -5,7 +5,7 @@ export const GITHUB_URL = "https://github.com/codeflow-studio/drawd";
 export const DOMAIN = "drawd.app";
 
 // ── File Format ──────────────────────────────
-export const FILE_VERSION = 11;
+export const FILE_VERSION = 12;
 export const FILE_EXTENSION = ".drawd";
 export const LEGACY_FILE_EXTENSION = ".flowforge";
 export const DEFAULT_EXPORT_FILENAME = "flow-export";
@@ -90,3 +90,14 @@ export const TRANSITION_TYPES = [
 export const TRANSITION_LABELS = Object.fromEntries(
   TRANSITION_TYPES.map(t => [t.value, t.label])
 );
+
+// ── Accessibility ───────────────────────────
+export const ACCESSIBILITY_ROLES = [
+  "button", "link", "image", "heading", "text", "search-field",
+  "toggle", "slider", "tab", "alert", "menu", "other",
+];
+
+export const ACCESSIBILITY_TRAITS = [
+  "selected", "disabled", "adjustable", "header", "summary",
+  "plays-sound", "starts-media", "allows-direct-interaction",
+];

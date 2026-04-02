@@ -53,6 +53,8 @@ export function useKeyboardShortcuts({
   onOpen,
   // tool mode
   setActiveTool,
+  // templates
+  onTemplates,
   // collaboration
   isReadOnly,
 }) {
@@ -85,6 +87,16 @@ export function useKeyboardShortcuts({
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
         setActiveTool("pan");
+        return;
+      }
+
+      // Open template browser: T
+      if ((e.key === "t" || e.key === "T") && !e.metaKey && !e.ctrlKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (anyModalOpen) return;
+        if (isReadOnly) return;
+        onTemplates();
         return;
       }
 
@@ -239,6 +251,6 @@ export function useKeyboardShortcuts({
     deleteHotspot, selectedStickyNote, setSelectedStickyNote, deleteStickyNote,
     selectedScreenGroup, setSelectedScreenGroup, deleteScreenGroup,
     setActiveTool, canvasSelection, clearSelection, removeScreens, addScreenGroup, screens,
-    isReadOnly,
+    onTemplates, isReadOnly,
   ]);
 }

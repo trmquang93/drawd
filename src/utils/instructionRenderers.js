@@ -95,6 +95,131 @@ export const PLATFORM_TERMINOLOGY = {
   },
 };
 
+// Platform-specific accessibility API mappings.
+// Each platform defines how to apply label, hint, role, and trait annotations.
+export const ACCESSIBILITY_PLATFORM_MAP = {
+  swiftui: {
+    name: "SwiftUI",
+    docsUrl: "https://developer.apple.com/accessibility/",
+    label: `.accessibilityLabel("text")`,
+    hint: `.accessibilityHint("text")`,
+    roles: {
+      button: `.accessibilityAddTraits(.isButton)`,
+      link: `.accessibilityAddTraits(.isLink)`,
+      image: `.accessibilityAddTraits(.isImage)`,
+      heading: `.accessibilityAddTraits(.isHeader)`,
+      text: `.accessibilityAddTraits(.isStaticText)`,
+      "search-field": `.accessibilityAddTraits(.isSearchField)`,
+      toggle: `.accessibilityAddTraits(.isToggle)`,
+      slider: `Slider().accessibilityLabel("text")`,
+      tab: `.accessibilityAddTraits(.isTabBar)`,
+      alert: `alert modifier with accessibilityLabel`,
+      menu: `.accessibilityAddTraits(.isButton)` + ` with Menu`,
+      other: `.accessibilityAddTraits(...)`,
+    },
+    traits: {
+      selected: `.accessibilityAddTraits(.isSelected)`,
+      disabled: `.disabled(true)`,
+      adjustable: `.accessibilityAdjustableAction { ... }`,
+      header: `.accessibilityAddTraits(.isHeader)`,
+      summary: `.accessibilityAddTraits(.isSummaryElement)`,
+      "plays-sound": `.accessibilityAddTraits(.playsSound)`,
+      "starts-media": `.accessibilityAddTraits(.startsMediaSession)`,
+      "allows-direct-interaction": `.accessibilityAddTraits(.allowsDirectInteraction)`,
+    },
+  },
+  "react-native": {
+    name: "React Native",
+    docsUrl: "https://reactnative.dev/docs/accessibility",
+    label: `accessibilityLabel="text"`,
+    hint: `accessibilityHint="text"`,
+    roles: {
+      button: `accessibilityRole="button"`,
+      link: `accessibilityRole="link"`,
+      image: `accessibilityRole="image"`,
+      heading: `accessibilityRole="header"`,
+      text: `accessibilityRole="text"`,
+      "search-field": `accessibilityRole="search"`,
+      toggle: `accessibilityRole="switch"`,
+      slider: `accessibilityRole="adjustable"`,
+      tab: `accessibilityRole="tab"`,
+      alert: `accessibilityRole="alert"`,
+      menu: `accessibilityRole="menu"`,
+      other: `accessibilityRole="none"`,
+    },
+    traits: {
+      selected: `accessibilityState={{ selected: true }}`,
+      disabled: `accessibilityState={{ disabled: true }}`,
+      adjustable: `accessibilityRole="adjustable"`,
+      header: `accessibilityRole="header"`,
+      summary: `accessibilityRole="summary"`,
+      "plays-sound": `accessibilityHint (describe sound)`,
+      "starts-media": `accessibilityHint (describe media)`,
+      "allows-direct-interaction": `accessible={false} on inner touch`,
+    },
+  },
+  flutter: {
+    name: "Flutter",
+    docsUrl: "https://docs.flutter.dev/ui/accessibility-and-internationalization/accessibility",
+    label: `Semantics(label: "text")`,
+    hint: `Semantics(hint: "text")`,
+    roles: {
+      button: `Semantics(button: true)`,
+      link: `Semantics(link: true)`,
+      image: `Semantics(image: true)`,
+      heading: `Semantics(header: true)`,
+      text: `Semantics(label: "text")`,
+      "search-field": `Semantics(textField: true)`,
+      toggle: `Semantics(toggled: value)`,
+      slider: `Semantics(slider: true)`,
+      tab: `Semantics(label: "tab name", selected: isSelected)`,
+      alert: `Semantics(liveRegion: true)`,
+      menu: `Semantics(button: true, label: "menu")`,
+      other: `Semantics(label: "description")`,
+    },
+    traits: {
+      selected: `Semantics(selected: true)`,
+      disabled: `ExcludeSemantics or Semantics(enabled: false)`,
+      adjustable: `Semantics(onIncrease: ..., onDecrease: ...)`,
+      header: `Semantics(header: true)`,
+      summary: `Semantics(label: "summary text")`,
+      "plays-sound": `Semantics(hint: "plays sound")`,
+      "starts-media": `Semantics(hint: "starts media")`,
+      "allows-direct-interaction": `Semantics(scopesRoute: false)`,
+    },
+  },
+  "jetpack-compose": {
+    name: "Jetpack Compose",
+    docsUrl: "https://developer.android.com/jetpack/compose/accessibility",
+    label: `Modifier.semantics { contentDescription = "text" }`,
+    hint: `Modifier.semantics { stateDescription = "text" }`,
+    roles: {
+      button: `Modifier.semantics { role = Role.Button }`,
+      link: `Modifier.semantics { role = Role.Button } (with URL action)`,
+      image: `Modifier.semantics { role = Role.Image }`,
+      heading: `Modifier.semantics { heading() }`,
+      text: `Text("...") (inherits semantics)`,
+      "search-field": `Modifier.semantics { role = Role.Button } with search label`,
+      toggle: `Modifier.semantics { role = Role.Switch }`,
+      slider: `Modifier.semantics { role = Role.Range }`,
+      tab: `Modifier.semantics { role = Role.Tab }`,
+      alert: `LiveData with Modifier.semantics { liveRegion = LiveRegionMode.Polite }`,
+      menu: `Modifier.semantics { role = Role.DropdownList }`,
+      other: `Modifier.semantics { contentDescription = "..." }`,
+    },
+    traits: {
+      selected: `Modifier.semantics { selected = true }`,
+      disabled: `Modifier.semantics { disabled() }`,
+      adjustable: `Modifier.semantics { setProgress(action = { ... }) }`,
+      header: `Modifier.semantics { heading() }`,
+      summary: `Modifier.semantics { contentDescription = "summary" }`,
+      "plays-sound": `Modifier.semantics { stateDescription = "plays sound" }`,
+      "starts-media": `Modifier.semantics { stateDescription = "starts media" }`,
+      "allows-direct-interaction": `Modifier.semantics { clearAndSetSemantics { } }`,
+    },
+  },
+};
+
 // Registry of hotspot action renderers.
 // Each entry owns its own markdown rendering logic for the detail block and build guide row.
 // To add a new action type: add one entry here — no other file needs to change.
@@ -234,6 +359,65 @@ export function renderBuildGuideActionTable(platform) {
     if (row) md += `${row}\n`;
   }
   md += `\n`;
+
+  return md;
+}
+
+// Render an #### Accessibility subsection for hotspots that have accessibility annotations.
+// Returns null when no hotspot has accessibility data.
+export function renderAccessibilityBlock(hotspots) {
+  const a11yHotspots = (hotspots || []).filter((h) => h.accessibility);
+  if (a11yHotspots.length === 0) return null;
+
+  let md = `#### Accessibility\n\n`;
+  md += `| Element | A11y Label | Role | Hint | Traits |\n`;
+  md += `|---------|-----------|------|------|--------|\n`;
+
+  for (const h of a11yHotspots) {
+    const a = h.accessibility;
+    const name = h.label || "Unnamed";
+    const a11yLabel = a.label || "\u2014";
+    const role = a.role || "\u2014";
+    const hint = a.hint || "\u2014";
+    const traits = a.traits?.length > 0 ? a.traits.join(", ") : "\u2014";
+    md += `| ${name} | ${a11yLabel} | ${role} | ${hint} | ${traits} |\n`;
+  }
+  md += `\n`;
+
+  return md;
+}
+
+// Generate ### Accessibility guidance table for a specific platform's build guide.
+// Returns null when platform is "auto" or unknown.
+export function renderAccessibilityGuidance(platform) {
+  const pm = ACCESSIBILITY_PLATFORM_MAP[platform];
+  if (!pm) return null;
+
+  let md = `### Accessibility\n\n`;
+  md += `Apply accessibility annotations to every interactive element. Each hotspot's accessibility data from \`screens.md\` maps to ${pm.name} APIs:\n\n`;
+  md += `| Property | Implementation |\n`;
+  md += `|----------|---------------|\n`;
+  md += `| **Label** | \`${pm.label}\` |\n`;
+  md += `| **Hint** | \`${pm.hint}\` |\n`;
+
+  // Show a few representative role mappings
+  const roleExamples = ["button", "link", "image", "heading"];
+  for (const r of roleExamples) {
+    if (pm.roles[r]) {
+      md += `| **Role: ${r}** | \`${pm.roles[r]}\` |\n`;
+    }
+  }
+
+  // Show a few representative trait mappings
+  const traitExamples = ["selected", "disabled", "header"];
+  for (const t of traitExamples) {
+    if (pm.traits[t]) {
+      md += `| **Trait: ${t}** | \`${pm.traits[t]}\` |\n`;
+    }
+  }
+
+  md += `\n`;
+  md += `> For the full role and trait mapping, refer to the [${pm.name} accessibility documentation](${pm.docsUrl}).\n\n`;
 
   return md;
 }

@@ -11,6 +11,7 @@ import { ShortcutsPanel } from "./ShortcutsPanel";
 import { ShareModal } from "./ShareModal";
 import { HostLeftModal } from "./HostLeftModal";
 import { FormSummaryPanel } from "./FormSummaryPanel";
+import { TemplateBrowserModal } from "./TemplateBrowserModal";
 
 export function ModalsLayer({
   // Hotspot modal
@@ -43,6 +44,8 @@ export function ModalsLayer({
   figmaProcessing, figmaError, setFigmaError,
   // Form summary
   formSummaryScreen, setFormSummaryScreen,
+  // Template browser
+  showTemplateBrowser, setShowTemplateBrowser, onInsertTemplate,
 }) {
   return (
     <>
@@ -210,6 +213,13 @@ export function ModalsLayer({
         }} onClick={() => setFigmaError(null)}>
           Figma paste failed: {figmaError}
         </div>
+      )}
+
+      {showTemplateBrowser && (
+        <TemplateBrowserModal
+          onInsert={onInsertTemplate}
+          onClose={() => setShowTemplateBrowser(false)}
+        />
       )}
 
       {formSummaryScreen && (

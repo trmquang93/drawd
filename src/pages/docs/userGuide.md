@@ -94,7 +94,41 @@ With the Select tool active (`V`), click and drag on an empty area of the canvas
 
 ### Floating toolbar
 
-The floating toolbar at the bottom center of the canvas provides quick access to tools and actions. It contains a tool switcher (Select `V` and Pan `H`) and action buttons for uploading screens (`U`), adding blank screens (`B`), and creating sticky notes (`N`).
+The floating toolbar at the bottom center of the canvas provides quick access to tools and actions. It contains a tool switcher (Select `V` and Pan `H`) and action buttons for uploading screens (`U`), adding blank screens (`B`), creating sticky notes (`N`), and inserting templates (`T`).
+
+## Templates
+
+Templates are pre-built flow patterns that help you get started quickly. Instead of building common flows from scratch, you can insert a template and customize it.
+
+### Available templates
+
+- **Authentication** — Login, signup, forgot password, and email verification screens with API endpoints
+- **Onboarding** — Welcome, permissions, tutorial, and get started screens
+- **Settings** — Profile editing, preferences, and notification settings
+- **Tab Bar App** — Four-tab navigation with Home, Search, Profile, and Settings
+- **E-Commerce** — Product listing, detail, cart, and checkout flow
+- **Social Feed** — Feed, post detail, create post, and user profile screens
+
+### Inserting a template
+
+- Press `T` or click the template icon in the floating toolbar
+- From the File menu, choose **New from Template**
+- On an empty canvas, click the **Start from Template** button
+
+### What gets inserted
+
+Each template includes screens with wireframe placeholders, hotspots with configured actions (including API endpoints where appropriate), and connections between screens. All IDs are regenerated on insert so templates can be inserted multiple times without conflicts.
+
+### Customizing
+
+After inserting a template, you can:
+- Replace placeholder images with your actual designs (drag and drop or paste)
+- Edit hotspot labels, actions, and API configurations
+- Add or remove screens and connections
+- Modify screen descriptions and notes
+
+> [!TIP]
+> Templates insert at the center of your current viewport. If you already have screens on the canvas, the template will appear at the viewport center without overlapping existing content.
 
 ## Creating Hotspots
 
@@ -144,6 +178,20 @@ When a screen has text-input hotspots, a yellow `Form` button appears in the scr
 
 > [!TIP]
 > Use the Form Summary to audit your form screens before generating instructions. Missing validations are easy to overlook in individual hotspot modals.
+
+### Accessibility annotations
+
+Every hotspot has an optional Accessibility section. Expand it to define how screen readers should announce the element:
+
+- **Label** -- What VoiceOver or TalkBack reads aloud (e.g. "Sign in button")
+- **Role** -- The semantic role: button, link, image, heading, text, search-field, toggle, slider, tab, alert, menu, or other
+- **Hint** -- A usage hint describing the result of activating the element (e.g. "Double tap to sign in")
+- **Traits** -- Additional traits: selected, disabled, adjustable, header, summary, plays-sound, starts-media, allows-direct-interaction
+
+When you generate instructions, screens with accessibility annotations include an **Accessibility** table listing each annotated element. If a specific platform is selected (SwiftUI, React Native, Flutter, Jetpack Compose), the build guide includes platform-specific implementation patterns for accessibility modifiers.
+
+> [!TIP]
+> Accessibility annotations are saved with presets, so you can reuse common patterns across hotspots.
 
 ## Connecting Screens
 
@@ -438,6 +486,7 @@ Press `?` anywhere on the canvas to open the full keyboard shortcuts panel. The 
 | `U` | Upload screens |
 | `B` | Add blank screen |
 | `N` | Add sticky note |
+| `T` | Insert template |
 
 ### Canvas
 

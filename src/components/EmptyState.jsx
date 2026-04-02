@@ -1,6 +1,6 @@
 import { COLORS, FONTS } from "../styles/theme";
 
-export function EmptyState() {
+export function EmptyState({ onTemplates }) {
   return (
     <div
       style={{
@@ -52,6 +52,35 @@ export function EmptyState() {
         Drag &amp; drop or paste from clipboard<br />
         wireframes, screenshots, or mockups
       </div>
+      {onTemplates && (
+        <button
+          onClick={onTemplates}
+          style={{
+            pointerEvents: "auto",
+            marginTop: 8,
+            padding: "8px 20px",
+            background: COLORS.accent01,
+            border: `1px solid ${COLORS.accent}`,
+            borderRadius: 8,
+            color: COLORS.accent,
+            fontSize: 13,
+            fontFamily: FONTS.mono,
+            fontWeight: 500,
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = COLORS.accent;
+            e.currentTarget.style.color = "#282c34";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = COLORS.accent01;
+            e.currentTarget.style.color = COLORS.accent;
+          }}
+        >
+          Start from Template
+        </button>
+      )}
     </div>
   );
 }

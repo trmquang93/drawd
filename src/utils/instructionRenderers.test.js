@@ -3,6 +3,8 @@ import {
   renderHotspotDetailBlock,
   renderBuildGuideActionTable,
   renderBuildGuideTransitionTable,
+  renderAccessibilityBlock,
+  renderAccessibilityGuidance,
 } from "./instructionRenderers.js";
 
 const makeScreen = (id, name) => ({ id, name });
@@ -203,5 +205,107 @@ describe("renderBuildGuideTransitionTable", () => {
     expect(result).toContain("**slideUp**");
     expect(result).toContain("**slideLeft**");
     expect(result).toContain("**custom**");
+  });
+});
+
+describe("renderAccessibilityBlock", () => {
+  it("returns null when no hotspots have accessibility data", () => {
+    const hotspots = [
+      { label: "Button", action: "navigate", accessibility: null },
+      { label: "Link", action: "navigate" },
+    ];
+    expect(renderAccessibilityBlock(hotspots)).toBeNull();
+  });
+
+  it("returns null for an empty hotspots array", () => {
+    expect(renderAccessibilityBlock([], "auto")).toBeNull();
+  });
+
+  it("returns a markdown table with correct heading and columns", () => {
+    const hotspots = [{
+      label: "Login",
+      action: "navigate",
+      accessibility: { label: "Sign in", role: "button", hint: "Double tap to sign in", traits: [] },
+    }];
+    const result = renderAccessibilityBlock(hotspots);
+    expect(result).toContain("#### Accessibility");
+    expect(result).toContain("Element");
+    expect(result).toContain("A11y Label");
+    expect(result).toContain("Role");
+    expect(result).toContain("Hint");
+    expect(result).toContain("Traits");
+  });
+
+  it("renders hotspot label, a11y label, role, hint, and traits in the table", () => {
+    const hotspots = [{
+      label: "Submit",
+      action: "api",
+      accessibility: { label: "Submit form", role: "button", hint: "Sends data", traits: ["selected", "disabled"] },
+    }];
+    const result = renderAccessibilityBlock(hotspots);
+    expect(result).toContain("Submit");
+    expect(result).toContain("Submit form");
+    expect(result).toContain("button");
+    expect(result).toContain("Sends data");
+    expect(result).toContain("selected");
+    expect(result).toContain("disabled");
+  });
+
+  it("uses em dash for missing optional fields", () => {
+    const hotspots = [{
+      label: "Icon",
+      action: "navigate",
+      accessibility: { label: "", role: "", hint: "", traits: [] },
+    }];
+    const result = renderAccessibilityBlock(hotspots);
+    expect(result).toContain("\u2014");
+  });
+
+  it("only includes hotspots that have accessibility data (skips null)", () => {
+    const hotspots = [
+      { label: "A", action: "navigate", accessibility: { label: "Accessible A", role: "button", hint: "", traits: [] } },
+      { label: "B", action: "navigate", accessibility: null },
+      { label: "C", action: "navigate" },
+    ];
+    const result = renderAccessibilityBlock(hotspots);
+    expect(result).toContain("Accessible A");
+    expect(result).not.toContain("| B |");
+    expect(result).not.toContain("| C |");
+  });
+});
+
+describe("renderAccessibilityGuidance", () => {
+  it("returns null for platform 'auto'", () => {
+    expect(renderAccessibilityGuidance("auto")).toBeNull();
+  });
+
+  it("returns null for unknown platform", () => {
+    expect(renderAccessibilityGuidance("cobol")).toBeNull();
+  });
+
+  it("returns accessibility guidance for swiftui", () => {
+    const result = renderAccessibilityGuidance("swiftui");
+    expect(result).toContain("### Accessibility");
+    expect(result).toContain(".accessibilityLabel");
+    expect(result).toContain(".accessibilityHint");
+  });
+
+  it("returns accessibility guidance for react-native", () => {
+    const result = renderAccessibilityGuidance("react-native");
+    expect(result).toContain("### Accessibility");
+    expect(result).toContain("accessibilityLabel");
+    expect(result).toContain("accessibilityRole");
+  });
+
+  it("returns accessibility guidance for flutter", () => {
+    const result = renderAccessibilityGuidance("flutter");
+    expect(result).toContain("### Accessibility");
+    expect(result).toContain("Semantics");
+  });
+
+  it("returns accessibility guidance for jetpack-compose", () => {
+    const result = renderAccessibilityGuidance("jetpack-compose");
+    expect(result).toContain("### Accessibility");
+    expect(result).toContain("semantics");
   });
 });
