@@ -36,10 +36,10 @@ describe("mergeFlowAtPosition", () => {
   it("centers a single screen at the target position", () => {
     const screens = [makeScreen("s1", "Login", 0, 0)];
     const result = mergeFlowAtPosition(screens, [], [], 500, 300);
-    // Bounding box: x=[0,220], y=[0,390] -> center=(110,195)
-    // Offset: (500-110, 300-195) = (390, 105)
+    // Bounding box: x=[0,220], y=[0,389] -> center=(110,194.5)
+    // Offset: (500-110, 300-194.5) = (390, 105.5)
     expect(result.screens[0].x).toBe(390);
-    expect(result.screens[0].y).toBe(105);
+    expect(result.screens[0].y).toBe(105.5);
   });
 
   it("preserves internal spacing between screens", () => {
@@ -78,20 +78,17 @@ describe("mergeFlowAtPosition", () => {
   });
 
   it("does not apply mergeFlow X offset (positions only from target)", () => {
-    // Even if we imagine existing screens, mergeFlowAtPosition ignores them
-    // because it passes [] to mergeFlow
     const screens = [makeScreen("s1", "A", 0, 0)];
     const result = mergeFlowAtPosition(screens, [], [], 500, 300);
-    // Should be based purely on target position, no extra offset
     expect(result.screens[0].x).toBe(390);
   });
 
   it("handles negative target coordinates", () => {
     const screens = [makeScreen("s1", "A", 0, 0)];
     const result = mergeFlowAtPosition(screens, [], [], -200, -100);
-    // center = (110, 195), offset = (-310, -295)
+    // center = (110, 194.5), offset = (-310, -294.5)
     expect(result.screens[0].x).toBe(-310);
-    expect(result.screens[0].y).toBe(-295);
+    expect(result.screens[0].y).toBe(-294.5);
   });
 
   it("remaps document IDs", () => {

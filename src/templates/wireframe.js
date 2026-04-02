@@ -3,14 +3,17 @@
  * Each wireframe is a minimal representation of a mobile screen layout.
  */
 
-const W = 220;
+import { COLORS } from "../styles/theme";
+import { DEFAULT_SCREEN_WIDTH } from "../constants";
+
+const W = DEFAULT_SCREEN_WIDTH;
 const H = 390;
-const BG = "#1e2127";
-const SURFACE = "#2c313a";
-const BORDER = "#3e4451";
-const TEXT = "#abb2bf";
-const TEXT_DIM = "#5c6370";
-const ACCENT = "#61afef";
+const BG = "#1e2127"; // intentionally darker than COLORS.bg for wireframe contrast
+const SURFACE = COLORS.surface;
+const BORDER = COLORS.border;
+const TEXT = COLORS.text;
+const TEXT_DIM = COLORS.textMuted;
+const ACCENT = COLORS.accent;
 
 function svgToDataUri(svgContent) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${svgContent}</svg>`;

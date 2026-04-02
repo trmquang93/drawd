@@ -1,4 +1,8 @@
 import { mergeFlow } from "./mergeFlow";
+import { DEFAULT_SCREEN_WIDTH } from "../constants";
+
+// Phone-aspect height estimate for bounding box when screen has no explicit height
+const SCREEN_HEIGHT_ESTIMATE = Math.round(DEFAULT_SCREEN_WIDTH * 1.77);
 
 /**
  * Inserts template screens centered at a target canvas position,
@@ -20,8 +24,8 @@ export function mergeFlowAtPosition(
   for (const s of templateScreens) {
     if (s.x < minX) minX = s.x;
     if (s.y < minY) minY = s.y;
-    const right = s.x + (s.width || 220);
-    const bottom = s.y + 390;
+    const right = s.x + (s.width || DEFAULT_SCREEN_WIDTH);
+    const bottom = s.y + SCREEN_HEIGHT_ESTIMATE;
     if (right > maxX) maxX = right;
     if (bottom > maxY) maxY = bottom;
   }

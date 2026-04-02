@@ -3,7 +3,7 @@ import { mergeFlowAtPosition } from "../utils/mergeFlowAtPosition";
 import { VIEWPORT_FALLBACK_WIDTH, VIEWPORT_FALLBACK_HEIGHT } from "../constants";
 
 export function useTemplateInserter({ screens, mergeAll, replaceAll, pan, zoom, canvasRef }) {
-  const insertTemplate = useCallback(async (templateData) => {
+  const insertTemplate = useCallback((templateData) => {
     const { screens: tplScreens, connections: tplConnections, documents: tplDocuments = [] } = templateData;
 
     // Compute viewport center in canvas coordinates
