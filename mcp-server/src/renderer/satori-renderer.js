@@ -63,8 +63,13 @@ export class SatoriRenderer {
     // Wrap bare content in a full-page container if needed
     const wrappedHtml = ensureRootContainer(htmlString, viewport.width, viewport.height);
 
+    // Satori requires every element with multiple children to have an explicit
+    // display property. Auto-inject display:flex;flex-direction:column on any
+    // block-level element whose style attribute is missing a display declaration.
+    const fixedHtml = injectMissingDisplay(wrappedHtml);
+
     // HTML string -> VDOM
-    const markup = _html(wrappedHtml);
+    const markup = _html(fixedHtml);
 
     // VDOM -> SVG string
     const svgString = await _satori(markup, {
@@ -103,6 +108,45 @@ export class SatoriRenderer {
       height: val.height,
     }));
   }
+}
+
+/**
+ * Satori requires every element with more than one child to have an explicit
+ * display property (flex, contents, or none). This function injects
+ * display:flex;flex-direction:column on any div/section/header/footer/main/nav
+ * whose style attribute exists but lacks a display declaration.
+ * Elements without a style attribute get one added as well.
+ * This is safe: flex with a single child renders identically to block.
+ */
+function injectMissingDisplay(html) {
+  const BLOCK_TAGS = "div|section|header|footer|main|nav|article|aside";
+  const tagRe = new RegExp(`<(${BLOCK_TAGS})(\\s[^>]*)?>`, "gi");
+
+  return html.replace(tagRe, (match, tag, attrs) => {
+    if (!attrs) {
+      // No attributes at all — add style with display:flex
+      return `<${tag} style="display:flex;flex-direction:column;">`;
+    }
+
+    const styleMatch = attrs.match(/\bstyle="([^"]*)"/i);
+    if (!styleMatch) {
+      // Has other attributes but no style — inject style
+      return `<${tag}${attrs} style="display:flex;flex-direction:column;">`;
+    }
+
+    const styleValue = styleMatch[1];
+    if (/\bdisplay\s*:/.test(styleValue)) {
+      // Already has display — leave untouched
+      return match;
+    }
+
+    // Prepend display to existing style
+    const newStyle = attrs.replace(
+      /\bstyle="([^"]*)"/i,
+      `style="display:flex;flex-direction:column;${styleValue}"`
+    );
+    return `<${tag}${newStyle}>`;
+  });
 }
 
 /**

@@ -5,7 +5,7 @@ export const screenTools = [
     inputSchema: {
       type: "object",
       properties: {
-        html: { type: "string", description: "HTML content to render as the screen image. Use inline styles only (no <style> tags or CSS classes). Use display:flex for layout. Supported: flexbox, colors, fonts, borders, border-radius, padding, margin, background, box-shadow, opacity, overflow, text styling." },
+        html: { type: "string", description: "HTML content to render as the screen image. Rendered by Satori (not a browser), so layout rules differ from standard HTML: (1) Use inline styles only — no <style> tags or CSS classes. (2) Every element MUST have display:flex if it has more than one child — default block/inline layout does not exist. Use flex-direction:column for vertical stacking, flex-direction:row for horizontal. (3) Wrap all text in a <div> — bare text nodes inside flex containers may be ignored. (4) Supported CSS: flexbox, colors, fonts (Inter only), borders, border-radius, padding, margin, background, linear-gradient, box-shadow, opacity, overflow, text styling. NOT supported: grid, position:absolute, transform, pseudo-elements, media queries." },
         name: { type: "string", description: "Screen name (e.g., 'Login Screen', 'Home Feed')" },
         device: {
           type: "string",
@@ -102,7 +102,7 @@ export const screenTools = [
       type: "object",
       properties: {
         screenId: { type: "string", description: "ID of the screen to update" },
-        html: { type: "string", description: "New HTML content to render. Use inline styles only." },
+        html: { type: "string", description: "New HTML content to render. Use inline styles only. Every element with multiple children must have display:flex. See create_screen for full rendering constraints." },
         device: {
           type: "string",
           enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
