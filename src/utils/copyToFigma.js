@@ -1,5 +1,6 @@
 import { wireframeToSvg } from "./wireframeToSvg";
 import { DEFAULT_SCREEN_WIDTH } from "../constants";
+import { downloadZip } from "./zipBuilder";
 
 /**
  * Returns the SVG string for a screen, preferring Satori-generated SVG
@@ -189,13 +190,6 @@ export function downloadScreenSvg(screen) {
   if (!svg) return false;
 
   const blob = new Blob([prepareSvgForFigma(svg)], { type: "image/svg+xml" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${screen.name || "screen"}.svg`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadZip(blob, `${screen.name || "screen"}.svg`);
   return true;
 }

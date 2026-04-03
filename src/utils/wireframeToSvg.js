@@ -39,8 +39,7 @@ function renderText(c) {
   const { style = {} } = c;
   const fill = style.fill && style.fill !== "transparent" ? style.fill : "none";
   const bg = fill !== "none" ? `<rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" fill="${fill}"/>` : "";
-  const textFill = style.fill === "transparent" ? "#333333" : "#333333";
-  return bg + svgText(c, undefined, undefined, undefined, textFill);
+  return bg + svgText(c, undefined, undefined, undefined, "#333333");
 }
 
 function renderButton(c) {

@@ -19,7 +19,7 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
     components, selectedId, setSelectedId, selectedComponent, viewport: vp,
     addComponent, updateComponent, updateComponentStyle,
     setComponentPosition, resizeComponent, deleteComponent, duplicateComponent,
-    undo, redo, canUndo, canRedo,
+    captureDragSnapshot, undo, redo, canUndo, canRedo,
   } = editor;
 
   const [isSaving, setIsSaving] = useState(false);
@@ -53,6 +53,7 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
     const comp = components.find((c) => c.id === compId);
     if (!comp) return;
 
+    captureDragSnapshot();
     dragRef.current = {
       id: compId,
       startX: pt.x,
@@ -60,7 +61,7 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
       origX: comp.x,
       origY: comp.y,
     };
-  }, [components, getSvgPoint, setSelectedId]);
+  }, [components, getSvgPoint, setSelectedId, captureDragSnapshot]);
 
   const handleResizeMouseDown = useCallback((e, compId) => {
     if (e.button !== 0) return;
@@ -69,6 +70,7 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
     const pt = getSvgPoint(e);
     const comp = components.find((c) => c.id === compId);
     if (!comp) return;
+    captureDragSnapshot();
     resizeRef.current = {
       id: compId,
       startX: pt.x,
@@ -76,9 +78,10 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
       origW: comp.width,
       origH: comp.height,
     };
-  }, [components, getSvgPoint]);
+  }, [components, getSvgPoint, captureDragSnapshot]);
 
   const handleMouseMove = useCallback((e) => {
+    if (!dragRef.current && !resizeRef.current) return;
     const pt = getSvgPoint(e);
     if (dragRef.current) {
       const { id, startX, startY, origX, origY } = dragRef.current;
@@ -150,8 +153,6 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
   // Compute display scale to fit in available space
   const maxPreviewHeight = "calc(100vh - 110px)";
   const viewBox = `0 0 ${vp.width} ${vp.height}`;
-
-  const selectedComp = components.find((c) => c.id === selectedId) || null;
 
   return (
     <div
@@ -311,7 +312,7 @@ export function WireframeEditor({ screenId, initialComponents, viewport, screenN
         </div>
 
         <PropertyPanel
-          component={selectedComp}
+          component={selectedComponent}
           onUpdate={(updates) => selectedId && updateComponent(selectedId, updates)}
           onUpdateStyle={(styleUpdates) => selectedId && updateComponentStyle(selectedId, styleUpdates)}
           onDelete={() => selectedId && deleteComponent(selectedId)}
@@ -364,15 +365,17 @@ function ComponentShape({ component: c }) {
         </g>
       );
 
-    case "button":
+    case "button": {
+      const btnFill = style.fill || "#333333";
       return (
         <g>
-          <rect x={x} y={y} width={w} height={h} fill={fill} rx={rx || 8} />
+          <rect x={x} y={y} width={w} height={h} fill={btnFill} rx={rx || 8} />
           <text x={x + w / 2} y={y + h / 2 + 5} fontFamily="Inter, sans-serif" fontSize={fs} fontWeight="bold" fill="#ffffff" textAnchor="middle">
             {text}
           </text>
         </g>
       );
+    }
 
     case "input":
       return (

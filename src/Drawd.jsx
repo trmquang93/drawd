@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { COLORS, FONTS, FONT_LINK } from "./styles/theme";
-import { FILE_EXTENSION, LEGACY_FILE_EXTENSION } from "./constants";
+import { FILE_EXTENSION, LEGACY_FILE_EXTENSION, WIREFRAME_VIEWPORT_WIDTH, WIREFRAME_VIEWPORT_HEIGHT } from "./constants";
 import { useCanvas } from "./hooks/useCanvas";
 import { useScreenManager } from "./hooks/useScreenManager";
 import { useFilePersistence } from "./hooks/useFilePersistence";
@@ -292,6 +292,9 @@ export default function Drawd({ initialRoomCode }) {
   // ── Wireframe editor state ─────────────────────────────────────────────────────────
   // null = closed; { screenId, components, viewport } = open
   const [wireframeEditor, setWireframeEditor] = useState(null);
+  const handleAddWireframe = useCallback(() => {
+    setWireframeEditor({ screenId: null, components: [], viewport: { width: WIREFRAME_VIEWPORT_WIDTH, height: WIREFRAME_VIEWPORT_HEIGHT } });
+  }, []);
 
   // ── Drag-over state (drop zone overlay) ───────────────────────────────────────────
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -373,7 +376,7 @@ export default function Drawd({ initialRoomCode }) {
     onTemplates,
     isReadOnly,
     duplicateSelection,
-    onAddWireframe: () => setWireframeEditor({ screenId: null, components: [], viewport: { width: 393, height: 852 } }),
+    onAddWireframe: handleAddWireframe,
   });
 
   // ── Derived values ──────────────────────────────────────────────────────────────────
@@ -554,7 +557,7 @@ export default function Drawd({ initialRoomCode }) {
           onCanvasDragLeave={onCanvasDragLeave}
           onTemplates={onTemplates}
           showToast={showToast}
-          onAddWireframe={() => setWireframeEditor({ screenId: null, components: [], viewport: { width: 393, height: 852 } })}
+          onAddWireframe={handleAddWireframe}
           onEditWireframe={(screenId) => {
             const s = screens.find((sc) => sc.id === screenId);
             if (s?.wireframe) setWireframeEditor({ screenId, components: s.wireframe.components, viewport: s.wireframe.viewport });

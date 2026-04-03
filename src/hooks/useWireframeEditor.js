@@ -1,10 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { WIREFRAME_GRID_SIZE } from "../constants";
 import { COMPONENT_DEFAULTS } from "../utils/wireframeDefaults";
-
-function generateId() {
-  return `wf_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-}
+import { generateId } from "../utils/generateId";
 
 function snapToGrid(value) {
   return Math.round(value / WIREFRAME_GRID_SIZE) * WIREFRAME_GRID_SIZE;
@@ -81,19 +78,6 @@ export function useWireframeEditor(initialComponents = [], viewport = { width: 3
     );
   }, []);
 
-  const moveComponent = useCallback((id, dx, dy) => {
-    setComponents((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        return {
-          ...c,
-          x: snapToGrid(c.x + dx),
-          y: snapToGrid(c.y + dy),
-        };
-      })
-    );
-  }, []);
-
   const setComponentPosition = useCallback((id, x, y) => {
     setComponents((prev) =>
       prev.map((c) => (c.id === id ? { ...c, x: snapToGrid(x), y: snapToGrid(y) } : c))
@@ -131,8 +115,8 @@ export function useWireframeEditor(initialComponents = [], viewport = { width: 3
     setSelectedId(newComp.id);
   }, [components, pushHistory]);
 
-  const commitMove = useCallback(() => {
-    // Snapshot after a drag completes (call from onMouseUp)
+  // Call before starting a drag or resize to make the operation undoable
+  const captureDragSnapshot = useCallback(() => {
     pushHistory();
   }, [pushHistory]);
 
@@ -149,12 +133,11 @@ export function useWireframeEditor(initialComponents = [], viewport = { width: 3
     addComponent,
     updateComponent,
     updateComponentStyle,
-    moveComponent,
     setComponentPosition,
     resizeComponent,
     deleteComponent,
     duplicateComponent,
-    commitMove,
+    captureDragSnapshot,
     undo,
     redo,
     canUndo,
