@@ -271,7 +271,7 @@ function mapNode(node, parentGUID, siblingIndex, result) {
     base.fontSize = s.fontSize || 16;
     base.textAlignHorizontal = s.textAlignHorizontal || "LEFT";
     base.textAlignVertical = s.textAlignVertical || "TOP";
-    base.textAutoResize = "HEIGHT";
+    base.textAutoResize = node.singleLine ? "WIDTH_AND_HEIGHT" : "HEIGHT";
     base.fontName = {
       family: s.fontFamily || "Inter",
       style: deriveFontStyle(s.fontWeight || 400, s.italic || false),
@@ -280,7 +280,10 @@ function mapNode(node, parentGUID, siblingIndex, result) {
     base.textData = {
       characters: node.characters || "",
       layoutVersion: 9,
-      layoutSize: { x: node.width || 1, y: node.height || 1 },
+      layoutSize: {
+        x: node.singleLine ? (node.width || 1) : Math.ceil(node.width || 1) + 1,
+        y: node.height || 1,
+      },
     };
     if (s.lineHeightPx) {
       base.lineHeight = { value: s.lineHeightPx, units: "PIXELS" };

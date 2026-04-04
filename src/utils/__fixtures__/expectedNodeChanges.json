@@ -391,7 +391,7 @@
         "characters": "Create Account",
         "layoutVersion": 9,
         "layoutSize": {
-          "x": 147.0859375,
+          "x": 148,
           "y": 23
         }
       },
@@ -399,7 +399,7 @@
       "visible": true,
       "opacity": 1,
       "size": {
-        "x": 147.0859375,
+        "x": 148,
         "y": 23
       },
       "transform": {
@@ -436,7 +436,7 @@
       "autoRename": true,
       "textTracking": 0,
       "verticalConstraint": "MIN",
-      "textAutoResize": "HEIGHT"
+      "textAutoResize": "WIDTH_AND_HEIGHT"
     },
     {
       "guid": {
@@ -643,7 +643,7 @@
       "autoRename": true,
       "textTracking": 0,
       "verticalConstraint": "MIN",
-      "textAutoResize": "HEIGHT"
+      "textAutoResize": "WIDTH_AND_HEIGHT"
     },
     {
       "guid": {
@@ -755,7 +755,7 @@
         "characters": "Alex Johnson",
         "layoutVersion": 9,
         "layoutSize": {
-          "x": 96.0625,
+          "x": 97,
           "y": 18.5
         }
       },
@@ -763,7 +763,7 @@
       "visible": true,
       "opacity": 1,
       "size": {
-        "x": 96.0625,
+        "x": 97,
         "y": 18.5
       },
       "transform": {
@@ -800,7 +800,7 @@
       "autoRename": true,
       "textTracking": 0,
       "verticalConstraint": "MIN",
-      "textAutoResize": "HEIGHT"
+      "textAutoResize": "WIDTH_AND_HEIGHT"
     },
     {
       "guid": {
@@ -942,7 +942,7 @@
       "autoRename": true,
       "textTracking": 0,
       "verticalConstraint": "MIN",
-      "textAutoResize": "HEIGHT"
+      "textAutoResize": "WIDTH_AND_HEIGHT"
     },
     {
       "guid": {

@@ -174,7 +174,7 @@
               "name": "Create Account",
               "x": 72,
               "y": 66.5,
-              "width": 147.0859375,
+              "width": 148,
               "height": 23,
               "opacity": 1,
               "fills": [
@@ -218,7 +218,8 @@
                     "opacity": 1
                   }
                 ]
-              }
+              },
+              "singleLine": true
             }
           ]
         },
@@ -342,7 +343,8 @@
                         "opacity": 0.5
                       }
                     ]
-                  }
+                  },
+                  "singleLine": true
                 },
                 {
                   "type": "FRAME",
@@ -394,7 +396,7 @@
                       "name": "Alex Johnson",
                       "x": 17,
                       "y": 15,
-                      "width": 96.0625,
+                      "width": 97,
                       "height": 18.5,
                       "opacity": 1,
                       "fills": [
@@ -438,7 +440,8 @@
                             "opacity": 0.4000000059604645
                           }
                         ]
-                      }
+                      },
+                      "singleLine": true
                     }
                   ]
                 }
@@ -528,7 +531,8 @@
                         "opacity": 0.5
                       }
                     ]
-                  }
+                  },
+                  "singleLine": true
                 },
                 {
                   "type": "FRAME",

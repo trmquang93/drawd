@@ -74,6 +74,7 @@ function makeText(overrides = {}) {
     y: 20,
     width: 200,
     height: 24,
+    singleLine: true,
     opacity: 1,
     characters: "Hello World",
     style: {
@@ -256,12 +257,25 @@ describe("buildFigmaClipboardHtml", () => {
     expect(rect.stackChildAlignSelf).toBe("AUTO");
   });
 
-  it("includes layoutSize in textData matching node dimensions", () => {
-    const root = makeFrame({ children: [makeText({ width: 200, height: 24 })] });
+  it("includes layoutSize in textData matching node dimensions for single-line text", () => {
+    const root = makeFrame({ children: [makeText({ width: 200, height: 24, singleLine: true })] });
     const html = buildFigmaClipboardHtml(root);
     const { message } = readHTMLMessage(decodeForFigKiwi(html));
     const textNode = message.nodeChanges.find((n) => n.type === "TEXT");
+    expect(textNode.textAutoResize).toBe("WIDTH_AND_HEIGHT");
     expect(textNode.textData.layoutSize).toEqual({ x: 200, y: 24 });
+  });
+
+  it("uses HEIGHT auto-resize with +1px width buffer for multi-line text", () => {
+    const root = makeFrame({
+      children: [makeText({ width: 300, height: 72, singleLine: false })],
+    });
+    const html = buildFigmaClipboardHtml(root);
+    const { message } = readHTMLMessage(decodeForFigKiwi(html));
+    const textNode = message.nodeChanges.find((n) => n.type === "TEXT");
+    expect(textNode.textAutoResize).toBe("HEIGHT");
+    expect(textNode.textData.layoutSize.x).toBe(301);
+    expect(textNode.textData.layoutSize.y).toBe(72);
   });
 
   it("computes textTracking from letterSpacing in em thousandths", () => {

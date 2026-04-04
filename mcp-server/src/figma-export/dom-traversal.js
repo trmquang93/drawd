@@ -185,6 +185,8 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
 
     const lh = parseFloat(cs.lineHeight);
     const fs = parseFloat(cs.fontSize) || 16;
+    const lineHeightPx = isNaN(lh) ? fs * 1.2 : lh;
+    const singleLine = rect.height < lineHeightPx * 1.5;
 
     return {
       id: genId(),
@@ -192,8 +194,9 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
       name: text.slice(0, 50),
       x: rect.left - parentLeft,
       y: rect.top - parentTop,
-      width: rect.width,
+      width: Math.ceil(rect.width),
       height: rect.height,
+      singleLine,
       opacity: parseFloat(cs.opacity),
       characters: text,
       style: {
@@ -202,7 +205,7 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
         fontSize: fs,
         fontWeight: parseInt(cs.fontWeight) || 400,
         italic: cs.fontStyle === 'italic',
-        lineHeightPx: isNaN(lh) ? fs * 1.2 : lh,
+        lineHeightPx,
         lineHeightUnit: 'PIXELS',
         letterSpacing: parseFloat(cs.letterSpacing) || 0,
         textAlignHorizontal: cssTextAlign(cs.textAlign),
@@ -303,11 +306,19 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
         const cornerProps = extractCornerRadius(cs);
         const isFlexRow = cs.display === 'flex' && (cs.flexDirection === 'row' || cs.flexDirection === 'row-reverse');
         const isFlexCol = cs.display === 'flex' && (cs.flexDirection === 'column' || cs.flexDirection === 'column-reverse');
+        const hasAutoLayout = isFlexRow || isFlexCol;
 
-        // Text sits at origin within the FRAME; its position is already baked into
-        // the FRAME's x/y so we zero it out here.
-        textNode.x = 0;
-        textNode.y = 0;
+        // In auto-layout frames, padding is applied by Figma automatically so
+        // the child sits at the origin. In non-auto-layout frames, children are
+        // positioned absolutely and must be offset by the CSS padding manually.
+        const pl = parseFloat(cs.paddingLeft) || 0;
+        const pr = parseFloat(cs.paddingRight) || 0;
+        const pt = parseFloat(cs.paddingTop) || 0;
+        textNode.x = hasAutoLayout ? 0 : pl;
+        textNode.y = hasAutoLayout ? 0 : pt;
+        if (!hasAutoLayout && (pl + pr) > 0) {
+          textNode.width = Math.max(Math.ceil(rect.width) - pl - pr, 1);
+        }
         textNode.stackChildAlignSelf = 'AUTO';
 
         return {
@@ -385,6 +396,8 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
         const lh = parseFloat(cs.lineHeight);
         const pl = parseFloat(cs.paddingLeft) || 0;
         const pt = parseFloat(cs.paddingTop) || 0;
+        const inputLineHeightPx = isNaN(lh) ? fs * 1.2 : lh;
+        const inputHeight = Math.max(rect.height - pt - (parseFloat(cs.paddingBottom) || 0), 1);
         const isPlaceholder = !el.value;
         // Placeholder text is typically rendered at lower opacity
         const textOpacity = isPlaceholder ? 0.5 : 1;
@@ -395,7 +408,8 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
           x: pl,
           y: pt,
           width: Math.max(rect.width - pl - (parseFloat(cs.paddingRight) || 0), 1),
-          height: Math.max(rect.height - pt - (parseFloat(cs.paddingBottom) || 0), 1),
+          height: inputHeight,
+          singleLine: inputHeight < inputLineHeightPx * 1.5,
           opacity: textOpacity,
           stackChildAlignSelf: 'AUTO',
           characters: displayText,
@@ -405,7 +419,7 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
             fontSize: fs,
             fontWeight: parseInt(cs.fontWeight) || 400,
             italic: cs.fontStyle === 'italic',
-            lineHeightPx: isNaN(lh) ? fs * 1.2 : lh,
+            lineHeightPx: inputLineHeightPx,
             lineHeightUnit: 'PIXELS',
             letterSpacing: parseFloat(cs.letterSpacing) || 0,
             textAlignHorizontal: cssTextAlign(cs.textAlign),
@@ -425,12 +439,14 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
         const color = parseRgba(cs.color);
         const fs = parseFloat(cs.fontSize) || 16;
         const lh = parseFloat(cs.lineHeight);
+        const inlineLineHeightPx = isNaN(lh) ? fs * 1.2 : lh;
         children.push({
           id: genId(),
           type: 'TEXT',
           name: text.slice(0, 50),
           x: 0, y: 0,
           width: rect.width, height: rect.height,
+          singleLine: rect.height < inlineLineHeightPx * 1.5,
           opacity: 1,
           stackChildAlignSelf: 'AUTO',
           characters: text,
@@ -440,7 +456,7 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
             fontSize: fs,
             fontWeight: parseInt(cs.fontWeight) || 400,
             italic: cs.fontStyle === 'italic',
-            lineHeightPx: isNaN(lh) ? fs * 1.2 : lh,
+            lineHeightPx: inlineLineHeightPx,
             lineHeightUnit: 'PIXELS',
             letterSpacing: parseFloat(cs.letterSpacing) || 0,
             textAlignHorizontal: cssTextAlign(cs.textAlign),
