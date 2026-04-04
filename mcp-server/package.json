@@ -15,7 +15,8 @@
     "build": "node build.js",
     "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
-    "dev": "node --import ./loader.js index.js"
+    "dev": "node --import ./loader.js index.js",
+    "api": "node --import ./loader.js api.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",

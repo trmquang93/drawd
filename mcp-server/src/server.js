@@ -22,15 +22,36 @@ const MODEL_TOOL_NAMES = new Set(modelTools.map((t) => t.name));
 const ANNOTATION_TOOL_NAMES = new Set(annotationTools.map((t) => t.name));
 const GENERATION_TOOL_NAMES = new Set(generationTools.map((t) => t.name));
 
+// filePath is injected into every non-file tool so callers can establish
+// session context inline (auto-loaded once, then reused for the whole session).
+const FILE_PATH_PROP = {
+  filePath: {
+    type: "string",
+    description:
+      "Path to the .drawd file. Only needed on the first call in a session if open_flow has not been called yet — the server remembers it for all subsequent calls.",
+  },
+};
+
+function withFilePath(tools) {
+  return tools.map((t) => ({
+    ...t,
+    inputSchema: {
+      ...t.inputSchema,
+      properties: { ...FILE_PATH_PROP, ...t.inputSchema.properties },
+      required: ["filePath", ...(t.inputSchema.required || [])],
+    },
+  }));
+}
+
 const ALL_TOOLS = [
   ...fileTools,
-  ...screenTools,
-  ...hotspotTools,
-  ...connectionTools,
-  ...documentTools,
-  ...modelTools,
-  ...annotationTools,
-  ...generationTools,
+  ...withFilePath(screenTools),
+  ...withFilePath(hotspotTools),
+  ...withFilePath(connectionTools),
+  ...withFilePath(documentTools),
+  ...withFilePath(modelTools),
+  ...withFilePath(annotationTools),
+  ...withFilePath(generationTools),
 ];
 
 export function createServer(state, renderer) {
@@ -47,6 +68,12 @@ export function createServer(state, renderer) {
     const { name, arguments: args } = request.params;
 
     try {
+      // Auto-load a flow file if the caller provides filePath and none is open yet.
+      // This lets any tool establish session context without a separate open_flow call.
+      if (args?.filePath && !state.filePath) {
+        state.load(args.filePath);
+      }
+
       let result;
 
       if (FILE_TOOL_NAMES.has(name)) {

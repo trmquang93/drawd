@@ -5,7 +5,7 @@ export const screenTools = [
     inputSchema: {
       type: "object",
       properties: {
-        html: { type: "string", description: "HTML content to render as the screen image. Rendered by Satori (not a browser), so layout rules differ from standard HTML: (1) Use inline styles only — no <style> tags or CSS classes. (2) Every element MUST have display:flex if it has more than one child — default block/inline layout does not exist. Use flex-direction:column for vertical stacking, flex-direction:row for horizontal. (3) Wrap all text in a <div> — bare text nodes inside flex containers may be ignored. (4) Supported CSS: flexbox, colors, fonts (Inter only), borders, border-radius, padding, margin, background, linear-gradient, box-shadow, opacity, overflow, text styling. NOT supported: grid, position:absolute, transform, pseudo-elements, media queries." },
+        html: { type: "string", description: "HTML content to render as the screen image. Rendered by Satori (not a browser), so layout rules differ from standard HTML: (1) Use inline styles only — no <style> tags or CSS classes. (2) Every element MUST have display:flex if it has more than one child — default block/inline layout does not exist. Use flex-direction:column for vertical stacking, flex-direction:row for horizontal. (3) Wrap all text in a <div> — bare text nodes inside flex containers may be ignored. (4) Supported CSS: flexbox, colors, fonts (Inter only), borders, border-radius, padding, margin, background, linear-gradient, box-shadow, opacity, overflow, text styling. NOT supported: grid, position:absolute, transform, pseudo-elements, media queries. (5) Figma-compatible text — screens are often copied to Figma as editable nodes; follow these rules to prevent text wrapping: add white-space:nowrap to every text-leaf div; in flex rows using justify-content:space-between give the left child flex:1 and the right child flex-shrink:0; add overflow:hidden to card/field container divs; add flex-shrink:0 to icon, avatar, and badge elements." },
         name: { type: "string", description: "Screen name (e.g., 'Login Screen', 'Home Feed')" },
         device: {
           type: "string",
@@ -102,7 +102,7 @@ export const screenTools = [
       type: "object",
       properties: {
         screenId: { type: "string", description: "ID of the screen to update" },
-        html: { type: "string", description: "New HTML content to render. Use inline styles only. Every element with multiple children must have display:flex. See create_screen for full rendering constraints." },
+        html: { type: "string", description: "New HTML content to render. Use inline styles only. Every element with multiple children must have display:flex. See create_screen for full rendering constraints including Figma-compatibility rules (white-space:nowrap on text leaves, flex:1/flex-shrink:0 in space-between rows, overflow:hidden on containers)." },
         device: {
           type: "string",
           enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
@@ -122,7 +122,7 @@ export const screenTools = [
           items: {
             type: "object",
             properties: {
-              html: { type: "string", description: "HTML content (omit for blank screen)" },
+              html: { type: "string", description: "HTML content (omit for blank screen). Same Satori and Figma-compatibility rules as create_screen apply: inline styles only, display:flex on multi-child elements, white-space:nowrap on text leaves, overflow:hidden on containers." },
               name: { type: "string" },
               description: { type: "string" },
               notes: { type: "string" },
