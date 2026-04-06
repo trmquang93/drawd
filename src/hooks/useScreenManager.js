@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { generateId } from "../utils/generateId";
 import { screenBounds } from "../utils/canvasMath";
 import { filenameToScreenName, gridPositions, resolveOverlaps } from "../utils/dropImport";
@@ -47,7 +47,10 @@ function makeScreen(overrides = {}) {
   };
 }
 
-export function useScreenManager(pan, zoom, canvasRef) {
+export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
+  // Keep comment cleanup callbacks in a ref so they never invalidate memoized callbacks.
+  const commentCallbacksRef = useRef(commentCallbacks);
+  useEffect(() => { commentCallbacksRef.current = commentCallbacks; });
   const [screens, setScreens] = useState([]);
   const [connections, setConnections] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -182,6 +185,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
   }, [screens, connections, documents, pushHistory]);
 
   const removeScreen = useCallback((id) => {
+    commentCallbacksRef.current.onDeleteCommentsForScreen?.(id);
     pushHistory(screens, connections, documents);
     const removedScreen = screens.find((s) => s.id === id);
     setScreens((prev) => {
@@ -277,6 +281,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
   }, []);
 
   const removeScreens = useCallback((ids) => {
+    commentCallbacksRef.current.onDeleteCommentsForScreens?.(ids);
     pushHistory(screens, connections, documents);
     const idSet = new Set(ids);
     setScreens((prev) => {
@@ -527,6 +532,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
   }, [screens, connections, documents, pushHistory]);
 
   const deleteHotspot = useCallback((screenId, hotspotId) => {
+    commentCallbacksRef.current.onDeleteCommentsForHotspot?.(hotspotId);
     pushHistory(screens, connections, documents);
     setScreens((prev) =>
       prev.map((s) =>
@@ -537,6 +543,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
   }, [screens, connections, documents, pushHistory]);
 
   const deleteHotspots = useCallback((screenId, hotspotIds) => {
+    commentCallbacksRef.current.onDeleteCommentsForHotspots?.(hotspotIds);
     pushHistory(screens, connections, documents);
     const idSet = new Set(hotspotIds);
     setScreens((prev) =>
@@ -668,6 +675,7 @@ export function useScreenManager(pan, zoom, canvasRef) {
   }, [screens, connections, documents, pushHistory]);
 
   const deleteConnection = useCallback((connectionId) => {
+    commentCallbacksRef.current.onDeleteCommentsForConnection?.(connectionId);
     pushHistory(screens, connections, documents);
     setConnections((prev) => prev.filter((c) => c.id !== connectionId));
   }, [screens, connections, documents, pushHistory]);
@@ -729,6 +737,10 @@ export function useScreenManager(pan, zoom, canvasRef) {
   }, [screens, connections, documents, pushHistory]);
 
   const deleteConnectionGroup = useCallback((conditionGroupId) => {
+    const groupConnIds = connections
+      .filter((c) => c.conditionGroupId === conditionGroupId)
+      .map((c) => c.id);
+    if (groupConnIds.length > 0) commentCallbacksRef.current.onDeleteCommentsForConnections?.(groupConnIds);
     pushHistory(screens, connections, documents);
     setConnections((prev) => prev.filter((c) => c.conditionGroupId !== conditionGroupId));
   }, [screens, connections, documents, pushHistory]);

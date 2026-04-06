@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { COLORS, FONTS } from "../styles/theme";
 import { DEFAULT_SCREEN_WIDTH, DEFAULT_IMAGE_HEIGHT, HEADER_HEIGHT, DESCRIPTION_MAX_LENGTH } from "../constants";
+import { CommentPin } from "./CommentPin";
 
 export function ScreenNode({
   screen, selected, onSelect, onDragStart, onAddHotspot, onRemoveScreen,
@@ -14,6 +15,12 @@ export function ScreenNode({
   isReadOnly,
   onFormSummary,
   mcpFlash,
+  // Comment mode
+  commentPins,
+  onCommentImageClick,
+  selectedCommentId,
+  onCommentPinClick,
+  onDeselectComment,
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -359,7 +366,15 @@ export function ScreenNode({
         style={{ position: "relative", minHeight: DEFAULT_IMAGE_HEIGHT, background: COLORS.imageAreaBg }}
         onMouseDown={(e) => {
           if (isSpaceHeld?.current) return;
-          if (e.target.closest(".hotspot-area") || e.target.closest(".hotspot-drag-handle") || e.target.closest(".resize-handle")) return;
+          if (e.target.closest(".hotspot-area") || e.target.closest(".hotspot-drag-handle") || e.target.closest(".resize-handle") || e.target.closest(".comment-pin")) return;
+          if (activeTool === "comment" && onCommentImageClick) {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+            const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+            onCommentImageClick(e, screen.id, xPct, yPct);
+            return;
+          }
           if (screen.imageData && onImageAreaMouseDown) {
             onImageAreaMouseDown(e, screen.id);
           }
@@ -509,6 +524,18 @@ export function ScreenNode({
                 }}
               />
             )}
+            {/* Comment pins on screen image */}
+            {(commentPins || []).map((comment) => (
+              <div key={comment.id} className="comment-pin">
+                <CommentPin
+                  comment={comment}
+                  count={1}
+                  isSelected={comment.id === selectedCommentId}
+                  onClick={onCommentPinClick}
+                  onDeselect={onDeselectComment}
+                />
+              </div>
+            ))}
           </>
         ) : (
           <div

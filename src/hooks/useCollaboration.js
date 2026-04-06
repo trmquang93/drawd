@@ -18,7 +18,7 @@ function generatePeerId() {
 export function useCollaboration({
   screens, connections, documents,
   featureBrief, taskLink, techStack,
-  dataModels, stickyNotes, screenGroups,
+  dataModels, stickyNotes, screenGroups, comments,
   applyRemoteState,
   applyRemoteImage,
   canvasRef, pan, zoom,
@@ -33,7 +33,9 @@ export function useCollaboration({
   const [selfColor, setSelfColor] = useState(null);
 
   const channelRef = useRef(null);
-  const peerIdRef = useRef(generatePeerId());
+  // Use useState for a stable self peer ID so it can be returned without a ref access during render.
+  const [selfPeerId] = useState(generatePeerId);
+  const peerIdRef = useRef(selfPeerId);
   const applyingRemoteRef = useRef(false);
   const debounceTimerRef = useRef(null);
   const cursorThrottleRef = useRef(0);
@@ -68,8 +70,9 @@ export function useCollaboration({
       dataModels,
       stickyNotes,
       screenGroups,
+      comments,
     };
-  }, [screens, connections, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups]);
+  }, [screens, connections, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups, comments]);
 
   useEffect(() => { buildCollabPayloadRef.current = buildCollabPayload; }, [buildCollabPayload]);
   useEffect(() => { applyRemoteStateRef.current = applyRemoteState; }, [applyRemoteState]);
@@ -328,7 +331,7 @@ export function useCollaboration({
         sentImageHashRef.current = nextHashes;
       }
     }, COLLAB_DEBOUNCE_MS);
-  }, [screens, connections, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups, role, buildCollabPayload]);
+  }, [screens, connections, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups, comments, role, buildCollabPayload]);
 
   // Cursor broadcasting via mousemove on canvas
   useEffect(() => {
@@ -404,7 +407,8 @@ export function useCollaboration({
     hostLeft,
     selfDisplayName,
     selfColor,
-    isReadOnly: role === "viewer",
+    selfPeerId,
+    isReadOnly: role === "viewer" || role === "reviewer",
     isHost: role === "host",
     isCollabAvailable: !!supabase,
     createRoom,

@@ -5,6 +5,7 @@ const resizeCursors = {
   nw: "nwse-resize", n: "ns-resize", ne: "nesw-resize", e: "ew-resize",
   se: "nwse-resize", s: "ns-resize", sw: "nesw-resize", w: "ew-resize",
 };
+const COMMENT_CURSOR = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2361afef' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/></svg>") 3 21, crosshair`;
 
 export function useCanvasMouseHandlers({
   // hotspot interaction
@@ -410,7 +411,9 @@ export function useCanvasMouseHandlers({
             ? "grab"
             : (spaceHeld && isPanning) ? "grabbing"
             : spaceHeld ? "grab"
-              : isPanning ? "grabbing" : "default";
+              : isPanning ? "grabbing"
+              : activeTool === "comment" ? COMMENT_CURSOR
+              : "default";
 
   return {
     onCanvasMouseDown,

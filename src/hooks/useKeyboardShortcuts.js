@@ -58,9 +58,13 @@ export function useKeyboardShortcuts({
   onTemplates,
   // collaboration
   isReadOnly,
+  canComment,
   // duplication
   duplicateSelection,
   setCanvasSelection,
+  // select-all support
+  stickyNotes,
+  scopeScreenIds,
 }) {
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -91,6 +95,16 @@ export function useKeyboardShortcuts({
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
         setActiveTool("pan");
+        return;
+      }
+
+      // Switch to comment tool: C
+      if ((e.key === "c" || e.key === "C") && !e.metaKey && !e.ctrlKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (anyModalOpen) return;
+        if (!canComment) return;
+        setActiveTool("comment");
         return;
       }
 
@@ -193,10 +207,15 @@ export function useKeyboardShortcuts({
         const tag = document.activeElement?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (anyModalOpen) return;
-        // handled in Drawd.jsx via canvasSelection setter passed from outside
-        // We need this to be wired from Drawd, so we fire a custom event for now
-        // Actually we handle it via the setCanvasSelection callback passed to this hook
-        // For now, skip — this requires setCanvasSelection + screens + stickyNotes access
+        if (isReadOnly) return;
+        e.preventDefault();
+        const filteredScreens = scopeScreenIds
+          ? screens.filter((s) => scopeScreenIds.has(s.id))
+          : screens;
+        const screenItems = filteredScreens.map((s) => ({ type: "screen", id: s.id }));
+        const stickyItems = (stickyNotes || []).map((n) => ({ type: "sticky", id: n.id }));
+        setCanvasSelection([...screenItems, ...stickyItems]);
+        return;
       }
 
       // Group selected screens (Cmd+G)
@@ -279,6 +298,7 @@ export function useKeyboardShortcuts({
     deleteHotspot, selectedStickyNote, setSelectedStickyNote, deleteStickyNote,
     selectedScreenGroup, setSelectedScreenGroup, deleteScreenGroup,
     setActiveTool, canvasSelection, clearSelection, removeScreens, addScreenGroup, screens,
-    onTemplates, isReadOnly, duplicateSelection, setCanvasSelection, onAddWireframe,
+    onTemplates, isReadOnly, canComment, duplicateSelection, setCanvasSelection, onAddWireframe,
+    stickyNotes, scopeScreenIds,
   ]);
 }

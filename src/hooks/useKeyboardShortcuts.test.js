@@ -59,6 +59,15 @@ function makeProps(overrides = {}) {
     screens: [],
     // tool mode
     setActiveTool: vi.fn(),
+    // select-all support
+    setCanvasSelection: vi.fn(),
+    stickyNotes: [],
+    scopeScreenIds: null,
+    isReadOnly: false,
+    showParticipants: false,
+    onTemplates: vi.fn(),
+    duplicateSelection: vi.fn(),
+    onAddWireframe: vi.fn(),
     ...overrides,
   };
 }
@@ -233,5 +242,97 @@ describe("useKeyboardShortcuts — Escape key", () => {
     renderHook(() => useKeyboardShortcuts(props));
     fireKey("Escape");
     expect(props.setSelectedConnection).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("useKeyboardShortcuts — Select All (Cmd+A)", () => {
+  it("selects all screens and sticky notes", () => {
+    const props = makeProps({
+      screens: [{ id: "s1" }, { id: "s2" }],
+      stickyNotes: [{ id: "n1" }],
+    });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { metaKey: true });
+    expect(props.setCanvasSelection).toHaveBeenCalledWith([
+      { type: "screen", id: "s1" },
+      { type: "screen", id: "s2" },
+      { type: "sticky", id: "n1" },
+    ]);
+  });
+
+  it("filters screens by scopeScreenIds when scope root is active", () => {
+    const props = makeProps({
+      screens: [{ id: "s1" }, { id: "s2" }, { id: "s3" }],
+      stickyNotes: [{ id: "n1" }],
+      scopeScreenIds: new Set(["s1", "s3"]),
+    });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { metaKey: true });
+    expect(props.setCanvasSelection).toHaveBeenCalledWith([
+      { type: "screen", id: "s1" },
+      { type: "screen", id: "s3" },
+      { type: "sticky", id: "n1" },
+    ]);
+  });
+
+  it("works with Ctrl+A (Windows/Linux)", () => {
+    const props = makeProps({
+      screens: [{ id: "s1" }],
+      stickyNotes: [],
+    });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { ctrlKey: true });
+    expect(props.setCanvasSelection).toHaveBeenCalledWith([
+      { type: "screen", id: "s1" },
+    ]);
+  });
+
+  it("calls preventDefault to block browser select-all", () => {
+    const props = makeProps({ screens: [{ id: "s1" }] });
+    renderHook(() => useKeyboardShortcuts(props));
+    const event = new KeyboardEvent("keydown", { key: "a", metaKey: true, bubbles: true, cancelable: true });
+    const spy = vi.spyOn(event, "preventDefault");
+    document.dispatchEvent(event);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("is blocked when a modal is open", () => {
+    const props = makeProps({
+      screens: [{ id: "s1" }],
+      hotspotModal: { screen: {}, hotspot: {} },
+    });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { metaKey: true });
+    expect(props.setCanvasSelection).not.toHaveBeenCalled();
+  });
+
+  it("is blocked when focus is in an INPUT", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const props = makeProps({ screens: [{ id: "s1" }] });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { metaKey: true });
+    expect(props.setCanvasSelection).not.toHaveBeenCalled();
+
+    document.body.removeChild(input);
+  });
+
+  it("is blocked when isReadOnly is true", () => {
+    const props = makeProps({
+      screens: [{ id: "s1" }],
+      isReadOnly: true,
+    });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { metaKey: true });
+    expect(props.setCanvasSelection).not.toHaveBeenCalled();
+  });
+
+  it("selects empty array when no screens or sticky notes exist", () => {
+    const props = makeProps({ screens: [], stickyNotes: [] });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("a", { metaKey: true });
+    expect(props.setCanvasSelection).toHaveBeenCalledWith([]);
   });
 });

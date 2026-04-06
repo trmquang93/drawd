@@ -18,6 +18,7 @@ import { useInstructionGeneration } from "./hooks/useInstructionGeneration";
 import { useFileActions } from "./hooks/useFileActions";
 import { diffPayload } from "./utils/diffPayload";
 import { useCollabSync } from "./hooks/useCollabSync";
+import { useCommentManager } from "./hooks/useCommentManager";
 import { useInteractionCallbacks } from "./hooks/useInteractionCallbacks";
 import { useDerivedCanvasState } from "./hooks/useDerivedCanvasState";
 import { useTemplateInserter } from "./hooks/useTemplateInserter";
@@ -45,6 +46,19 @@ export default function Drawd({ initialRoomCode }) {
     isSpaceHeld, spaceHeld, handleDragStart, handleMultiDragStart, handleMouseMove, handleMouseUp, handleCanvasMouseDown,
   } = useCanvas(activeTool);
 
+  // ── Comments (before useScreenManager so cleanup callbacks are stable) ────
+  const {
+    comments, setComments,
+    addComment, updateComment, resolveComment, unresolveComment, deleteComment,
+    deleteCommentsForScreen, deleteCommentsForScreens,
+    deleteCommentsForHotspot, deleteCommentsForHotspots,
+    deleteCommentsForConnection, deleteCommentsForConnections,
+  } = useCommentManager();
+  const [showComments, setShowComments] = useState(false);
+  const [selectedCommentId, setSelectedCommentId] = useState(null);
+  // commentComposer: { targetType, targetId, screenId, anchor, clientX, clientY } | null
+  const [commentComposer, setCommentComposer] = useState(null);
+
   const {
     screens, connections, documents, selectedScreen, setSelectedScreen,
     fileInputRef, addScreen, addScreenAtCenter, removeScreen, removeScreens, renameScreen, moveScreen, moveScreens,
@@ -58,7 +72,14 @@ export default function Drawd({ initialRoomCode }) {
     pushHistory,
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
     updateScreenStatus, markAllExisting, updateWireframe,
-  } = useScreenManager(pan, zoom, canvasRef);
+  } = useScreenManager(pan, zoom, canvasRef, {
+    onDeleteCommentsForScreen: deleteCommentsForScreen,
+    onDeleteCommentsForScreens: deleteCommentsForScreens,
+    onDeleteCommentsForHotspot: deleteCommentsForHotspot,
+    onDeleteCommentsForHotspots: deleteCommentsForHotspots,
+    onDeleteCommentsForConnection: deleteCommentsForConnection,
+    onDeleteCommentsForConnections: deleteCommentsForConnections,
+  });
 
   // ── Canvas multi-object selection ────────────────────────────────────────
   const {
@@ -101,15 +122,16 @@ export default function Drawd({ initialRoomCode }) {
 
   const {
     collab, isReadOnly,
+    canEditFlow, canComment, canModerateComments,
     showShareModal, setShowShareModal,
     showParticipants, setShowParticipants,
     pendingRemoteStateRef, applyPendingRemoteState,
   } = useCollabSync({
     screens, connections, documents,
     featureBrief, taskLink, techStack,
-    dataModels, stickyNotes, screenGroups,
+    dataModels, stickyNotes, screenGroups, comments,
     replaceAll, setFeatureBrief, setTaskLink, setTechStack,
-    setDataModels, setStickyNotes, setScreenGroups,
+    setDataModels, setStickyNotes, setScreenGroups, setComments,
     draggingRef, hotspotInteractionRef, patchScreenImage,
     canvasRef, pan, zoom, initialRoomCode,
   });
@@ -143,7 +165,7 @@ export default function Drawd({ initialRoomCode }) {
   const {
     connectedFileName, saveStatus, isFileSystemSupported,
     openFile, saveAs, saveNow, connectHandle, disconnect,
-  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups, onExternalChange);
+  } = useFilePersistence(screens, connections, pan, zoom, documents, featureBrief, taskLink, techStack, dataModels, stickyNotes, screenGroups, comments, onExternalChange);
 
   // ── File actions ───────────────────────────────────────────────────
   const { applyPayload, onOpen, onSaveAs, onNew } = useFileActions({
@@ -151,7 +173,7 @@ export default function Drawd({ initialRoomCode }) {
     replaceAll, pushHistory,
     setPan, setZoom,
     setFeatureBrief, setTaskLink, setTechStack,
-    setDataModels, setStickyNotes, setScreenGroups,
+    setDataModels, setStickyNotes, setScreenGroups, setComments,
     setScopeRoot, openFile, saveAs, disconnect,
   });
   // Complete the ref bridge so the poller can call applyPayload.
@@ -289,7 +311,7 @@ export default function Drawd({ initialRoomCode }) {
 
   // ── Import / export ────────────────────────────────────────────────────────────────
   const { importConfirm, setImportConfirm, importFileRef, onExport, onImport, onImportFileChange, onImportReplace, onImportMerge } =
-    useImportExport({ screens, connections, documents, dataModels, stickyNotes, screenGroups, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom, setStickyNotes, setScreenGroups });
+    useImportExport({ screens, connections, documents, dataModels, stickyNotes, screenGroups, comments, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom, setStickyNotes, setScreenGroups, setComments });
 
   // ── Toast notification ─────────────────────────────────────────────────────────────
   const [toast, setToast] = useState(null);
@@ -384,7 +406,7 @@ export default function Drawd({ initialRoomCode }) {
     hotspotInteraction, cancelHotspotInteraction,
     selectedConnection, setSelectedConnection,
     selectedHotspots, setSelectedHotspots,
-    canvasSelection, setCanvasSelection, clearSelection, removeScreens, deleteStickyNote, addScreenGroup, screens,
+    canvasSelection, setCanvasSelection, clearSelection, removeScreens, deleteStickyNote, addScreenGroup, screens, stickyNotes, scopeScreenIds,
     connections, deleteHotspot, deleteHotspots, deleteConnection, deleteConnectionGroup,
     selectedScreen, removeScreen,
     selectedStickyNote, setSelectedStickyNote,
@@ -393,6 +415,7 @@ export default function Drawd({ initialRoomCode }) {
     setActiveTool,
     onTemplates,
     isReadOnly,
+    canComment,
     duplicateSelection,
     onAddWireframe: handleAddWireframe,
   });
@@ -471,6 +494,10 @@ export default function Drawd({ initialRoomCode }) {
         onToggleParticipants={() => setShowParticipants((v) => !v)}
         showParticipants={showParticipants}
         onTemplates={onTemplates}
+        canComment={canComment}
+        showComments={showComments}
+        onToggleComments={() => setShowComments((v) => !v)}
+        unresolvedCommentCount={comments.filter((c) => !c.resolved).length}
       />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -593,6 +620,31 @@ export default function Drawd({ initialRoomCode }) {
             const s = screens.find((sc) => sc.id === screenId);
             if (s?.wireframe) setWireframeEditor({ screenId, components: s.wireframe.components, viewport: s.wireframe.viewport });
           }}
+          comments={comments}
+          canComment={canComment}
+          onCommentImageClick={(e, screenId, xPct, yPct) => {
+            setCommentComposer({
+              targetType: "screen",
+              targetId: screenId,
+              screenId,
+              anchor: { xPct, yPct },
+              clientX: e.clientX,
+              clientY: e.clientY,
+            });
+          }}
+          onCommentConnectionClick={(e, connectionId, t) => {
+            setCommentComposer({
+              targetType: "connection",
+              targetId: connectionId,
+              screenId: null,
+              anchor: { t },
+              clientX: e.clientX,
+              clientY: e.clientY,
+            });
+          }}
+          selectedCommentId={selectedCommentId}
+          onCommentPinClick={(id) => setSelectedCommentId((prev) => (prev === id ? null : id))}
+          onDeselectComment={() => setSelectedCommentId(null)}
         />
 
         {selectedScreenData && (
@@ -681,6 +733,36 @@ export default function Drawd({ initialRoomCode }) {
         showTemplateBrowser={showTemplateBrowser}
         setShowTemplateBrowser={setShowTemplateBrowser}
         onInsertTemplate={onInsertTemplate}
+        showComments={showComments}
+        setShowComments={setShowComments}
+        comments={comments}
+        connections={connections}
+        canModerate={canModerateComments}
+        selfPeerId={collab.isConnected ? collab.selfPeerId : null}
+        selfDisplayName={collab.selfDisplayName}
+        onResolveComment={(id) => resolveComment(id, collab.selfDisplayName || "Anonymous")}
+        onUnresolveComment={unresolveComment}
+        onDeleteComment={deleteComment}
+        selectedCommentId={selectedCommentId}
+        setSelectedCommentId={setSelectedCommentId}
+        commentComposer={commentComposer}
+        setCommentComposer={setCommentComposer}
+        onCommentSubmit={(text) => {
+          if (!commentComposer) return;
+          addComment({
+            text,
+            authorName: collab.selfDisplayName || "Me",
+            authorPeerId: collab.isConnected ? (collab.selfPeerId || null) : null,
+            authorColor: collab.selfColor || "#61afef",
+            targetType: commentComposer.targetType,
+            targetId: commentComposer.targetId,
+            screenId: commentComposer.screenId,
+            anchor: commentComposer.anchor,
+          });
+          setCommentComposer(null);
+          setActiveTool("select");
+          if (!showComments) setShowComments(true);
+        }}
       />
       <Toast message={toast} />
       {wireframeEditor && (

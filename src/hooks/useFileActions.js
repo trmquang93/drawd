@@ -5,7 +5,7 @@ export function useFileActions({
   replaceAll, pushHistory,
   setPan, setZoom,
   setFeatureBrief, setTaskLink, setTechStack,
-  setDataModels, setStickyNotes, setScreenGroups,
+  setDataModels, setStickyNotes, setScreenGroups, setComments,
   setScopeRoot, openFile, saveAs, disconnect,
 }) {
   const applyPayload = useCallback((payload, { source } = {}) => {
@@ -21,8 +21,9 @@ export function useFileActions({
     setDataModels(payload.dataModels || []);
     setStickyNotes(payload.stickyNotes || []);
     setScreenGroups(payload.screenGroups || []);
+    setComments(payload.comments || []);
     setScopeRoot(null);
-  }, [replaceAll, pushHistory, screens, connections, documents, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setScopeRoot]);
+  }, [replaceAll, pushHistory, screens, connections, documents, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setComments, setScopeRoot]);
 
   const onOpen = useCallback(async () => {
     try {
@@ -49,9 +50,10 @@ export function useFileActions({
     setDataModels([]);
     setStickyNotes([]);
     setScreenGroups([]);
+    setComments([]);
     setScopeRoot(null);
     disconnect();
-  }, [screens.length, replaceAll, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setScopeRoot, disconnect]);
+  }, [screens.length, replaceAll, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setComments, setScopeRoot, disconnect]);
 
   return { applyPayload, onOpen, onSaveAs, onNew };
 }

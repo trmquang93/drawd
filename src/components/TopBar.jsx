@@ -24,6 +24,14 @@ function ModelsIcon() {
   );
 }
 
+function CommentsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+}
+
 function FileMenuIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -94,7 +102,7 @@ function ShareIcon() {
   );
 }
 
-export function TopBar({ screenCount, connectionCount, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0, collabState, onShare, collabBadge, collabPresence, onToggleParticipants, showParticipants, onTemplates }) {
+export function TopBar({ screenCount, connectionCount, onExport, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0, collabState, onShare, collabBadge, collabPresence, onToggleParticipants, showParticipants, onTemplates, onToggleComments, showComments, unresolvedCommentCount = 0, canComment }) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef(null);
 
@@ -289,6 +297,16 @@ export function TopBar({ screenCount, connectionCount, onExport, onImport, onGen
           badge={dataModelCount}
           onClick={onDataModels}
         />
+
+        {canComment && (
+          <TopBarIconButton
+            icon={CommentsIcon}
+            title="Comments"
+            badge={unresolvedCommentCount}
+            isActive={showComments}
+            onClick={onToggleComments}
+          />
+        )}
 
         {/* Collaboration UI */}
         {collabState?.isConnected ? (

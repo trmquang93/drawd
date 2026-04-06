@@ -18,6 +18,7 @@ export class FlowState {
     this.dataModels = [];
     this.stickyNotes = [];
     this.screenGroups = [];
+    this.comments = [];
     this.metadata = {
       name: DEFAULT_FLOW_NAME,
       featureBrief: "",
@@ -41,6 +42,7 @@ export class FlowState {
     this.dataModels = data.dataModels || [];
     this.stickyNotes = data.stickyNotes || [];
     this.screenGroups = data.screenGroups || [];
+    this.comments = data.comments || [];
     this.metadata = data.metadata || {};
     this.viewport = data.viewport || { pan: { x: 0, y: 0 }, zoom: 1 };
     this.filePath = filePath;
@@ -65,6 +67,7 @@ export class FlowState {
       this.dataModels,
       this.stickyNotes,
       this.screenGroups,
+      this.comments,
     );
 
     const dir = path.dirname(target);
@@ -92,6 +95,7 @@ export class FlowState {
     this.dataModels = [];
     this.stickyNotes = [];
     this.screenGroups = [];
+    this.comments = [];
     this.metadata = {
       name: options.name || DEFAULT_FLOW_NAME,
       featureBrief: options.featureBrief || "",
@@ -117,6 +121,8 @@ export class FlowState {
       dataModelCount: this.dataModels.length,
       stickyNoteCount: this.stickyNotes.length,
       screenGroupCount: this.screenGroups.length,
+      commentCount: this.comments.length,
+      unresolvedCommentCount: this.comments.filter((c) => !c.resolved).length,
       screens: this.screens.map((s) => ({
         id: s.id,
         name: s.name,
@@ -222,6 +228,8 @@ export class FlowState {
     for (const group of this.screenGroups) {
       group.screenIds = group.screenIds.filter((id) => id !== screenId);
     }
+
+    this.comments = this.comments.filter((c) => c.screenId !== screenId);
 
     this._autoSave();
     return { removedConnectionCount: removed.length };
@@ -347,6 +355,9 @@ export class FlowState {
 
     // Remove associated connections
     this.connections = this.connections.filter((c) => c.hotspotId !== hotspotId);
+    this.comments = this.comments.filter(
+      (c) => !(c.targetType === "hotspot" && c.targetId === hotspotId)
+    );
     this._autoSave();
   }
 
@@ -408,6 +419,9 @@ export class FlowState {
     const idx = this.connections.findIndex((c) => c.id === connectionId);
     if (idx === -1) throw new Error(`Connection not found: ${connectionId}`);
     this.connections.splice(idx, 1);
+    this.comments = this.comments.filter(
+      (c) => !(c.targetType === "connection" && c.targetId === connectionId)
+    );
     this._autoSave();
   }
 
@@ -535,6 +549,78 @@ export class FlowState {
     if (idx === -1) throw new Error(`Screen group not found: ${groupId}`);
     this.screenGroups.splice(idx, 1);
     this._autoSave();
+  }
+
+  // ── Comment Operations ──────────────────────
+
+  addComment(options) {
+    const now = new Date().toISOString();
+    const comment = {
+      id: generateId(),
+      text: (options.text || "").trim(),
+      authorName: options.authorName || "MCP Agent",
+      authorPeerId: null,
+      authorColor: options.authorColor || "#61afef",
+      targetType: options.targetType || "screen",
+      targetId: options.targetId || null,
+      screenId: options.screenId || options.targetId || null,
+      anchor: options.anchor || { xPct: 50, yPct: 50 },
+      resolved: false,
+      resolvedAt: null,
+      resolvedBy: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.comments.push(comment);
+    this._autoSave();
+    return comment;
+  }
+
+  updateComment(commentId, text) {
+    const comment = this.comments.find((c) => c.id === commentId);
+    if (!comment) throw new Error(`Comment not found: ${commentId}`);
+    comment.text = text.trim();
+    comment.updatedAt = new Date().toISOString();
+    this._autoSave();
+    return comment;
+  }
+
+  resolveComment(commentId, resolvedBy = "MCP Agent") {
+    const comment = this.comments.find((c) => c.id === commentId);
+    if (!comment) throw new Error(`Comment not found: ${commentId}`);
+    const now = new Date().toISOString();
+    comment.resolved = true;
+    comment.resolvedAt = now;
+    comment.resolvedBy = resolvedBy;
+    comment.updatedAt = now;
+    this._autoSave();
+    return comment;
+  }
+
+  unresolveComment(commentId) {
+    const comment = this.comments.find((c) => c.id === commentId);
+    if (!comment) throw new Error(`Comment not found: ${commentId}`);
+    comment.resolved = false;
+    comment.resolvedAt = null;
+    comment.resolvedBy = null;
+    comment.updatedAt = new Date().toISOString();
+    this._autoSave();
+    return comment;
+  }
+
+  deleteComment(commentId) {
+    const idx = this.comments.findIndex((c) => c.id === commentId);
+    if (idx === -1) throw new Error(`Comment not found: ${commentId}`);
+    this.comments.splice(idx, 1);
+    this._autoSave();
+  }
+
+  listComments(options = {}) {
+    let result = [...this.comments];
+    if (options.targetId) result = result.filter((c) => c.targetId === options.targetId);
+    if (options.targetType) result = result.filter((c) => c.targetType === options.targetType);
+    if (options.resolved !== undefined) result = result.filter((c) => c.resolved === options.resolved);
+    return result;
   }
 
   // ── Metadata Operations ─────────────────────

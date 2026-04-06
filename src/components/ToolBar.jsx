@@ -7,6 +7,12 @@ const SelectIcon = () => (
   </svg>
 );
 
+const CommentIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
 const PanIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
@@ -53,10 +59,11 @@ const WireframeIcon = () => (
   </svg>
 );
 
-const TOOLS = [
+const BASE_TOOLS = [
   { id: "select", label: "Select", icon: SelectIcon, key: "V" },
   { id: "pan", label: "Pan", icon: PanIcon, key: "H" },
 ];
+const COMMENT_TOOL = { id: "comment", label: "Comment", icon: CommentIcon, key: "C" };
 
 const dividerStyle = {
   width: 1,
@@ -102,7 +109,8 @@ function ActionButton({ icon: Icon, label, shortcutKey, onClick }) {
 
 const TemplateIcon = () => <TemplateIconBase size={16} stroke="currentColor" strokeWidth={1.8} />;
 
-export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddStickyNote, onAddWireframe, isReadOnly, onTemplates }) {
+export function ToolBar({ activeTool, onToolChange, onUpload, onAddBlank, onAddStickyNote, onAddWireframe, isReadOnly, onTemplates, canComment }) {
+  const TOOLS = canComment ? [...BASE_TOOLS, COMMENT_TOOL] : BASE_TOOLS;
   return (
     <div
       style={{

@@ -5,7 +5,7 @@ export const GITHUB_URL = "https://github.com/codeflow-studio/drawd";
 export const DOMAIN = "drawd.app";
 
 // ── File Format ──────────────────────────────
-export const FILE_VERSION = 13;
+export const FILE_VERSION = 14;
 export const FILE_EXTENSION = ".drawd";
 export const LEGACY_FILE_EXTENSION = ".flowforge";
 export const DEFAULT_EXPORT_FILENAME = "flow-export";
@@ -73,6 +73,9 @@ export const COLLAB_CURSOR_FADE_MS = 3000;
 
 // ── Sticky Notes ─────────────────────────────
 export const STICKY_NOTE_MIN_WIDTH = 150;
+
+// ── Comments ─────────────────────────────────
+export const COMMENTS_PANEL_WIDTH = 280;
 
 // ── Wireframe Designer ───────────────────────
 export const WIREFRAME_GRID_SIZE = 8;

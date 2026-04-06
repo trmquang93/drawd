@@ -11,6 +11,7 @@ import { connectionTools, handleConnectionTool } from "./tools/connection-tools.
 import { documentTools, handleDocumentTool } from "./tools/document-tools.js";
 import { modelTools, handleModelTool } from "./tools/model-tools.js";
 import { annotationTools, handleAnnotationTool } from "./tools/annotation-tools.js";
+import { commentTools, handleCommentTool } from "./tools/comment-tools.js";
 import { generationTools, handleGenerationTool } from "./tools/generation-tools.js";
 
 const FILE_TOOL_NAMES = new Set(fileTools.map((t) => t.name));
@@ -20,6 +21,7 @@ const CONNECTION_TOOL_NAMES = new Set(connectionTools.map((t) => t.name));
 const DOCUMENT_TOOL_NAMES = new Set(documentTools.map((t) => t.name));
 const MODEL_TOOL_NAMES = new Set(modelTools.map((t) => t.name));
 const ANNOTATION_TOOL_NAMES = new Set(annotationTools.map((t) => t.name));
+const COMMENT_TOOL_NAMES = new Set(commentTools.map((t) => t.name));
 const GENERATION_TOOL_NAMES = new Set(generationTools.map((t) => t.name));
 
 // filePath is injected into every non-file tool so callers can establish
@@ -51,6 +53,7 @@ const ALL_TOOLS = [
   ...withFilePath(documentTools),
   ...withFilePath(modelTools),
   ...withFilePath(annotationTools),
+  ...withFilePath(commentTools),
   ...withFilePath(generationTools),
 ];
 
@@ -90,6 +93,8 @@ export function createServer(state, renderer) {
         result = handleModelTool(name, args, state);
       } else if (ANNOTATION_TOOL_NAMES.has(name)) {
         result = handleAnnotationTool(name, args, state);
+      } else if (COMMENT_TOOL_NAMES.has(name)) {
+        result = handleCommentTool(name, args, state);
       } else if (GENERATION_TOOL_NAMES.has(name)) {
         result = handleGenerationTool(name, args, state);
       } else {

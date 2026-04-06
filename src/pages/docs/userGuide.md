@@ -485,6 +485,7 @@ Press `?` anywhere on the canvas to open the full keyboard shortcuts panel. The 
 | `H` | Pan tool (click and drag to pan canvas) |
 | `U` | Upload screens |
 | `B` | Add blank screen |
+| `C` | Comment tool (place comment pins on the canvas) |
 | `N` | Add sticky note |
 | `T` | Insert template |
 
@@ -533,7 +534,8 @@ Drawd supports real-time collaboration so multiple people can view and edit the 
 
 - **Host** — the person who created the room. The host can change any guest's role by clicking their avatar in the top bar.
 - **Editor** — can edit the canvas; changes sync to all peers in real time.
-- **Viewer** — read-only mode. Canvas panning and zoom remain available, but all editing controls are hidden or disabled.
+- **Reviewer** — comment-only mode. Reviewers can add comments, resolve comments, and delete their own comments, but cannot edit the flow.
+- **Viewer** — read-only mode. Canvas panning and zoom remain available, but all editing and commenting controls are hidden or disabled.
 
 ### Live cursors
 
@@ -568,6 +570,49 @@ If the host leaves or closes their browser, all guests see a "Session Ended" mod
 - Guest undo is not available while connected to a room.
 - Very large flows with many high-resolution screen images may cause sync issues. Consider using lower-resolution screenshots for collaboration.
 - Rapid changes by multiple editors may appear slightly delayed on other screens.
+
+## Comments
+
+Comments let you and collaborators leave contextual feedback anchored directly to screens, hotspots, and connections — without losing context in chat threads.
+
+### Placing a comment
+
+1. Press `C` (or click the comment bubble icon in the floating toolbar) to enter comment mode.
+2. Click anywhere on a screen image to place a pin at that exact location.
+3. A composer appears — type your comment and press **Cmd+Enter** or click **Comment** to save.
+4. The active tool returns to Select, and the Comments panel opens automatically.
+
+> [!NOTE]
+> The comment tool only appears when your role allows commenting (host, editor, or reviewer). Viewers cannot comment.
+
+### Comments panel
+
+Click the chat bubble icon in the top bar to toggle the Comments panel. The badge shows the number of unresolved comments.
+
+The panel has two sections:
+
+- **Open** — active comments awaiting resolution. Each card shows the author, timestamp, target context (screen name, hotspot, or connection endpoints), and the comment text.
+- **Resolved** — hidden by default. Click "Show N resolved" to expand them.
+
+### Resolving and deleting
+
+- **Resolve** — marks the comment as done. Any participant with host, editor, or reviewer role can resolve a comment.
+- **Reopen** — hosts and editors can reopen a resolved comment.
+- **Delete** — hosts and editors can delete any comment. Reviewers can delete only their own comments.
+
+### Comment pins on canvas
+
+Each open comment is shown as a colored pin on the canvas at the exact position you clicked. Pins follow their targets when you move screens. Pins for resolved comments are hidden by default.
+
+Clicking a pin in comment mode selects it and scrolls the Comments panel to the corresponding card.
+
+### Collaboration
+
+Comments sync in real time through the same mechanism as screen edits. When a collaborator adds, resolves, or deletes a comment, your view updates automatically.
+
+### Comments and instruction generation
+
+Comments are **not included** in generated AI instruction files. They are reviewer notes for the development team, not requirements for the AI coding assistant.
 
 ## MCP Server (AI Agent Integration)
 
@@ -645,6 +690,7 @@ The MCP server exposes 27 tools organized by category:
 - **Document** — `create_document`, `update_document`, `delete_document`, `list_documents`
 - **Data Model** — `create_data_model`, `update_data_model`, `delete_data_model`, `list_data_models`
 - **Annotation** — `create_sticky_note`, `create_screen_group`, `update_screen_group`, `delete_screen_group`
+- **Comments** — `list_comments`, `create_comment`, `update_comment`, `resolve_comment`, `delete_comment`
 - **Generation** — `validate_flow`, `generate_instructions`, `analyze_navigation`
 
 ### Creating screens from HTML

@@ -24,9 +24,9 @@ describe("importFlow", () => {
     );
   });
 
-  it("throws for future version > 13", () => {
+  it("throws for future version > 14", () => {
     expect(() =>
-      importFlow(JSON.stringify({ version: 14, screens: [], connections: [] }))
+      importFlow(JSON.stringify({ version: 15, screens: [], connections: [] }))
     ).toThrow("Unsupported file version");
   });
 
@@ -240,6 +240,19 @@ describe("importFlow", () => {
     expect(result.dataModels).toEqual([]);
     expect(result.stickyNotes).toEqual([]);
     expect(result.screenGroups).toEqual([]);
+  });
+
+  it("backfills comments to [] when absent from the file", () => {
+    const file = makeValidFile(); // no comments field
+    const result = importFlow(file);
+    expect(result.comments).toEqual([]);
+  });
+
+  it("preserves existing comments array when present in the file", () => {
+    const existingComments = [{ id: "c1", text: "hi", resolved: false }];
+    const file = makeValidFile({ comments: existingComments });
+    const result = importFlow(file);
+    expect(result.comments).toEqual(existingComments);
   });
 
   // --- Valid file parsing ---

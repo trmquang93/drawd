@@ -12,7 +12,7 @@ const DRAWD_FILE_TYPES = [
   },
 ];
 
-export function useFilePersistence(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = [], onExternalChange) {
+export function useFilePersistence(screens, connections, pan, zoom, documents = [], featureBrief = "", taskLink = "", techStack = {}, dataModels = [], stickyNotes = [], screenGroups = [], comments = [], onExternalChange) {
   const fileHandleRef = useRef(null);
   const [connectedFileName, setConnectedFileName] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
@@ -46,7 +46,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
     isWritingRef.current = true;
     setSaveStatus("saving");
     try {
-      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups);
+      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups, comments);
       const json = JSON.stringify(payload, null, 2);
       const writable = await handle.createWritable();
       await writable.write(json);
@@ -69,9 +69,9 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
     } finally {
       isWritingRef.current = false;
     }
-  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups]);
+  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups, comments]);
 
-  // Auto-save when screens, connections, or documents change
+  // Auto-save when screens, connections, documents, or comments change
   useEffect(() => {
     if (!fileHandleRef.current) return;
     if (screens.length === 0) return;
@@ -157,7 +157,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
       skipNextSaveRef.current = false;
 
       // Write immediately
-      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups);
+      const payload = buildPayload(screens, connections, panRef.current, zoomRef.current, documents, featureBriefRef.current, taskLinkRef.current, techStackRef.current, dataModels, stickyNotes, screenGroups, comments);
       const json = JSON.stringify(payload, null, 2);
       const writable = await handle.createWritable();
       await writable.write(json);
@@ -177,7 +177,7 @@ export function useFilePersistence(screens, connections, pan, zoom, documents = 
     } finally {
       isWritingRef.current = false;
     }
-  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups]);
+  }, [screens, connections, documents, dataModels, stickyNotes, screenGroups, comments]);
 
   const disconnect = useCallback(() => {
     fileHandleRef.current = null;

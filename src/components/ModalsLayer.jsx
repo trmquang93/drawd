@@ -12,6 +12,8 @@ import { ShareModal } from "./ShareModal";
 import { HostLeftModal } from "./HostLeftModal";
 import { FormSummaryPanel } from "./FormSummaryPanel";
 import { TemplateBrowserModal } from "./TemplateBrowserModal";
+import { CommentsPanel } from "./CommentsPanel";
+import { CommentComposer } from "./CommentComposer";
 
 export function ModalsLayer({
   // Hotspot modal
@@ -46,6 +48,14 @@ export function ModalsLayer({
   formSummaryScreen, setFormSummaryScreen,
   // Template browser
   showTemplateBrowser, setShowTemplateBrowser, onInsertTemplate,
+  // Comments
+  showComments, setShowComments,
+  comments, connections,
+  canModerate, selfPeerId, selfDisplayName,
+  onResolveComment, onUnresolveComment, onDeleteComment,
+  selectedCommentId, setSelectedCommentId,
+  commentComposer, setCommentComposer,
+  onCommentSubmit,
 }) {
   return (
     <>
@@ -227,6 +237,32 @@ export function ModalsLayer({
         <FormSummaryPanel
           screen={formSummaryScreen}
           onClose={() => setFormSummaryScreen(null)}
+        />
+      )}
+
+      {showComments && (
+        <CommentsPanel
+          comments={comments || []}
+          screens={screens}
+          connections={connections || []}
+          canModerate={canModerate}
+          selfPeerId={selfPeerId}
+          selfDisplayName={selfDisplayName}
+          onResolve={onResolveComment}
+          onUnresolve={onUnresolveComment}
+          onDelete={onDeleteComment}
+          selectedCommentId={selectedCommentId}
+          onSelectComment={setSelectedCommentId}
+          onClose={() => setShowComments(false)}
+        />
+      )}
+
+      {commentComposer && (
+        <CommentComposer
+          clientX={commentComposer.clientX}
+          clientY={commentComposer.clientY}
+          onSubmit={onCommentSubmit}
+          onCancel={() => setCommentComposer(null)}
         />
       )}
     </>

@@ -4,9 +4,9 @@ import { useCollaboration } from "./useCollaboration";
 export function useCollabSync({
   screens, connections, documents,
   featureBrief, taskLink, techStack,
-  dataModels, stickyNotes, screenGroups,
+  dataModels, stickyNotes, screenGroups, comments,
   replaceAll, setFeatureBrief, setTaskLink, setTechStack,
-  setDataModels, setStickyNotes, setScreenGroups,
+  setDataModels, setStickyNotes, setScreenGroups, setComments,
   draggingRef, hotspotInteractionRef, patchScreenImage,
   canvasRef, pan, zoom, initialRoomCode,
 }) {
@@ -34,7 +34,8 @@ export function useCollabSync({
     if (payload.dataModels !== undefined) setDataModels(payload.dataModels);
     if (payload.stickyNotes !== undefined) setStickyNotes(payload.stickyNotes);
     if (payload.screenGroups !== undefined) setScreenGroups(payload.screenGroups);
-  }, [replaceAll, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups]);
+    if (payload.comments !== undefined) setComments(payload.comments);
+  }, [replaceAll, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setComments]);
 
   const applyPendingRemoteState = useCallback((payload) => {
     applyRemotePayload(payload);
@@ -43,7 +44,7 @@ export function useCollabSync({
   const collab = useCollaboration({
     screens, connections, documents,
     featureBrief, taskLink, techStack,
-    dataModels, stickyNotes, screenGroups,
+    dataModels, stickyNotes, screenGroups, comments,
     applyRemoteState: (payload) => {
       const dragging = draggingRef.current;
       const hsMode = hotspotInteractionRef.current?.mode;
@@ -58,9 +59,15 @@ export function useCollabSync({
   });
 
   const isReadOnly = collab.isReadOnly;
+  const { role, isConnected } = collab;
+  // Capability flags: fall back to full access when not in a collab session.
+  const canEditFlow = !isConnected || role === "host" || role === "editor";
+  const canComment = !isConnected || role === "host" || role === "editor" || role === "reviewer";
+  const canModerateComments = !isConnected || role === "host" || role === "editor";
 
   return {
     collab, isReadOnly,
+    canEditFlow, canComment, canModerateComments,
     showShareModal, setShowShareModal,
     showParticipants, setShowParticipants,
     pendingRemoteStateRef, applyPendingRemoteState,

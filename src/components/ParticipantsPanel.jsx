@@ -31,7 +31,7 @@ function RoleDropdown({ peer, onSetRole }) {
           fontWeight: 500,
         }}
       >
-        {peer.role === "editor" ? "Editor" : "Viewer"} &#9662;
+        {peer.role === "editor" ? "Editor" : peer.role === "reviewer" ? "Reviewer" : "Viewer"} &#9662;
       </button>
       {open && (
         <div style={{
@@ -42,30 +42,34 @@ function RoleDropdown({ peer, onSetRole }) {
           border: `1px solid ${COLORS.border}`,
           borderRadius: 8,
           padding: "4px",
-          minWidth: 140,
+          minWidth: 160,
           boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
           zIndex: Z_INDEX.contextMenu,
         }}>
-          {["editor", "viewer"].map((r) => (
+          {[
+            { value: "editor", label: "Editor" },
+            { value: "reviewer", label: "Reviewer (comment-only)" },
+            { value: "viewer", label: "Viewer (read-only)" },
+          ].map(({ value, label }) => (
             <button
-              key={r}
-              onClick={() => { onSetRole(peer.id, r); setOpen(false); }}
+              key={value}
+              onClick={() => { onSetRole(peer.id, value); setOpen(false); }}
               style={{
                 display: "block",
                 width: "100%",
                 padding: "6px 8px",
-                background: peer.role === r ? COLORS.accent008 : "transparent",
+                background: peer.role === value ? COLORS.accent008 : "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: peer.role === r ? COLORS.accent : COLORS.textMuted,
+                color: peer.role === value ? COLORS.accent : COLORS.textMuted,
                 fontSize: 11,
                 fontFamily: FONTS.mono,
-                fontWeight: peer.role === r ? 600 : 400,
+                fontWeight: peer.role === value ? 600 : 400,
                 cursor: "pointer",
                 textAlign: "left",
               }}
             >
-              {r === "editor" ? "Editor" : "Viewer (read-only)"}
+              {label}
             </button>
           ))}
         </div>
@@ -88,6 +92,19 @@ function RoleBadge({ role }) {
         marginLeft: "auto",
       }}>
         &#9818; Host
+      </span>
+    );
+  }
+  if (role === "reviewer") {
+    return (
+      <span style={{
+        fontSize: 10,
+        fontFamily: FONTS.mono,
+        color: "#e5c07b",
+        fontWeight: 500,
+        marginLeft: "auto",
+      }}>
+        Reviewer
       </span>
     );
   }

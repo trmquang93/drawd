@@ -119,5 +119,8 @@ export function importFlow(fileText) {
   if (!Array.isArray(data.stickyNotes)) data.stickyNotes = [];
   if (!Array.isArray(data.screenGroups)) data.screenGroups = [];
 
+  // Backward compat: comments (v14+)
+  if (!Array.isArray(data.comments)) data.comments = [];
+
   return data;
 }
