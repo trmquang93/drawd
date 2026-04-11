@@ -548,6 +548,13 @@ function convertFrameNode(node, isRoot) {
     styles.flexGrow = node.stackChildPrimaryGrow;
   }
 
+  // Library component instances with no resolved children may carry a
+  // pre-built SVG from derivedSymbolData rendering hints.
+  if (node._derivedSvg && (!node.children || node.children.length === 0)) {
+    const inlineStyle = stylesToString(styles);
+    return `<div style="${inlineStyle}">\n${node._derivedSvg}\n</div>`;
+  }
+
   // Render children
   const childrenHtml = (node.children || [])
     .map((child, i) => {
