@@ -394,8 +394,21 @@ function convertTextNode(node, isRoot) {
   const { width, height } = getNodeSize(node);
   const styles = {};
 
+  // textAutoResize controls Figma's text sizing behaviour:
+  //   WIDTH_AND_HEIGHT — auto-size both axes (single-line, never wraps)
+  //   HEIGHT           — fixed width, auto-height (wraps at width)
+  //   NONE / TRUNCATE  — fully fixed size
+  const autoResize = node.textAutoResize;
+
   if (!isRoot) {
-    styles.width = `${Math.ceil(width)}px`;
+    if (autoResize === "WIDTH_AND_HEIGHT") {
+      // Auto-width text: don't constrain width, prevent wrapping
+      styles.whiteSpace = "nowrap";
+      styles.flexShrink = "0";
+    } else {
+      // Fixed-width text: add 1px buffer for font metric differences
+      styles.width = `${Math.ceil(width) + 1}px`;
+    }
     styles.minHeight = `${Math.ceil(height)}px`;
   }
 

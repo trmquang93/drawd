@@ -43,6 +43,12 @@ const KIWI_STROKE_PROPS = [
   "fillPaints",
 ];
 
+// Text properties from kiwi that the factory drops.
+// Needed for correct text sizing/wrapping in figmaToHtml.js.
+const KIWI_TEXT_PROPS = [
+  "textAutoResize",
+];
+
 iofigma.kiwi.factory.node = function (nc, message) {
   if (captureState) {
     captureState.message = message;
@@ -62,6 +68,12 @@ iofigma.kiwi.factory.node = function (nc, message) {
     }
     // Preserve stroke properties for vector/icon rendering
     for (const prop of KIWI_STROKE_PROPS) {
+      if (nc[prop] != null && node[prop] == null) {
+        node[prop] = nc[prop];
+      }
+    }
+    // Preserve text properties for correct sizing/wrapping
+    for (const prop of KIWI_TEXT_PROPS) {
       if (nc[prop] != null && node[prop] == null) {
         node[prop] = nc[prop];
       }
@@ -155,6 +167,15 @@ function buildDerivedTree(derivedNCs, message, parentGuid) {
     const kiwi = guidToKiwi.get(node.id);
     if (!kiwi?.parentIndex?.guid) return false;
     return iofigma.kiwi.guid(kiwi.parentIndex.guid) === parentGuid;
+  });
+
+  // Sort root children by fractional position index (same as intermediate children above).
+  // Without this, root-level children of shared library instances retain arbitrary
+  // kiwi binary order, causing incorrect z-index assignment in figmaToHtml.
+  rootChildren.sort((a, b) => {
+    const aPos = guidToKiwi.get(a.id)?.parentIndex?.position ?? "";
+    const bPos = guidToKiwi.get(b.id)?.parentIndex?.position ?? "";
+    return aPos.localeCompare(bPos);
   });
 
   return { rootChildren, guidToNode, guidToKiwi };
