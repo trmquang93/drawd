@@ -1,6 +1,7 @@
 import { COLORS, FONTS, Z_INDEX } from "../styles/theme";
 import { DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT } from "../constants";
 import { copyScreenForFigma, copyScreensForFigma, copyScreensForFigmaEditable, downloadScreenSvg } from "../utils/copyToFigma";
+import { copyScreensAsImage } from "../utils/copyAsImage";
 import { ScreenNode } from "./ScreenNode";
 import { ConnectionLines } from "./ConnectionLines";
 import { ConditionalPrompt } from "./ConditionalPrompt";
@@ -409,6 +410,39 @@ export function CanvasArea({
               <div style={{ height: 1, background: COLORS.border, margin: "4px 0" }} />
             </>
           )}
+          <button
+            onClick={async () => {
+              setGroupContextMenu(null);
+              try {
+                const count = await copyScreensAsImage(copyTargetScreens);
+                if (count && showToast) {
+                  showToast(count > 1
+                    ? `${count} screens copied as image`
+                    : "Screen copied as image");
+                } else if (!count && showToast) {
+                  showToast("No image content to copy");
+                }
+              } catch (e) {
+                if (showToast) showToast(`Copy failed: ${e.message}`);
+              }
+            }}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "6px 14px",
+              background: "none",
+              border: "none",
+              color: COLORS.text,
+              fontFamily: FONTS.mono,
+              fontSize: 12,
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            {copyTargetIds.length > 1
+              ? `Copy ${copyTargetIds.length} Screens as Image`
+              : "Copy as Image"}
+          </button>
           {hasFigmaExport && (
             <>
               <button
