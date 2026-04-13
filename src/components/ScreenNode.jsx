@@ -363,7 +363,7 @@ export function ScreenNode({
       {/* Image */}
       <div
         className="screen-image-area"
-        style={{ position: "relative", minHeight: DEFAULT_IMAGE_HEIGHT, background: COLORS.imageAreaBg }}
+        style={{ position: "relative", minHeight: DEFAULT_IMAGE_HEIGHT, background: COLORS.imageAreaBg, cursor: "default" }}
         onMouseDown={(e) => {
           if (isSpaceHeld?.current) return;
           if (e.target.closest(".hotspot-area") || e.target.closest(".hotspot-drag-handle") || e.target.closest(".resize-handle") || e.target.closest(".comment-pin")) return;
@@ -375,6 +375,18 @@ export function ScreenNode({
             onCommentImageClick(e, screen.id, xPct, yPct);
             return;
           }
+          if (!isReadOnly) {
+            if (e.shiftKey || e.metaKey) {
+              e.stopPropagation();
+              onToggleSelect?.("screen", screen.id);
+              return;
+            }
+            if (isMultiSelected) {
+              onMultiDragStart?.(e);
+              return;
+            }
+          }
+          onSelect(screen.id);
           if (screen.imageData && onImageAreaMouseDown) {
             onImageAreaMouseDown(e, screen.id);
           }
