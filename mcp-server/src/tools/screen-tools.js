@@ -293,13 +293,12 @@ export async function handleScreenTool(name, args, state, renderer) {
     case "get_screen_code": {
       const screen = state.getScreen(args.screenId);
       if (!screen) throw new Error(`Screen not found: ${args.screenId}`);
-      const hasCode = !!screen.sourceHtml;
       return {
         screenId: screen.id,
         name: screen.name,
-        hasCode,
-        sourceHtml: screen.sourceHtml || null,
-        figmaSource: screen.figmaSource || null,
+        hasCode: !!screen.sourceHtml,
+        sourceHtml: screen.sourceHtml,
+        figmaSource: screen.figmaSource,
       };
     }
 
