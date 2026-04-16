@@ -98,6 +98,17 @@ export const screenTools = [
     },
   },
   {
+    name: "get_screen_code",
+    description: "Get the source HTML for a screen that was created with code (via create_screen, batch_create_screens, update_screen_image, or Figma paste). Returns hasCode:false when the screen has no stored source (e.g., uploaded image or blank screen).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screenId: { type: "string", description: "ID of the screen" },
+      },
+      required: ["screenId"],
+    },
+  },
+  {
     name: "update_screen_image",
     description: "Re-render a screen's image from new HTML content. Use inline styles only (no <style> tags).",
     inputSchema: {
@@ -226,6 +237,7 @@ export async function handleScreenTool(name, args, state, renderer) {
           y: s.y,
           hotspotCount: (s.hotspots || []).length,
           hasImage: !!s.imageData,
+          hasCode: !!s.sourceHtml,
           description: s.description || "",
           status: s.status || "new",
           tbd: s.tbd || false,
@@ -276,6 +288,19 @@ export async function handleScreenTool(name, args, state, renderer) {
         }
       }
       return { __contentBlocks: content };
+    }
+
+    case "get_screen_code": {
+      const screen = state.getScreen(args.screenId);
+      if (!screen) throw new Error(`Screen not found: ${args.screenId}`);
+      const hasCode = !!screen.sourceHtml;
+      return {
+        screenId: screen.id,
+        name: screen.name,
+        hasCode,
+        sourceHtml: screen.sourceHtml || null,
+        figmaSource: screen.figmaSource || null,
+      };
     }
 
     case "update_screen_image": {
