@@ -87,12 +87,13 @@ export const screenTools = [
   },
   {
     name: "get_screen",
-    description: "Get full details of a specific screen, including hotspots. Image data is excluded by default to keep responses small.",
+    description: "Get full details of a specific screen, including hotspots. Image data is excluded by default to keep responses small. When included, the image is downsampled to 400 px wide by default to reduce token cost; pass imageMaxWidth: 0 for the original full-resolution image.",
     inputSchema: {
       type: "object",
       properties: {
         screenId: { type: "string", description: "ID of the screen" },
         includeImage: { type: "boolean", description: "Include base64 imageData in response (default: false)" },
+        imageMaxWidth: { type: "number", description: "Max width in px for the returned image. Image is re-rendered from SVG at this width to reduce base64 size and token cost. Pass 0 to disable resizing and return the original full-resolution image. Default: 400" },
       },
       required: ["screenId"],
     },
@@ -150,6 +151,18 @@ export const screenTools = [
 function displayedImageHeight(rawWidth, rawHeight) {
   if (!rawWidth || !rawHeight) return null;
   return Math.round(rawHeight * DEFAULT_SCREEN_WIDTH / rawWidth);
+}
+
+const DEFAULT_IMAGE_MAX_WIDTH = 400;
+
+async function renderSvgToPngBase64(svgString, targetWidth) {
+  const { Resvg } = await import("@resvg/resvg-js");
+  const fitTo = targetWidth > 0
+    ? { mode: "width", value: targetWidth }
+    : { mode: "original" };
+  const resvg = new Resvg(svgString, { fitTo });
+  const pngBuffer = resvg.render().asPng();
+  return Buffer.from(pngBuffer).toString("base64");
 }
 
 export async function handleScreenTool(name, args, state, renderer) {
@@ -249,6 +262,8 @@ export async function handleScreenTool(name, args, state, renderer) {
       delete result.imageData;
       result.hasImage = !!imageData;
 
+      const maxWidth = args.imageMaxWidth ?? DEFAULT_IMAGE_MAX_WIDTH;
+
       const content = [
         { type: "text", text: JSON.stringify(result, null, 2) },
       ];
@@ -261,17 +276,33 @@ export async function handleScreenTool(name, args, state, renderer) {
           if (subtype === "svg+xml") {
             // MCP image blocks don't support SVG; convert to PNG via resvg
             try {
-              const { Resvg } = await import("@resvg/resvg-js");
               const svgString = Buffer.from(rawBase64, "base64").toString("utf-8");
-              const resvg = new Resvg(svgString, { fitTo: { mode: "original" } });
-              const pngBuffer = resvg.render().asPng();
-              const pngBase64 = Buffer.from(pngBuffer).toString("base64");
+              const targetWidth = maxWidth > 0
+                ? maxWidth
+                : (screen.imageWidth || DEFAULT_IMAGE_MAX_WIDTH);
+              const pngBase64 = await renderSvgToPngBase64(svgString, targetWidth);
               content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
             } catch {
               content.push({ type: "text", text: "[SVG image — could not convert to PNG]" });
             }
           } else {
-            content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
+            // Downsample from stored SVG when a smaller width is requested
+            const shouldDownsample =
+              maxWidth > 0 &&
+              screen.svgContent &&
+              screen.imageWidth &&
+              screen.imageWidth > maxWidth;
+
+            if (shouldDownsample) {
+              try {
+                const pngBase64 = await renderSvgToPngBase64(screen.svgContent, maxWidth);
+                content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
+              } catch {
+                content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
+              }
+            } else {
+              content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
+            }
           }
         }
       }
