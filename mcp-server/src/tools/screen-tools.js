@@ -153,18 +153,6 @@ function displayedImageHeight(rawWidth, rawHeight) {
   return Math.round(rawHeight * DEFAULT_SCREEN_WIDTH / rawWidth);
 }
 
-const DEFAULT_IMAGE_MAX_WIDTH = 400;
-
-async function renderSvgToPngBase64(svgString, targetWidth) {
-  const { Resvg } = await import("@resvg/resvg-js");
-  const fitTo = targetWidth > 0
-    ? { mode: "width", value: targetWidth }
-    : { mode: "original" };
-  const resvg = new Resvg(svgString, { fitTo });
-  const pngBuffer = resvg.render().asPng();
-  return Buffer.from(pngBuffer).toString("base64");
-}
-
 export async function handleScreenTool(name, args, state, renderer) {
   switch (name) {
     case "create_screen": {
@@ -262,7 +250,7 @@ export async function handleScreenTool(name, args, state, renderer) {
       delete result.imageData;
       result.hasImage = !!imageData;
 
-      const maxWidth = args.imageMaxWidth ?? DEFAULT_IMAGE_MAX_WIDTH;
+      const maxWidth = args.imageMaxWidth ?? 400;
 
       const content = [
         { type: "text", text: JSON.stringify(result, null, 2) },
@@ -276,33 +264,27 @@ export async function handleScreenTool(name, args, state, renderer) {
           if (subtype === "svg+xml") {
             // MCP image blocks don't support SVG; convert to PNG via resvg
             try {
+              const { Resvg } = await import("@resvg/resvg-js");
               const svgString = Buffer.from(rawBase64, "base64").toString("utf-8");
-              const targetWidth = maxWidth > 0
-                ? maxWidth
-                : (screen.imageWidth || DEFAULT_IMAGE_MAX_WIDTH);
-              const pngBase64 = await renderSvgToPngBase64(svgString, targetWidth);
+              const resvg = new Resvg(svgString, { fitTo: { mode: "original" } });
+              const pngBuffer = resvg.render().asPng();
+              const pngBase64 = Buffer.from(pngBuffer).toString("base64");
               content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
             } catch {
               content.push({ type: "text", text: "[SVG image — could not convert to PNG]" });
             }
-          } else {
-            // Downsample from stored SVG when a smaller width is requested
-            const shouldDownsample =
-              maxWidth > 0 &&
-              screen.svgContent &&
-              screen.imageWidth &&
-              screen.imageWidth > maxWidth;
-
-            if (shouldDownsample) {
-              try {
-                const pngBase64 = await renderSvgToPngBase64(screen.svgContent, maxWidth);
-                content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
-              } catch {
-                content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
-              }
-            } else {
+          } else if (maxWidth > 0 && screen.svgContent && screen.imageWidth > maxWidth) {
+            // Re-render a smaller PNG from the stored SVG to cut token cost
+            try {
+              const { Resvg } = await import("@resvg/resvg-js");
+              const resvg = new Resvg(screen.svgContent, { fitTo: { mode: "width", value: maxWidth } });
+              const pngBase64 = Buffer.from(resvg.render().asPng()).toString("base64");
+              content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
+            } catch {
               content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
             }
+          } else {
+            content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
           }
         }
       }
