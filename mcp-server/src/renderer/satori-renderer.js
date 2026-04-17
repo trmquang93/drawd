@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolveViewport, DEVICE_PRESETS } from "./device-presets.js";
+import { getEmojiCode, loadEmojiSvg } from "./emoji-loader.js";
 
 // Dynamic imports resolved at runtime to support esbuild bundling
 let _satori = null;
@@ -60,8 +61,14 @@ export class SatoriRenderer {
     const { device, width, height } = options;
     const viewport = resolveViewport(device, width, height);
 
+    // satori-html does not decode HTML entities. Agents frequently write
+    // numeric entities (&#9679;, &#x25cf;) and safe named entities (&bull;,
+    // &hellip;) — decode them before parsing so they render as glyphs, not
+    // literal text.
+    const decodedHtml = decodeSafeEntities(htmlString);
+
     // Wrap bare content in a full-page container if needed
-    const wrappedHtml = ensureRootContainer(htmlString, viewport.width, viewport.height);
+    const wrappedHtml = ensureRootContainer(decodedHtml, viewport.width, viewport.height);
 
     // Satori requires every element with multiple children to have an explicit
     // display property. Auto-inject display:flex;flex-direction:column on any
@@ -76,6 +83,12 @@ export class SatoriRenderer {
       width: viewport.width,
       height: viewport.height,
       fonts: this.fonts,
+      loadAdditionalAsset: async (code, segment) => {
+        if (code === "emoji") {
+          return await loadEmojiSvg(getEmojiCode(segment));
+        }
+        return [];
+      },
     });
 
     // SVG -> PNG buffer at 2x (Retina)
@@ -170,4 +183,39 @@ function ensureRootContainer(htmlString, width, height) {
 
   // Wrap in a root container
   return `<div style="width:${width}px;height:${height}px;overflow:hidden;font-family:Inter,sans-serif;display:flex;flex-direction:column;">${trimmed}</div>`;
+}
+
+// Named entities whose decoded form contains no HTML metacharacter
+// (<, >, &, ", '). Safe to decode before HTML parsing because the result
+// can never be mistaken for markup. Deliberately excludes &amp;/&lt;/&gt;/
+// &quot;/&apos; — decoding those would break the parser.
+const SAFE_NAMED_ENTITIES = {
+  nbsp: "\u00a0", copy: "\u00a9", reg: "\u00ae", trade: "\u2122",
+  hellip: "\u2026", mdash: "\u2014", ndash: "\u2013",
+  laquo: "\u00ab", raquo: "\u00bb", middot: "\u00b7", bull: "\u2022",
+  deg: "\u00b0", plusmn: "\u00b1", times: "\u00d7", divide: "\u00f7",
+  para: "\u00b6", sect: "\u00a7", dagger: "\u2020", Dagger: "\u2021",
+  spades: "\u2660", clubs: "\u2663", hearts: "\u2665", diams: "\u2666",
+  larr: "\u2190", uarr: "\u2191", rarr: "\u2192", darr: "\u2193",
+  harr: "\u2194", crarr: "\u21b5", lArr: "\u21d0", rArr: "\u21d2",
+  check: "\u2713", cross: "\u2717",
+  lsquo: "\u2018", rsquo: "\u2019", ldquo: "\u201c", rdquo: "\u201d",
+  prime: "\u2032", Prime: "\u2033",
+};
+
+function decodeSafeEntities(html) {
+  return html
+    .replace(/&#(\d+);/g, (match, dec) => {
+      const code = parseInt(dec, 10);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff
+        ? String.fromCodePoint(code)
+        : match;
+    })
+    .replace(/&#[xX]([0-9a-fA-F]+);/g, (match, hex) => {
+      const code = parseInt(hex, 16);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff
+        ? String.fromCodePoint(code)
+        : match;
+    })
+    .replace(/&([a-zA-Z]+);/g, (match, name) => SAFE_NAMED_ENTITIES[name] || match);
 }

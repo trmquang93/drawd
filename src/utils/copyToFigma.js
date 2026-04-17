@@ -200,6 +200,19 @@ function parseHtmlViewport(html) {
   };
 }
 
+function resolveViewport(screen) {
+  const storedWidth = Number.isFinite(screen.sourceWidth) ? screen.sourceWidth : null;
+  const storedHeight = Number.isFinite(screen.sourceHeight) ? screen.sourceHeight : null;
+  if (storedWidth && storedHeight) {
+    return { width: storedWidth, height: storedHeight };
+  }
+  const fromHtml = parseHtmlViewport(screen.sourceHtml || "");
+  return {
+    width: storedWidth || fromHtml.width,
+    height: storedHeight || fromHtml.height,
+  };
+}
+
 /**
  * Copies a single screen to the clipboard in Figma's native binary format.
  * When pasted in Figma, this produces editable frames with proper fills,
@@ -217,7 +230,7 @@ export async function copyScreenForFigmaEditable(screen) {
   const { htmlToRawNodeTree } = await import("./htmlToFigmaNodes");
   const { copyAsFigmaClipboard } = await import("./figmaClipboard");
 
-  const viewport = parseHtmlViewport(screen.sourceHtml);
+  const viewport = resolveViewport(screen);
   const rootNode = await htmlToRawNodeTree(screen.sourceHtml, {
     width: viewport.width,
     height: viewport.height,
@@ -245,7 +258,7 @@ export async function copyScreensForFigmaEditable(screens) {
   const GAP = 40;
 
   if (withHtml.length === 1) {
-    const viewport = parseHtmlViewport(withHtml[0].sourceHtml);
+    const viewport = resolveViewport(withHtml[0]);
     const rootNode = await htmlToRawNodeTree(withHtml[0].sourceHtml, {
       width: viewport.width,
       height: viewport.height,
@@ -265,7 +278,7 @@ export async function copyScreensForFigmaEditable(screens) {
   let maxHeight = 852;
   for (let i = 0; i < withHtml.length; i++) {
     const s = withHtml[i];
-    const vp = parseHtmlViewport(s.sourceHtml);
+    const vp = resolveViewport(s);
     if (vp.width > maxWidth) maxWidth = vp.width;
     if (vp.height > maxHeight) maxHeight = vp.height;
     const rootNode = await htmlToRawNodeTree(s.sourceHtml, {

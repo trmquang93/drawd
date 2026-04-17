@@ -42,6 +42,8 @@ function makeScreen(overrides = {}) {
     figmaSource: null,
     svgContent: null,
     sourceHtml: null,
+    sourceWidth: null,
+    sourceHeight: null,
     wireframe: null,
     ...overrides,
   };

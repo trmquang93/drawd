@@ -87,12 +87,13 @@ export const screenTools = [
   },
   {
     name: "get_screen",
-    description: "Get full details of a specific screen, including hotspots. Image data is excluded by default to keep responses small.",
+    description: "Get full details of a specific screen, including hotspots. Image data is excluded by default to keep responses small. When included, the image is downsampled to 400 px wide by default to reduce token cost; pass imageMaxWidth: 0 for the original full-resolution image.",
     inputSchema: {
       type: "object",
       properties: {
         screenId: { type: "string", description: "ID of the screen" },
         includeImage: { type: "boolean", description: "Include base64 imageData in response (default: false)" },
+        imageMaxWidth: { type: "number", description: "Max width in px for the returned image. Image is re-rendered from SVG at this width to reduce base64 size and token cost. Pass 0 to disable resizing and return the original full-resolution image. Default: 400" },
       },
       required: ["screenId"],
     },
@@ -261,6 +262,8 @@ export async function handleScreenTool(name, args, state, renderer) {
       delete result.imageData;
       result.hasImage = !!imageData;
 
+      const maxWidth = args.imageMaxWidth ?? 400;
+
       const content = [
         { type: "text", text: JSON.stringify(result, null, 2) },
       ];
@@ -281,6 +284,16 @@ export async function handleScreenTool(name, args, state, renderer) {
               content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
             } catch {
               content.push({ type: "text", text: "[SVG image — could not convert to PNG]" });
+            }
+          } else if (maxWidth > 0 && screen.svgContent && screen.imageWidth > maxWidth) {
+            // Re-render a smaller PNG from the stored SVG to cut token cost
+            try {
+              const { Resvg } = await import("@resvg/resvg-js");
+              const resvg = new Resvg(screen.svgContent, { fitTo: { mode: "width", value: maxWidth } });
+              const pngBase64 = Buffer.from(resvg.render().asPng()).toString("base64");
+              content.push({ type: "image", data: pngBase64, mimeType: "image/png" });
+            } catch {
+              content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });
             }
           } else {
             content.push({ type: "image", data: rawBase64, mimeType: `image/${subtype}` });

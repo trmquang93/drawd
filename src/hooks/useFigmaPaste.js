@@ -84,7 +84,12 @@ export function useFigmaPaste({ handlePaste, addScreenAtCenter }) {
                   frame.imageDataUrl,
                   frame.frameName,
                   i * (220 + GAP),
-                  { figmaSource: frameFigmaSource, sourceHtml: frame.html },
+                  {
+                    figmaSource: frameFigmaSource,
+                    sourceHtml: frame.html,
+                    sourceWidth: frame.width,
+                    sourceHeight: frame.height,
+                  },
                 );
               }
 

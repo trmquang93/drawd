@@ -46,6 +46,8 @@ export function importFlow(fileText) {
     if (screen.figmaSource === undefined) screen.figmaSource = null;
     if (screen.svgContent === undefined) screen.svgContent = null;
     if (screen.sourceHtml === undefined) screen.sourceHtml = null;
+    if (screen.sourceWidth === undefined) screen.sourceWidth = null;
+    if (screen.sourceHeight === undefined) screen.sourceHeight = null;
     if (screen.wireframe === undefined) screen.wireframe = null;
     if (Array.isArray(screen.hotspots)) {
       for (const hs of screen.hotspots) {

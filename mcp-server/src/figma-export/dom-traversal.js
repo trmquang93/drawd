@@ -171,6 +171,28 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
     return 'LEFT';
   }
 
+  // ─── Font family sanitizer ────────────────────────────────────────────────
+  // CSS system keywords and generic families are not valid Figma font names.
+  // Forwarding them results in blank text when pasted into Figma, so we
+  // resolve the first real family name or fall back to Inter.
+
+  const FONT_KEYWORDS = new Set([
+    '-apple-system', 'blinkmacsystemfont', 'system-ui', '-webkit-system-font',
+    'ui-sans-serif', 'ui-serif', 'ui-monospace', 'ui-rounded',
+    'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
+  ]);
+
+  function sanitizeFontFamily(cssFontFamily) {
+    if (!cssFontFamily) return 'Inter';
+    const parts = cssFontFamily.split(',').map((s) => s.replace(/['"]/g, '').trim());
+    for (const p of parts) {
+      if (!p) continue;
+      if (FONT_KEYWORDS.has(p.toLowerCase())) continue;
+      return p;
+    }
+    return 'Inter';
+  }
+
   // ─── Build a TEXT node for a pure-text element ────────────────────────────
 
   function makeTextNode(el, rect, cs, parentLeft, parentTop) {
@@ -200,7 +222,7 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
       opacity: parseFloat(cs.opacity),
       characters: text,
       style: {
-        fontFamily: (cs.fontFamily || 'Inter').split(',')[0].replace(/['"]/g, '').trim(),
+        fontFamily: sanitizeFontFamily(cs.fontFamily),
         fontPostScriptName: null,
         fontSize: fs,
         fontWeight: parseInt(cs.fontWeight) || 400,
@@ -290,6 +312,49 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
 
     const cs = window.getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') return null;
+
+    // SVG elements are painted via SVG `fill` / `stroke` attributes, which the
+    // generic container path ignores (it only reads CSS `background` / `border`).
+    // Walking in would emit empty FRAME nodes, so collapse each <svg> into a
+    // single colored placeholder rectangle at its bounding box.
+    if (tag === 'svg') {
+      function resolveSvgColor(raw) {
+        if (!raw || raw === 'none' || raw === 'transparent') return null;
+        if (raw === 'currentColor') return parseRgba(cs.color);
+        return parseRgba(raw);
+      }
+      const iconColor =
+        resolveSvgColor(el.getAttribute('stroke')) ||
+        resolveSvgColor(el.getAttribute('fill')) ||
+        resolveSvgColor(cs.stroke) ||
+        resolveSvgColor(cs.fill) ||
+        parseRgba(cs.color) ||
+        { r: 0.6, g: 0.6, b: 0.6, a: 1 };
+
+      const hasCircleChild = !!el.querySelector('circle');
+      const isSquare = Math.abs(rect.width - rect.height) < 1;
+      const cornerRadius = hasCircleChild && isSquare
+        ? Math.min(rect.width, rect.height) / 2
+        : 2;
+
+      return {
+        id: genId(),
+        type: 'RECTANGLE',
+        name: el.getAttribute('aria-label') || 'Icon',
+        x: rect.left - parentLeft,
+        y: rect.top - parentTop,
+        width: rect.width,
+        height: rect.height,
+        opacity: parseFloat(cs.opacity) || 1,
+        fills: [{ type: 'SOLID', color: toFigmaColor(iconColor), opacity: iconColor.a }],
+        strokes: [],
+        strokeWeight: 0,
+        strokeAlign: 'INSIDE',
+        effects: [],
+        cornerRadius,
+        clipsContent: false,
+      };
+    }
 
     // Pure-text leaf: no child elements, has text content
     if (el.childElementCount === 0 && el.textContent.trim()) {
@@ -414,7 +479,7 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
           stackChildAlignSelf: 'AUTO',
           characters: displayText,
           style: {
-            fontFamily: (cs.fontFamily || 'Inter').split(',')[0].replace(/['"]/g, '').trim(),
+            fontFamily: sanitizeFontFamily(cs.fontFamily),
             fontPostScriptName: null,
             fontSize: fs,
             fontWeight: parseInt(cs.fontWeight) || 400,
@@ -451,7 +516,7 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
           stackChildAlignSelf: 'AUTO',
           characters: text,
           style: {
-            fontFamily: (cs.fontFamily || 'Inter').split(',')[0].replace(/['"]/g, '').trim(),
+            fontFamily: sanitizeFontFamily(cs.fontFamily),
             fontPostScriptName: null,
             fontSize: fs,
             fontWeight: parseInt(cs.fontWeight) || 400,
@@ -509,8 +574,8 @@ export function domTraversalFn(viewportWidth, viewportHeight) {
     type: 'FRAME',
     name: 'Converted Screen',
     x: 0, y: 0,
-    width: viewportWidth,
-    height: viewportHeight,
+    width: Math.max(viewportWidth || 0, 100),
+    height: Math.max(viewportHeight || 0, 100),
     opacity: 1,
     fills: bodyBg
       ? [{ type: 'SOLID', color: toFigmaColor(bodyBg), opacity: bodyBg.a }]
