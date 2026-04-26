@@ -182,6 +182,8 @@ export class FlowState {
       tbdNote,
       roles: [],
       figmaSource: null,
+      componentId: null,
+      componentRole: null,
     };
 
     this.screens.push(screen);
@@ -202,6 +204,7 @@ export class FlowState {
       "tbd", "tbdNote", "roles", "acceptanceCriteria",
       "imageData", "imageWidth", "imageHeight",
       "svgContent", "sourceHtml", "wireframe",
+      "componentId", "componentRole",
     ];
     for (const key of allowed) {
       if (updates[key] !== undefined) {

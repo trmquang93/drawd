@@ -49,7 +49,7 @@ export const screenTools = [
   },
   {
     name: "update_screen",
-    description: "Update properties of an existing screen (name, description, notes, status, etc.).",
+    description: "Update properties of an existing screen (name, description, notes, status, etc.). To mark a screen as a reusable component, set componentRole to 'canonical' and supply a componentId (any unique string). To mark a screen as an instance of an existing component, set componentRole to 'instance' and pass the same componentId as the canonical. To unlink, set both to null.",
     inputSchema: {
       type: "object",
       properties: {
@@ -62,6 +62,8 @@ export const screenTools = [
         tbdNote: { type: "string" },
         roles: { type: "array", items: { type: "string" } },
         codeRef: { type: "string" },
+        componentId: { type: ["string", "null"], description: "Reusable component group key. All screens sharing a componentId belong to the same component. Pass null to unlink." },
+        componentRole: { type: ["string", "null"], enum: ["canonical", "instance", null], description: "Role within the component group. 'canonical' = owns the spec; 'instance' = references the canonical's spec. Pass null to unlink." },
       },
       required: ["screenId"],
     },

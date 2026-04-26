@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, Z_INDEX } from "../styles/theme";
+import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, Z_INDEX, COMPONENT_CONFIG } from "../styles/theme";
 import { SCREENS_PANEL_WIDTH } from "../constants";
 
 export function ScreensPanel({
@@ -17,11 +17,13 @@ export function ScreensPanel({
   onTaskLinkChange,
   techStack,
   onTechStackChange,
+  onSetComponent,
   isReadOnly,
 }) {
   const [briefOpen, setBriefOpen] = useState(false);
   const [techOpen, setTechOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState(null); // { screenId, x, y }
+  const [instancePickerOpen, setInstancePickerOpen] = useState(false);
 
   const handleContextMenu = (e, screenId) => {
     e.preventDefault();
@@ -29,7 +31,7 @@ export function ScreensPanel({
     setContextMenu({ screenId, x: e.clientX, y: e.clientY });
   };
 
-  const closeContextMenu = () => setContextMenu(null);
+  const closeContextMenu = () => { setContextMenu(null); setInstancePickerOpen(false); };
 
   const handleStatusClick = (e, screen) => {
     e.stopPropagation();
@@ -513,6 +515,78 @@ export function ScreensPanel({
               </button>
             );
           })}
+          {!isReadOnly && onSetComponent && (() => {
+            const ctxScreen = screens.find((s) => s.id === contextMenu.screenId);
+            if (!ctxScreen) return null;
+            const isCanonical = ctxScreen.componentRole === "canonical";
+            const isInstance = ctxScreen.componentRole === "instance";
+            const canonicals = screens.filter((s) => s.componentRole === "canonical" && s.id !== ctxScreen.id);
+            const itemStyle = {
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "7px 14px",
+              background: "none",
+              border: "none",
+              color: COLORS.text,
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.ui,
+              fontSize: 12,
+            };
+            return (
+              <>
+                <div style={{ borderTop: `1px solid ${COLORS.border}` }} />
+                {!isCanonical && !isInstance && (
+                  <button
+                    onClick={() => { onSetComponent(ctxScreen.id, "canonical"); closeContextMenu(); }}
+                    style={itemStyle}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: COMPONENT_CONFIG.canonical.color, flexShrink: 0 }} />
+                    Mark as reusable component
+                  </button>
+                )}
+                {!isCanonical && !isInstance && canonicals.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setInstancePickerOpen((v) => !v)}
+                      style={itemStyle}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: COMPONENT_CONFIG.instance.color, flexShrink: 0 }} />
+                      Make instance of… {instancePickerOpen ? "▾" : "▸"}
+                    </button>
+                    {instancePickerOpen && canonicals.map((c) => (
+                      <button
+                        key={c.componentId}
+                        onClick={() => { onSetComponent(ctxScreen.id, "instance", { componentId: c.componentId }); closeContextMenu(); }}
+                        style={{ ...itemStyle, paddingLeft: 28, fontSize: 11, color: COLORS.textMuted }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                      >
+                        {c.name || "(unnamed)"}
+                      </button>
+                    ))}
+                  </>
+                )}
+                {(isCanonical || isInstance) && (
+                  <button
+                    onClick={() => { onSetComponent(ctxScreen.id, "unlink"); closeContextMenu(); }}
+                    style={itemStyle}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.textDim, flexShrink: 0 }} />
+                    Unlink component
+                  </button>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

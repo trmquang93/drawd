@@ -49,6 +49,8 @@ export function importFlow(fileText) {
     if (screen.sourceWidth === undefined) screen.sourceWidth = null;
     if (screen.sourceHeight === undefined) screen.sourceHeight = null;
     if (screen.wireframe === undefined) screen.wireframe = null;
+    if (screen.componentId === undefined) screen.componentId = null;
+    if (screen.componentRole === undefined) screen.componentRole = null;
     if (Array.isArray(screen.hotspots)) {
       for (const hs of screen.hotspots) {
         if (!hs.elementType) hs.elementType = "button";
@@ -140,6 +142,40 @@ export function importFlow(fileText) {
 
   // Backward compat: comments (v14+)
   if (!Array.isArray(data.comments)) data.comments = [];
+
+  // Defensive: enforce at most one canonical per componentId. If duplicates exist
+  // (e.g. from a hand-edited file), keep the first canonical and demote the rest to instances.
+  // Also clear stray componentRole when there's no canonical at all.
+  {
+    const seenCanonical = new Set();
+    const groupHasCanonical = new Set();
+    for (const s of data.screens) {
+      if (s.componentRole === "canonical" && s.componentId) groupHasCanonical.add(s.componentId);
+    }
+    for (const s of data.screens) {
+      if (!s.componentId) {
+        s.componentRole = null;
+        continue;
+      }
+      if (s.componentRole === "canonical") {
+        if (seenCanonical.has(s.componentId)) {
+          s.componentRole = "instance";
+        } else {
+          seenCanonical.add(s.componentId);
+        }
+      } else if (s.componentRole === "instance") {
+        // Instance without a canonical somewhere in the file -> drop component link.
+        if (!groupHasCanonical.has(s.componentId)) {
+          s.componentId = null;
+          s.componentRole = null;
+        }
+      } else {
+        // Has componentId but no role -> treat as not linked.
+        s.componentId = null;
+        s.componentRole = null;
+      }
+    }
+  }
 
   return data;
 }

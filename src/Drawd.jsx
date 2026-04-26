@@ -75,6 +75,7 @@ export default function Drawd({ initialRoomCode }) {
     pushHistory,
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
     updateScreenStatus, markAllExisting, updateWireframe,
+    setScreenComponent,
   } = useScreenManager(pan, zoom, canvasRef, {
     onDeleteCommentsForScreen: deleteCommentsForScreen,
     onDeleteCommentsForScreens: deleteCommentsForScreens,
@@ -565,6 +566,7 @@ export default function Drawd({ initialRoomCode }) {
           onTaskLinkChange={setTaskLink}
           techStack={techStack}
           onTechStackChange={setTechStack}
+          onSetComponent={setScreenComponent}
           isReadOnly={isReadOnly}
         />
 
@@ -714,6 +716,7 @@ export default function Drawd({ initialRoomCode }) {
             onUpdateCodeRef={updateScreenCodeRef}
             onUpdateCriteria={updateScreenCriteria}
             onUpdateStatus={updateScreenStatus}
+            onSetComponent={setScreenComponent}
             isReadOnly={isReadOnly}
           />
         )}

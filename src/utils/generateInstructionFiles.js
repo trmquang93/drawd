@@ -16,6 +16,47 @@ export function sortedScreens(screens) {
   return [...screens].sort((a, b) => a.x - b.x || a.y - b.y);
 }
 
+// --- Reusable component helpers ---
+// componentRole: "canonical" (owns spec) | "instance" (references canonical) | null
+// componentId:   shared key linking canonical + instances
+//
+// Returns:
+//   {
+//     canonicalByComponentId: Map<componentId, screen>,   // the screen that owns the spec
+//     instancesByComponentId: Map<componentId, screen[]>, // all instances (excluding canonical)
+//     componentSlugByComponentId: Map<componentId, slug>, // file slug for components/<slug>.md
+//   }
+// Falsy componentId / missing canonical -> screen treated as a normal (non-component) screen.
+export function getComponentGroups(screens) {
+  const canonicalByComponentId = new Map();
+  const instancesByComponentId = new Map();
+  const componentSlugByComponentId = new Map();
+
+  for (const s of screens) {
+    if (!s.componentId) continue;
+    if (s.componentRole === "canonical") canonicalByComponentId.set(s.componentId, s);
+  }
+  for (const s of screens) {
+    if (!s.componentId) continue;
+    if (!canonicalByComponentId.has(s.componentId)) continue;
+    if (s.componentRole === "instance") {
+      const list = instancesByComponentId.get(s.componentId) || [];
+      list.push(s);
+      instancesByComponentId.set(s.componentId, list);
+    }
+  }
+  // Disambiguate slugs in case two components share a name.
+  const seenSlugs = new Map();
+  for (const [componentId, canonical] of canonicalByComponentId) {
+    const base = slugify(canonical.name || "component") || "component";
+    const count = (seenSlugs.get(base) || 0) + 1;
+    seenSlugs.set(base, count);
+    componentSlugByComponentId.set(componentId, count === 1 ? base : `${base}-${count}`);
+  }
+
+  return { canonicalByComponentId, instancesByComponentId, componentSlugByComponentId };
+}
+
 export function detectDeviceType(imageWidth, imageHeight) {
   if (!imageWidth || !imageHeight) return null;
 
@@ -97,7 +138,7 @@ const INSTRUCTION_SCHEMA_VERSION = 1;
 
 // --- Sub-generators ---
 
-function generateMainMd(screens, connections, options, navAnalysis, images, documents = [], screenGroups = []) {
+function generateMainMd(screens, connections, options, navAnalysis, images, documents = [], screenGroups = [], componentInfo = null) {
   const sorted = sortedScreens(screens);
   const platform = options.platform || "auto";
   const platformLabel = platform === "auto"
@@ -181,6 +222,9 @@ function generateMainMd(screens, connections, options, navAnalysis, images, docu
   md += `| \`images/\` | Reference PNGs — the definitive visual design | Before implementing each screen |\n`;
   if (documents.length > 0) {
     md += `| \`documents.md\` | API specs, design guides, and project reference documents | When a hotspot references an API call or external document |\n`;
+  }
+  if (componentInfo && componentInfo.canonicalByComponentId.size > 0) {
+    md += `| \`components/\` | Reusable component specs — implement once, reuse for every instance | Before implementing any screen marked as a component or instance |\n`;
   }
   md += `\n`;
 
@@ -527,14 +571,20 @@ function generateDocumentsMd(documents) {
   return md;
 }
 
-function generateScreensMd(screens, connections, images, documents = []) {
+function generateScreensMd(screens, connections, images, documents = [], componentInfo = null) {
   const sorted = sortedScreens(screens);
+  const { canonicalByComponentId, componentSlugByComponentId } = componentInfo || getComponentGroups(screens);
 
   // Separate screens by status
   const toBuild = sorted.filter(s => !s.status || s.status === "new" || s.status === "modify");
   const contextOnly = sorted.filter(s => s.status === "existing");
 
   let md = `# Screens\n\n`;
+  if (canonicalByComponentId.size > 0) {
+    md += `> **Reusable components:** Some screens below are marked as components or instances.\n`;
+    md += `> Component specs live in \`components/<name>.md\` — implement each component **once**\n`;
+    md += `> and reuse it everywhere it appears. Instances do not duplicate the spec.\n\n`;
+  }
 
   // Build stateGroup map
   const stateGroups = {};
@@ -566,9 +616,33 @@ function generateScreensMd(screens, connections, images, documents = []) {
         }).join(", ")}`
       : "";
 
+    // Reusable component handling: canonical gets a "see component file" header but
+    // still includes the full spec inline (so screens.md remains self-contained for AI).
+    // Instances are reduced to a one-line stub pointing at the component file — no spec dup.
+    const isCanonical = s.componentRole === "canonical" && canonicalByComponentId.has(s.componentId);
+    const isInstance = s.componentRole === "instance" && canonicalByComponentId.has(s.componentId);
+    const componentSlug = (isCanonical || isInstance) ? componentSlugByComponentId.get(s.componentId) : null;
+    const canonicalScreen = isInstance ? canonicalByComponentId.get(s.componentId) : null;
+    const componentTag = isCanonical ? " 🔁 *(reusable component)*" : isInstance ? " ↗ *(instance)*" : "";
+
+    if (isInstance) {
+      output.add(s.id);
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}${componentTag} \`[${screenReqId(s)}]\`\n\n`;
+      md += `> **Instance of [${canonicalScreen.name}](components/${componentSlug}.md).** See the component\n`;
+      md += `> file for the full spec — do not regenerate or duplicate it here. Implement this screen by\n`;
+      md += `> reusing the component; only the navigation context (incoming/outgoing links) is specific\n`;
+      md += `> to this placement.\n\n`;
+      md += `---\n\n`;
+      return;
+    }
+
     if (s.stateGroup && stateGroups[s.stateGroup]?.length >= 2) {
       const group = stateGroups[s.stateGroup];
-      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag} \`[${screenReqId(s)}]\`\n\n`;
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}${componentTag} \`[${screenReqId(s)}]\`\n\n`;
+      if (isCanonical) {
+        md += `> **Reusable component.** The full spec also lives in \`components/${componentSlug}.md\`.\n`;
+        md += `> Implement this screen **once** as a component and reuse it everywhere it appears.\n\n`;
+      }
       md += `*This screen has ${group.length} states:*\n\n`;
 
       group.forEach((gs) => {
@@ -580,7 +654,11 @@ function generateScreensMd(screens, connections, images, documents = []) {
       md += `---\n\n`;
     } else {
       output.add(s.id);
-      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag} \`[${screenReqId(s)}]\`\n\n`;
+      md += `## Screen ${screenNum}: ${s.name}${statusTag}${tbdTag}${rolesTag}${componentTag} \`[${screenReqId(s)}]\`\n\n`;
+      if (isCanonical) {
+        md += `> **Reusable component.** The full spec also lives in \`components/${componentSlug}.md\`.\n`;
+        md += `> Implement this screen **once** as a component and reuse it everywhere it appears.\n\n`;
+      }
       if (s.tbd && s.tbdNote) {
         md += `> ⚠️ **TBD:** ${s.tbdNote}\n\n`;
       }
@@ -603,6 +681,41 @@ function generateScreensMd(screens, connections, images, documents = []) {
   }
 
   return md;
+}
+
+// Emit one markdown file per reusable component group. The file is the single source of
+// truth for the component's spec and lists every placement (canonical + instances) where
+// it appears, so the AI agent knows exactly where the same component is reused.
+function generateComponentFiles(screens, connections, images, documents, componentInfo) {
+  const { canonicalByComponentId, instancesByComponentId, componentSlugByComponentId } = componentInfo;
+  const files = [];
+  for (const [componentId, canonical] of canonicalByComponentId) {
+    const slug = componentSlugByComponentId.get(componentId);
+    const instances = instancesByComponentId.get(componentId) || [];
+    let md = `# Component: ${canonical.name}\n\n`;
+    md += `> **Reusable component — single source of truth.** Implement this component **once**\n`;
+    md += `> and reuse it for every placement listed below. Do not regenerate the spec for each\n`;
+    md += `> instance; \`screens.md\` references this file instead of duplicating it.\n\n`;
+    md += `**Component ID:** \`${screenReqId(canonical)}\`\n\n`;
+
+    md += `## Placements\n\n`;
+    md += `| Placement | Role | Incoming Links | Outgoing Links |\n`;
+    md += `|-----------|------|----------------|----------------|\n`;
+    const placements = [canonical, ...instances];
+    for (const p of placements) {
+      const incoming = connections.filter((c) => c.toScreenId === p.id).length;
+      const outgoing = connections.filter((c) => c.fromScreenId === p.id).length;
+      const role = p.id === canonical.id ? "canonical" : "instance";
+      md += `| ${p.name} | ${role} | ${incoming} | ${outgoing} |\n`;
+    }
+    md += `\n`;
+
+    md += `## Spec\n\n`;
+    md += generateScreenDetailMd(canonical, screens, connections, images, documents);
+
+    files.push({ name: `components/${slug}.md`, content: md });
+  }
+  return files;
 }
 
 function generateNavigationMd(screens, connections, navAnalysis) {
@@ -923,15 +1036,20 @@ export function generateInstructionFiles(screens, connections, options = {}) {
   const screenGroups = options.screenGroups || [];
   const navAnalysis = analyzeNavGraph(screens, connections);
   const images = extractImages(screens);
+  const componentInfo = getComponentGroups(screens);
   const generatedAt = new Date().toISOString();
   const schemaHeader = `<!-- drawd-schema: ${INSTRUCTION_SCHEMA_VERSION} | generated: ${generatedAt} -->\n\n`;
 
   const contentFiles = [
-    { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, images, documents, screenGroups) },
-    { name: "screens.md", content: generateScreensMd(screens, connections, images, documents) },
+    { name: "main.md", content: generateMainMd(screens, connections, options, navAnalysis, images, documents, screenGroups, componentInfo) },
+    { name: "screens.md", content: generateScreensMd(screens, connections, images, documents, componentInfo) },
     { name: "navigation.md", content: generateNavigationMd(screens, connections, navAnalysis) },
     { name: "build-guide.md", content: generateBuildGuideMd(screens, connections, options, screenGroups) },
   ];
+
+  // Emit one file per reusable component group (single source of truth for AI).
+  const componentFiles = generateComponentFiles(screens, connections, images, documents, componentInfo);
+  for (const cf of componentFiles) contentFiles.push(cf);
 
   const documentsMd = generateDocumentsMd(documents);
   if (documentsMd) {

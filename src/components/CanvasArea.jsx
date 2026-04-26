@@ -3,6 +3,7 @@ import { DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT } from "../constants";
 import { copyScreenForFigma, copyScreensForFigma, copyScreensForFigmaEditable, downloadScreenSvg } from "../utils/copyToFigma";
 import { copyScreensAsImage } from "../utils/copyAsImage";
 import { ScreenNode } from "./ScreenNode";
+import { resolveInstanceVisuals, isResolvedInstance } from "../utils/resolveInstanceVisuals";
 import { ConnectionLines } from "./ConnectionLines";
 import { ConditionalPrompt } from "./ConditionalPrompt";
 import { ConnectionTypePrompt } from "./ConnectionTypePrompt";
@@ -160,10 +161,14 @@ export function CanvasArea({
             }}
           />
         ))}
-        {screens.map((screen) => (
+        {screens.map((screen) => {
+          const visualScreen = resolveInstanceVisuals(screen, screens);
+          const instanceVisual = isResolvedInstance(screen) && visualScreen !== screen;
+          return (
           <ScreenNode
             key={screen.id}
-            screen={screen}
+            screen={visualScreen}
+            isInstanceVisual={instanceVisual}
             selected={selectedScreen === screen.id}
             onSelect={(id) => { clearSelection(); setSelectedScreen(id); setSelectedStickyNote(null); }}
             onDragStart={onDragStart}
@@ -213,7 +218,8 @@ export function CanvasArea({
             onCommentPinClick={onCommentPinClick}
             onDeselectComment={onDeselectComment}
           />
-        ))}
+          );
+        })}
         {stickyNotes.map((note) => (
           <StickyNote
             key={note.id}

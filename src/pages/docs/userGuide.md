@@ -283,6 +283,45 @@ State groups are reflected in the AI build instructions. Each variant screen is 
 > [!NOTE]
 > Deleting the only remaining variant in a state group automatically removes the group, returning that screen to standalone status.
 
+## Reusable Components
+
+When the same screen (a login modal, a toast, a bottom-nav bar) appears in multiple flows, mark it as a reusable component. The AI build instructions will then describe it once in `components/<name>.md` and have every other placement reference that single file — no duplicate code generation.
+
+### Marking a screen as a reusable component
+
+1. Select the screen.
+2. In the right sidebar, find the **Reusable Component** section.
+3. Tick **Mark as reusable component**. A purple `⟳ Component` badge appears on the screen and its border tints purple.
+
+You can also right-click the screen and choose **Mark as reusable component** from the context menu.
+
+### Marking another screen as an instance
+
+1. Select a different screen that should be the same component.
+2. In the **Reusable Component** section, use the **Instance of…** dropdown to pick the canonical component you just created.
+3. The screen's spec fields (description, code reference, acceptance criteria, roles) collapse — the spec lives on the canonical screen. The screen gets a `↗ Instance` badge.
+4. The instance's image and hotspots on the canvas mirror the canonical's automatically. Edit the canonical and every instance updates.
+
+> [!TIP]
+> Hotspot positions, dimensions, and the `+ Link` button are read-only on instances — the canonical owns the visual spec. To edit a hotspot or replace the image, jump to the canonical via the **Open canonical →** link in the sidebar.
+
+### Unlinking and conversions
+
+Click **Unlink** in the sidebar's component section (or right-click → Unlink component) to detach a screen from its component group.
+
+If you unlink a canonical that has instances, the first instance is auto-promoted to canonical so the group survives. If you delete the canonical, the same auto-promote happens.
+
+### What this changes in the AI build instructions
+
+When you generate instructions, you'll see:
+
+- A new `components/` directory with one markdown file per reusable component.
+- The component file contains the full spec plus a placements table listing every screen where the component is used.
+- In `screens.md`, the canonical screen still has its full spec, but each instance is replaced with a one-line stub: *"Instance of [ComponentName](components/component-name.md). See component spec."*
+- `main.md` advertises the `components/` directory in its instruction-files table.
+
+The result: the AI agent sees the component definition once, then sees several lightweight references — exactly how a real codebase reuses a component.
+
 ## Sticky Notes
 
 Sticky notes are colored annotations that float on the canvas. Use them for reminders, comments, or project notes alongside your screen designs.

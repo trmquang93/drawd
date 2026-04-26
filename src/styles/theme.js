@@ -38,6 +38,12 @@ export const COLORS = {
   statusExisting: "#636e72",
   statusExistingBorder: "#444",
   statusTbd: "#f0932b",
+  // Reusable component (shared screen) colors. Purple distinguishes them from status (green/yellow/grey)
+  // and TBD (orange) so a glance at the canvas tells the user what's a component vs. a normal screen.
+  componentCanonical: "#a78bfa",
+  componentInstance: "#7c3aed",
+  componentBg: "rgba(167,139,250,0.15)",
+  componentBgInstance: "rgba(124,58,237,0.12)",
   imageAreaBg: "#0d0d15",
   // Multi-object selection
   selection: "rgba(97,175,239,0.08)",
@@ -88,6 +94,13 @@ export const STATUS_CONFIG = {
 
 // Maps each status to the next in the cycle
 export const STATUS_CYCLE = { new: "modify", modify: "existing", existing: "new" };
+
+// Reusable component badge config. Mirrors STATUS_CONFIG so consumers can render
+// a component pill alongside the status pill with the same styling pattern.
+export const COMPONENT_CONFIG = {
+  canonical: { label: "Component",  color: COLORS.componentCanonical, bg: COLORS.componentBg },
+  instance:  { label: "Instance",   color: COLORS.componentInstance,  bg: COLORS.componentBgInstance },
+};
 
 export const styles = {
   monoLabel: {

@@ -1,8 +1,8 @@
-import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE } from "../styles/theme";
+import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, COMPONENT_CONFIG } from "../styles/theme";
 import { useState } from "react";
 import { SIDEBAR_WIDTH } from "../constants";
 
-export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles, isReadOnly }) {
+export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles, onSetComponent, isReadOnly }) {
   const [draftNotes, setDraftNotes] = useState(screen.notes || "");
   const [notesScreenId, setNotesScreenId] = useState(screen.id);
   const [draftCodeRef, setDraftCodeRef] = useState(screen.codeRef || "");
@@ -34,6 +34,17 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
   const incomingLinks = connections.filter((c) => c.toScreenId === screen.id);
   const status = screen.status || "new";
   const statusCfg = STATUS_CONFIG[status];
+
+  // Component (shared/reusable screen) state derivations.
+  const isCanonical = screen.componentRole === "canonical";
+  const isInstance = screen.componentRole === "instance";
+  const canonicalScreens = screens.filter((s) => s.componentRole === "canonical");
+  const myCanonical = isInstance
+    ? canonicalScreens.find((s) => s.componentId === screen.componentId)
+    : null;
+  const instanceCount = isCanonical
+    ? screens.filter((s) => s.componentId === screen.componentId && s.id !== screen.id).length
+    : 0;
 
   return (
     <div
@@ -177,6 +188,159 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
           {statusCfg.label}
         </button>
       </div>
+
+      {/* Reusable Component */}
+      <div
+        style={{
+          padding: "10px 12px",
+          background: isCanonical ? COMPONENT_CONFIG.canonical.bg : isInstance ? COMPONENT_CONFIG.instance.bg : COLORS.bg,
+          border: `1px solid ${isCanonical ? COMPONENT_CONFIG.canonical.color : isInstance ? COMPONENT_CONFIG.instance.color : "transparent"}`,
+          borderRadius: 8,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 6,
+        }}>
+          <span style={{
+            fontSize: 10,
+            color: COLORS.textMuted,
+            fontFamily: FONTS.mono,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}>
+            Reusable Component
+          </span>
+          {(isCanonical || isInstance) && !isReadOnly && (
+            <button
+              onClick={() => onSetComponent?.(screen.id, "unlink")}
+              style={{
+                background: "none",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 4,
+                color: COLORS.textMuted,
+                fontSize: 10,
+                padding: "2px 6px",
+                cursor: "pointer",
+                fontFamily: FONTS.mono,
+              }}
+            >
+              Unlink
+            </button>
+          )}
+        </div>
+
+        {!isCanonical && !isInstance && (
+          <>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: COLORS.text, fontFamily: FONTS.mono, cursor: isReadOnly ? "default" : "pointer", marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                checked={false}
+                disabled={isReadOnly}
+                onChange={() => onSetComponent?.(screen.id, "canonical")}
+              />
+              Mark as reusable component
+            </label>
+            {canonicalScreens.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 10, color: COLORS.textDim, fontFamily: FONTS.mono, marginBottom: 4 }}>
+                  …or use an existing component:
+                </div>
+                <select
+                  value=""
+                  disabled={isReadOnly}
+                  onChange={(e) => {
+                    if (e.target.value) onSetComponent?.(screen.id, "instance", { componentId: e.target.value });
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "4px 8px",
+                    background: "rgba(255,255,255,0.05)",
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 6,
+                    color: COLORS.text,
+                    fontSize: 11,
+                    fontFamily: FONTS.mono,
+                    outline: "none",
+                  }}
+                >
+                  <option value="">Instance of…</option>
+                  {canonicalScreens.map((c) => (
+                    <option key={c.componentId} value={c.componentId}>{c.name || "(unnamed)"}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
+
+        {isCanonical && (
+          <div style={{ fontSize: 11, color: COLORS.text, fontFamily: FONTS.mono, lineHeight: 1.5 }}>
+            <span style={{
+              display: "inline-block",
+              padding: "2px 8px",
+              borderRadius: 4,
+              background: COMPONENT_CONFIG.canonical.bg,
+              color: COMPONENT_CONFIG.canonical.color,
+              fontSize: 10,
+              fontWeight: 600,
+              marginRight: 6,
+            }}>
+              Component
+            </span>
+            This screen is a reusable component. {instanceCount} instance{instanceCount === 1 ? "" : "s"}.
+          </div>
+        )}
+
+        {isInstance && (
+          <div style={{ fontSize: 11, color: COLORS.text, fontFamily: FONTS.mono, lineHeight: 1.5 }}>
+            <div style={{ marginBottom: 6 }}>
+              <span style={{
+                display: "inline-block",
+                padding: "2px 8px",
+                borderRadius: 4,
+                background: COMPONENT_CONFIG.instance.bg,
+                color: COMPONENT_CONFIG.instance.color,
+                fontSize: 10,
+                fontWeight: 600,
+                marginRight: 6,
+              }}>
+                Instance
+              </span>
+              of <strong>{myCanonical?.name || "(unknown)"}</strong>.
+            </div>
+            <div style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.mono, lineHeight: 1.5 }}>
+              Spec is defined on the canonical screen.{" "}
+              {myCanonical && (
+                <button
+                  onClick={() => onSelectScreen?.(myCanonical.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: COLORS.accentLight,
+                    fontFamily: FONTS.mono,
+                    fontSize: 10,
+                    padding: 0,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Open canonical →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Spec fields are hidden on instances — the canonical owns the spec.
+          We keep Hotspots and Screen States editable below since navigation context
+          can legitimately differ per placement of a component. */}
+      {!isInstance && (
+      <>
       {/* Roles */}
       <div
         style={{
@@ -441,6 +605,8 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
           />
         </div>
       </div>
+      </>
+      )}
 
       {/* Screen States */}
       <div

@@ -45,6 +45,8 @@ function makeScreen(overrides = {}) {
     sourceWidth: null,
     sourceHeight: null,
     wireframe: null,
+    componentId: null,
+    componentRole: null,
     ...overrides,
   };
 }
@@ -191,15 +193,26 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     pushHistory(screens, connections, documents);
     const removedScreen = screens.find((s) => s.id === id);
     setScreens((prev) => {
-      const remaining = prev.filter((s) => s.id !== id);
+      let remaining = prev.filter((s) => s.id !== id);
       // Auto-cleanup: if only one screen left in the stateGroup, clear it
       if (removedScreen?.stateGroup) {
         const siblings = remaining.filter((s) => s.stateGroup === removedScreen.stateGroup);
         if (siblings.length === 1) {
-          return remaining.map((s) =>
+          remaining = remaining.map((s) =>
             s.stateGroup === removedScreen.stateGroup
               ? { ...s, stateGroup: null, stateName: "" }
               : s
+          );
+        }
+      }
+      // Auto-promote: if the removed screen was a canonical component, promote the first instance.
+      if (removedScreen?.componentRole === "canonical" && removedScreen.componentId) {
+        const firstInstance = remaining.find(
+          (s) => s.componentId === removedScreen.componentId && s.componentRole === "instance"
+        );
+        if (firstInstance) {
+          remaining = remaining.map((s) =>
+            s.id === firstInstance.id ? { ...s, componentRole: "canonical" } : s
           );
         }
       }
@@ -246,6 +259,72 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
   const updateScreenStatus = useCallback((id, status) => {
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
   }, []);
+
+  // Component (shared/reusable screen) actions.
+  // mode: "canonical" | "instance" | "unlink"
+  // For "canonical": assigns a fresh componentId (or re-uses existing) and componentRole "canonical".
+  // For "instance":  caller passes componentId of an existing canonical screen.
+  // For "unlink":    clears both fields. If the screen was canonical with instances, auto-promote
+  //                  the first instance to canonical so the group survives.
+  const setScreenComponent = useCallback((id, mode, opts = {}) => {
+    pushHistory(screens, connections, documents);
+    setScreens((prev) => {
+      const target = prev.find((s) => s.id === id);
+      if (!target) return prev;
+
+      if (mode === "canonical") {
+        // If already canonical, no-op. If instance, promote it (keep its componentId).
+        // Otherwise mint a new componentId.
+        const newComponentId =
+          target.componentRole === "canonical"
+            ? target.componentId
+            : target.componentId || generateId();
+        return prev.map((s) =>
+          s.id === id
+            ? { ...s, componentId: newComponentId, componentRole: "canonical" }
+            : s
+        );
+      }
+
+      if (mode === "instance") {
+        const targetComponentId = opts.componentId;
+        if (!targetComponentId) return prev;
+        // Verify a canonical exists for that componentId
+        const canonicalExists = prev.some(
+          (s) => s.componentId === targetComponentId && s.componentRole === "canonical"
+        );
+        if (!canonicalExists) return prev;
+        return prev.map((s) =>
+          s.id === id
+            ? { ...s, componentId: targetComponentId, componentRole: "instance" }
+            : s
+        );
+      }
+
+      if (mode === "unlink") {
+        const wasCanonical = target.componentRole === "canonical";
+        const groupId = target.componentId;
+        if (wasCanonical && groupId) {
+          // Auto-promote: find first instance and make it canonical
+          const firstInstance = prev.find(
+            (s) => s.id !== id && s.componentId === groupId && s.componentRole === "instance"
+          );
+          if (firstInstance) {
+            return prev.map((s) => {
+              if (s.id === id) return { ...s, componentId: null, componentRole: null };
+              if (s.id === firstInstance.id) return { ...s, componentRole: "canonical" };
+              return s;
+            });
+          }
+        }
+        return prev.map((s) =>
+          s.id === id ? { ...s, componentId: null, componentRole: null } : s
+        );
+      }
+
+      return prev;
+    });
+  }, [screens, connections, documents, pushHistory]);
 
   const markAllExisting = useCallback(() => {
     setScreens((prev) => prev.map((s) => ({ ...s, status: "existing" })));
@@ -297,6 +376,27 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
         if (siblings.length === 1) {
           remaining = remaining.map((s) =>
             s.stateGroup === groupId ? { ...s, stateGroup: null, stateName: "" } : s
+          );
+        }
+      });
+      // Auto-promote any orphaned component groups: if a canonical was removed and instances remain,
+      // promote the first remaining instance to canonical.
+      const removedCanonicalGroups = new Set(
+        removedScreens
+          .filter((s) => s.componentRole === "canonical" && s.componentId)
+          .map((s) => s.componentId)
+      );
+      removedCanonicalGroups.forEach((groupId) => {
+        const stillCanonical = remaining.some(
+          (s) => s.componentId === groupId && s.componentRole === "canonical"
+        );
+        if (stillCanonical) return;
+        const firstInstance = remaining.find(
+          (s) => s.componentId === groupId && s.componentRole === "instance"
+        );
+        if (firstInstance) {
+          remaining = remaining.map((s) =>
+            s.id === firstInstance.id ? { ...s, componentRole: "canonical" } : s
           );
         }
       });
@@ -1028,6 +1128,11 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
           return cloned;
         });
 
+        // If we duplicated a canonical screen, the copy must not also be canonical
+        // (would create two canonicals for one componentId). Demote the copy to instance,
+        // which expresses the user intent: "I want this same component used again here."
+        const clonedRole = s.componentRole === "canonical" ? "instance" : s.componentRole;
+
         return {
           ...s,
           id: screenIdMap.get(s.id),
@@ -1038,6 +1143,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
             : null,
           stateName: s.stateGroup && stateGroupMap.has(s.stateGroup) ? s.stateName : "",
           hotspots: clonedHotspots,
+          componentRole: clonedRole,
         };
       });
 
@@ -1097,6 +1203,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     updateScreenCodeRef,
     updateScreenCriteria,
     updateScreenStatus,
+    setScreenComponent,
     markAllExisting,
     assignScreenImage,
     patchScreenImage,

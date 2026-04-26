@@ -5,6 +5,7 @@ import {
   detectDeviceType,
   mostCommon,
   generateInstructionFiles,
+  getComponentGroups,
 } from "./generateInstructionFiles.js";
 
 // --- Helper unit tests ---
@@ -266,5 +267,138 @@ describe("generateInstructionFiles", () => {
     const result = generateInstructionFiles([minimalScreen], [], { platform: "auto" });
     const buildGuide = result.files.find((f) => f.name === "build-guide.md");
     expect(buildGuide.content).not.toContain(".accessibilityLabel");
+  });
+});
+
+// --- Reusable component tests ---
+
+describe("getComponentGroups", () => {
+  const baseScreen = { id: "s", name: "Card", x: 0, y: 0, width: 390, imageWidth: 390, imageHeight: 844, hotspots: [] };
+
+  it("returns empty maps when no screens have componentId", () => {
+    const result = getComponentGroups([{ ...baseScreen, id: "s1" }]);
+    expect(result.canonicalByComponentId.size).toBe(0);
+    expect(result.instancesByComponentId.size).toBe(0);
+  });
+
+  it("groups canonical and instances by componentId", () => {
+    const screens = [
+      { ...baseScreen, id: "s1", name: "Card", componentId: "c1", componentRole: "canonical" },
+      { ...baseScreen, id: "s2", name: "Card on Home", componentId: "c1", componentRole: "instance" },
+      { ...baseScreen, id: "s3", name: "Card on Detail", componentId: "c1", componentRole: "instance" },
+    ];
+    const result = getComponentGroups(screens);
+    expect(result.canonicalByComponentId.get("c1").id).toBe("s1");
+    expect(result.instancesByComponentId.get("c1").map((s) => s.id)).toEqual(["s2", "s3"]);
+    expect(result.componentSlugByComponentId.get("c1")).toBe("card");
+  });
+
+  it("drops orphan instances that have no canonical", () => {
+    const screens = [
+      { ...baseScreen, id: "s1", name: "Orphan", componentId: "c1", componentRole: "instance" },
+    ];
+    const result = getComponentGroups(screens);
+    expect(result.canonicalByComponentId.size).toBe(0);
+    expect(result.instancesByComponentId.size).toBe(0);
+  });
+
+  it("disambiguates slugs when two components share a name", () => {
+    const screens = [
+      { ...baseScreen, id: "s1", name: "Card", componentId: "c1", componentRole: "canonical" },
+      { ...baseScreen, id: "s2", name: "Card", componentId: "c2", componentRole: "canonical" },
+    ];
+    const result = getComponentGroups(screens);
+    const slugs = [result.componentSlugByComponentId.get("c1"), result.componentSlugByComponentId.get("c2")];
+    expect(slugs).toContain("card");
+    expect(slugs).toContain("card-2");
+  });
+});
+
+describe("generateInstructionFiles - reusable components", () => {
+  const minimalScreen = {
+    id: "s1",
+    name: "Home",
+    x: 0,
+    y: 0,
+    width: 390,
+    imageWidth: 390,
+    imageHeight: 844,
+    hotspots: [],
+  };
+  const opts = { platform: "swiftui" };
+
+  it("emits exactly one components/<slug>.md per canonical", () => {
+    const screens = [
+      { ...minimalScreen, id: "s1", name: "Card", componentId: "c1", componentRole: "canonical" },
+      { ...minimalScreen, id: "s2", name: "Home", x: 400, componentId: "c1", componentRole: "instance" },
+      { ...minimalScreen, id: "s3", name: "Detail", x: 800, componentId: "c1", componentRole: "instance" },
+    ];
+    const result = generateInstructionFiles(screens, [], opts);
+    const componentFiles = result.files.filter((f) => f.name.startsWith("components/"));
+    expect(componentFiles.length).toBe(1);
+    expect(componentFiles[0].name).toBe("components/card.md");
+  });
+
+  it("emits no component files when no screens are marked canonical", () => {
+    const result = generateInstructionFiles([minimalScreen], [], opts);
+    const componentFiles = result.files.filter((f) => f.name.startsWith("components/"));
+    expect(componentFiles.length).toBe(0);
+  });
+
+  it("renders instance screens as a stub linking to the canonical component file", () => {
+    const screens = [
+      { ...minimalScreen, id: "s1", name: "Card", componentId: "c1", componentRole: "canonical" },
+      { ...minimalScreen, id: "s2", name: "Home", x: 400, componentId: "c1", componentRole: "instance" },
+    ];
+    const result = generateInstructionFiles(screens, [], opts);
+    const screensFile = result.files.find((f) => f.name === "screens.md");
+    expect(screensFile.content).toContain("Instance of [Card](components/card.md)");
+  });
+
+  it("does not duplicate hotspot tables for instance screens", () => {
+    const hotspot = {
+      id: "h1",
+      label: "Login",
+      elementType: "button",
+      interactionType: "tap",
+      action: "navigate",
+      x: 10, y: 10, w: 80, h: 15,
+    };
+    const screens = [
+      { ...minimalScreen, id: "s1", name: "Card", hotspots: [hotspot], componentId: "c1", componentRole: "canonical" },
+      { ...minimalScreen, id: "s2", name: "Home", x: 400, hotspots: [hotspot], componentId: "c1", componentRole: "instance" },
+    ];
+    const result = generateInstructionFiles(screens, [], opts);
+    const screensFile = result.files.find((f) => f.name === "screens.md");
+    // Instance section should NOT include a hotspots table — only the canonical does.
+    // Hotspots table emits a "| Login |" row; canonical contributes one such row.
+    const matches = screensFile.content.match(/\| Login \|/g) || [];
+    expect(matches.length).toBe(1);
+  });
+
+  it("adds a components/ row to main.md only when canonicals exist", () => {
+    const noComponentResult = generateInstructionFiles([minimalScreen], [], opts);
+    const noComponentMain = noComponentResult.files.find((f) => f.name === "main.md");
+    expect(noComponentMain.content).not.toContain("Reusable component specs");
+
+    const screens = [
+      { ...minimalScreen, id: "s1", name: "Card", componentId: "c1", componentRole: "canonical" },
+    ];
+    const withComponentResult = generateInstructionFiles(screens, [], opts);
+    const withComponentMain = withComponentResult.files.find((f) => f.name === "main.md");
+    expect(withComponentMain.content).toContain("Reusable component specs");
+  });
+
+  it("component file lists placements with canonical and instances", () => {
+    const screens = [
+      { ...minimalScreen, id: "s1", name: "Card", componentId: "c1", componentRole: "canonical" },
+      { ...minimalScreen, id: "s2", name: "Home", x: 400, componentId: "c1", componentRole: "instance" },
+    ];
+    const result = generateInstructionFiles(screens, [], opts);
+    const componentFile = result.files.find((f) => f.name === "components/card.md");
+    expect(componentFile.content).toContain("# Component: Card");
+    expect(componentFile.content).toContain("canonical");
+    expect(componentFile.content).toContain("instance");
+    expect(componentFile.content).toContain("Home");
   });
 });
