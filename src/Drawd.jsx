@@ -355,8 +355,8 @@ export default function Drawd({ initialRoomCode }) {
     });
 
   // ── Import / export ────────────────────────────────────────────────────────────────
-  const { importConfirm, setImportConfirm, importFileRef, onExport, onExportPrototype, onImport, onImportFileChange, onImportReplace, onImportMerge } =
-    useImportExport({ screens, connections, documents, dataModels, stickyNotes, screenGroups, comments, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom, setStickyNotes, setScreenGroups, setComments, scopeScreenIds, connectedFileName });
+  const { importConfirm, setImportConfirm, importFileRef, onExport, onExportPrototype, onExportPng, onExportSvg, onImport, onImportFileChange, onImportReplace, onImportMerge } =
+    useImportExport({ screens, connections, documents, dataModels, stickyNotes, screenGroups, comments, pan, zoom, featureBrief, taskLink, techStack, replaceAll, mergeAll, setPan, setZoom, setStickyNotes, setScreenGroups, setComments, scopeScreenIds, connectedFileName, canvasSelection });
 
   // ── Toast notification ─────────────────────────────────────────────────────────────
   const [toast, setToast] = useState(null);
@@ -506,6 +506,8 @@ export default function Drawd({ initialRoomCode }) {
         dataModelCount={dataModels.length}
         onExport={onExport}
         onExportPrototype={onExportPrototype}
+        onExportPng={onExportPng}
+        onExportSvg={onExportSvg}
         onImport={onImport}
         onGenerate={onGenerate}
         onDocuments={() => setShowDocuments(true)}

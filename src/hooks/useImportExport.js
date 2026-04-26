@@ -3,6 +3,7 @@ import { exportFlow } from "../utils/exportFlow";
 import { importFlow } from "../utils/importFlow";
 import { mergeFlow } from "../utils/mergeFlow";
 import { generatePrototype, downloadPrototype } from "../utils/generatePrototype";
+import { exportCanvasAsPng, exportCanvasAsSvg } from "../utils/exportCanvasImage";
 
 export function useImportExport({
   screens,
@@ -26,6 +27,7 @@ export function useImportExport({
   setComments,
   scopeScreenIds,
   connectedFileName,
+  canvasSelection,
 }) {
   const [importConfirm, setImportConfirm] = useState(null);
   const importFileRef = useRef(null);
@@ -90,11 +92,41 @@ export function useImportExport({
     downloadPrototype(html);
   }, [screens, connections, scopeScreenIds, connectedFileName]);
 
+  const buildImageExportOpts = useCallback(() => ({
+    screens,
+    connections,
+    stickyNotes: stickyNotes || [],
+    screenGroups: screenGroups || [],
+    selection: canvasSelection || [],
+    scopeScreenIds,
+    filename: connectedFileName ? connectedFileName.replace(/\.drawd(\.json)?$/i, "") : undefined,
+  }), [screens, connections, stickyNotes, screenGroups, canvasSelection, scopeScreenIds, connectedFileName]);
+
+  const onExportPng = useCallback(async () => {
+    if (screens.length === 0 && (stickyNotes?.length || 0) === 0) return;
+    try {
+      await exportCanvasAsPng(buildImageExportOpts());
+    } catch (err) {
+      alert("PNG export failed: " + err.message);
+    }
+  }, [screens.length, stickyNotes?.length, buildImageExportOpts]);
+
+  const onExportSvg = useCallback(async () => {
+    if (screens.length === 0 && (stickyNotes?.length || 0) === 0) return;
+    try {
+      await exportCanvasAsSvg(buildImageExportOpts());
+    } catch (err) {
+      alert("SVG export failed: " + err.message);
+    }
+  }, [screens.length, stickyNotes?.length, buildImageExportOpts]);
+
   return {
     importConfirm, setImportConfirm,
     importFileRef,
     onExport,
     onExportPrototype,
+    onExportPng,
+    onExportSvg,
     onImport,
     onImportFileChange,
     onImportReplace,

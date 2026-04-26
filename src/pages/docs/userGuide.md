@@ -505,6 +505,45 @@ If a scope root is active (you are viewing a sub-flow), only the screens in that
 > [!TIP]
 > The exported file is entirely self-contained — share it via email, Slack, or any file host. Recipients just open it in a browser to tap through the flow.
 
+## Exporting Canvas Images (PNG / SVG)
+
+Export the visual canvas as a flat image to embed in design docs, Notion pages, Slack threads, JIRA tickets, or PR descriptions.
+
+### How to export
+
+- Open the **File** menu in the top bar and click **Export as PNG** or **Export as SVG**
+- A timestamped image file downloads immediately — no extra dialog
+
+### What gets included
+
+- All screen cards (header bar with name + image content) at their canvas positions
+- Connection bezier curves with arrowheads, color-coded by path (default / api-success / api-error / conditional)
+- Connection labels and conditional branch labels
+- Sticky notes with their content and color
+- Screen-group rectangles (dashed outline + label)
+- Hotspots are drawn as subtle dashed overlays so reviewers can see tap targets
+
+### What gets excluded (by design)
+
+- Editor chrome: top bar, side panels, toolbar, selection handles, hover effects, comment pins, remote cursors
+- Canvas grid dots — the export uses a clean dark background
+
+### Choosing what to export
+
+The exporter picks one of three scopes, in priority order:
+
+1. **Multi-selected items** — if you have screens or sticky notes selected (rubber-band or `Shift+click`), only those are exported. Connections between selected screens are included; connections to non-selected screens are dropped.
+2. **Scope root** — if a scope root is active (you are viewing a sub-flow), only the in-scope screens and their connections are exported.
+3. **Everything** — if nothing is selected and no scope is active, the entire canvas is exported.
+
+### PNG vs SVG
+
+- **PNG** — Raster image at 2x pixel ratio (Retina-quality). Best for chat apps, screenshots, and tickets where you want a fixed image. Very large flows are auto-capped at the browser's canvas-size limit (~16384px) so they render reliably.
+- **SVG** — Scalable vector with screens embedded as data URLs. Best for design tools (Figma, Illustrator), zooming without quality loss, and editing labels after export.
+
+> [!NOTE]
+> SVG files are self-contained — screen images are embedded as data URLs, so the SVG renders correctly on its own with no external dependencies.
+
 ## Keyboard Shortcuts
 
 Press `?` anywhere on the canvas to open the full keyboard shortcuts panel. The shortcuts below are organized by category.

@@ -102,7 +102,7 @@ function ShareIcon() {
   );
 }
 
-export function TopBar({ screenCount, connectionCount, onExport, onExportPrototype, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0, collabState, onShare, collabBadge, collabPresence, onToggleParticipants, showParticipants, onTemplates, onCompareFlows, onToggleComments, showComments, unresolvedCommentCount = 0, canComment }) {
+export function TopBar({ screenCount, connectionCount, onExport, onExportPrototype, onExportPng, onExportSvg, onImport, onGenerate, canUndo, canRedo, onUndo, onRedo, connectedFileName, saveStatus, isFileSystemSupported, onNew, onOpen, onSaveAs, onDocuments, documentCount = 0, onDataModels, dataModelCount = 0, collabState, onShare, collabBadge, collabPresence, onToggleParticipants, showParticipants, onTemplates, onCompareFlows, onToggleComments, showComments, unresolvedCommentCount = 0, canComment }) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef(null);
 
@@ -438,6 +438,26 @@ export function TopBar({ screenCount, connectionCount, onExport, onExportPrototy
                 style={menuItemStyle(screenCount === 0)}
               >
                 <span>Export Prototype</span>
+              </button>
+
+              <button
+                className="ff-menu-item"
+                onClick={() => { if (screenCount > 0) { setFileMenuOpen(false); onExportPng?.(); } }}
+                disabled={screenCount === 0}
+                style={menuItemStyle(screenCount === 0)}
+                title="Export the canvas (or selected items) as a high-resolution PNG image"
+              >
+                <span>Export as PNG</span>
+              </button>
+
+              <button
+                className="ff-menu-item"
+                onClick={() => { if (screenCount > 0) { setFileMenuOpen(false); onExportSvg?.(); } }}
+                disabled={screenCount === 0}
+                style={menuItemStyle(screenCount === 0)}
+                title="Export the canvas (or selected items) as a scalable SVG image"
+              >
+                <span>Export as SVG</span>
               </button>
 
               {isFileSystemSupported && (
