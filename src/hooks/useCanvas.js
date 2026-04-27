@@ -13,6 +13,23 @@ export function useCanvas(activeTool = "select") {
   const isSpaceHeld = useRef(false);
   const multiDragging = useRef(null); // [{type, id, offsetX, offsetY}]
 
+  // Pan/wheel rAF coalescing infrastructure. Mousemove and wheel events can
+  // fire faster than React can render at low zoom (more screens visible →
+  // heavier reconcile per frame). Coalescing setPan into one call per
+  // animation frame eliminates the back-pressure that produces stutter.
+  const panStartRef = useRef(null); // mirror of panStart, read inside rAF
+  const panRafRef = useRef(0); // pending rAF id for pan, 0 if none
+  const pendingPanEvent = useRef(null); // latest { clientX, clientY } during pan
+  const wheelRafRef = useRef(0); // pending rAF id for wheel pan, 0 if none
+  const pendingWheelDelta = useRef({ dx: 0, dy: 0 });
+
+  // Wrapper that keeps panStartRef in sync with panStart state so the rAF
+  // callback always reads the latest committed start position.
+  const setPanStartSynced = useCallback((value) => {
+    panStartRef.current = value;
+    setPanStart(value);
+  }, []);
+
   const handleDragStart = useCallback((e, screenId, screens) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const screen = screens.find((s) => s.id === screenId);
@@ -61,12 +78,24 @@ export function useCanvas(activeTool = "select") {
       const newY = (e.clientY - rect.top - pan.y) / zoom - dragging.offsetY;
       return { type: "drag", id: dragging.id, x: newX, y: newY };
     }
-    if (isPanning && panStart) {
-      setPan({
-        x: pan.x + (e.clientX - panStart.x),
-        y: pan.y + (e.clientY - panStart.y),
-      });
-      setPanStart({ x: e.clientX, y: e.clientY });
+    if (isPanning && panStartRef.current) {
+      // Stash the latest cursor position; the rAF flush reads from this ref.
+      pendingPanEvent.current = { clientX: e.clientX, clientY: e.clientY };
+      if (panRafRef.current === 0) {
+        panRafRef.current = requestAnimationFrame(() => {
+          panRafRef.current = 0;
+          const latest = pendingPanEvent.current;
+          const start = panStartRef.current;
+          pendingPanEvent.current = null;
+          if (!latest || !start) return;
+          const dx = latest.clientX - start.x;
+          const dy = latest.clientY - start.y;
+          setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+          const nextStart = { x: latest.clientX, y: latest.clientY };
+          panStartRef.current = nextStart;
+          setPanStart(nextStart);
+        });
+      }
     }
     return null;
   }, [multiDragging, dragging, isPanning, panStart, pan, zoom]);
@@ -76,7 +105,13 @@ export function useCanvas(activeTool = "select") {
     multiDragging.current = null;
     setDragging(null);
     setIsPanning(false);
+    panStartRef.current = null;
     setPanStart(null);
+    if (panRafRef.current) {
+      cancelAnimationFrame(panRafRef.current);
+      panRafRef.current = 0;
+      pendingPanEvent.current = null;
+    }
     return { wasMultiDragging };
   }, []);
 
@@ -85,12 +120,12 @@ export function useCanvas(activeTool = "select") {
     // Pan tool: always pan regardless of click target
     if (activeTool === "pan") {
       setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY });
+      setPanStartSynced({ x: e.clientX, y: e.clientY });
       return true;
     }
     if (isSpaceHeld.current) {
       setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY });
+      setPanStartSynced({ x: e.clientX, y: e.clientY });
       return true;
     }
     if (e.target === canvasRef.current || e.target.classList.contains("canvas-inner")) {
@@ -98,11 +133,11 @@ export function useCanvas(activeTool = "select") {
         return "empty";
       }
       setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY });
+      setPanStartSynced({ x: e.clientX, y: e.clientY });
       return true;
     }
     return false;
-  }, [activeTool]);
+  }, [activeTool, setPanStartSynced]);
 
   const handleWheel = useCallback((e) => {
     e.preventDefault();
@@ -122,7 +157,18 @@ export function useCanvas(activeTool = "select") {
         return newZoom;
       });
     } else {
-      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+      // Coalesce wheel-pan into one setPan per animation frame. Wheel events
+      // on high-DPI trackpads can fire faster than the display refresh rate.
+      pendingWheelDelta.current.dx += e.deltaX;
+      pendingWheelDelta.current.dy += e.deltaY;
+      if (wheelRafRef.current === 0) {
+        wheelRafRef.current = requestAnimationFrame(() => {
+          wheelRafRef.current = 0;
+          const { dx, dy } = pendingWheelDelta.current;
+          pendingWheelDelta.current = { dx: 0, dy: 0 };
+          setPan((p) => ({ x: p.x - dx, y: p.y - dy }));
+        });
+      }
     }
   }, []);
 
@@ -133,6 +179,21 @@ export function useCanvas(activeTool = "select") {
       return () => canvas.removeEventListener("wheel", handleWheel);
     }
   }, [handleWheel]);
+
+  // Cancel any pending coalesced pan/wheel rAFs on unmount to avoid leaks
+  // and "setState on unmounted component" warnings during route changes.
+  useEffect(() => {
+    return () => {
+      if (panRafRef.current) {
+        cancelAnimationFrame(panRafRef.current);
+        panRafRef.current = 0;
+      }
+      if (wheelRafRef.current) {
+        cancelAnimationFrame(wheelRafRef.current);
+        wheelRafRef.current = 0;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e) => {
