@@ -832,7 +832,7 @@ Open Claude Desktop settings, go to the MCP section, and add a new server with:
 
 ### Available tools
 
-The MCP server exposes 29 tools organized by category:
+The MCP server exposes 32 tools organized by category:
 
 - **File** — `create_flow`, `open_flow`, `save_flow`, `get_flow_info`
 - **Screen** — `create_screen` (from HTML), `create_blank_screen`, `update_screen`, `delete_screen`, `list_screens`, `get_screen`, `update_screen_image`, `batch_create_screens`, `compose_chrome`, `get_chrome_info`
@@ -844,6 +844,7 @@ The MCP server exposes 29 tools organized by category:
 - **Comments** — `list_comments`, `create_comment`, `update_comment`, `resolve_comment`, `delete_comment`
 - **Generation** — `validate_flow`, `generate_instructions`, `analyze_navigation`
 - **Selection** — `get_current_selection`
+- **Assets** — `generate_icon`, `search_icons`, `find_stock_image`
 
 ### Creating screens from HTML
 
@@ -893,6 +894,33 @@ A typical agent interaction looks like this:
 6. `generate_instructions` — produce AI build instruction files
 
 You can then open the saved `.drawd` file in Drawd to visually inspect the flow, adjust screen positions, refine hotspots, and regenerate instructions.
+
+### Icons and stock photos
+
+Three asset tools let agents enrich screens with real imagery instead of hand-drawn shapes or emoji substitutes.
+
+- `generate_icon` — Fetch one icon by `collection` + `name` from Iconify (275k+ icons across `mdi`, `ph`, `lucide`, `tabler`, `heroicons`, `solar`, `carbon`, and more). Returns an inline SVG string the agent embeds verbatim in the screen HTML. Use `color: "currentColor"` to inherit the surrounding text color.
+- `search_icons` — Search Iconify across all (or one) collections. Returns ranked candidate icon IDs the agent can preview and pick from before calling `generate_icon`.
+- `find_stock_image` — Search royalty-free photos and get back URLs with attribution. Embed via `<img src="...">` in the screen HTML; the renderer fetches and inlines the bytes at PNG-render time. Sources: Unsplash, Pexels, Picsum.
+
+#### Zero-config and key-upgrade paths
+
+The tools work on a fresh install with no API keys — Iconify and Picsum are keyless. Setting environment variables upgrades the photo source without code changes:
+
+- `UNSPLASH_ACCESS_KEY` — enables query-relevant Unsplash results.
+- `PEXELS_API_KEY` — enables Pexels as the secondary photo source.
+
+`find_stock_image` tries `unsplash` → `pexels` → `picsum` in order based on which keys are configured. When a keyed source is requested but the key is missing, the tool transparently falls back to the next provider and includes a `warning` field describing what happened, so the agent can surface it to the user.
+
+> [!NOTE]
+> Picsum does not actually search by query — it returns deterministic seeded photos for a given query string. Set `UNSPLASH_ACCESS_KEY` for query-relevant results.
+
+#### Renderer image inlining
+
+When `create_screen` HTML contains `<img src="https://...">`, the renderer downloads each image and bakes the bytes into the rendered PNG so the screen looks complete. Only an allowlist of provider hosts (`api.iconify.design`, `images.unsplash.com`, `api.unsplash.com`, `api.pexels.com`, `images.pexels.com`, `picsum.photos`, `fastly.picsum.photos`) is fetched. Any other host (or a failed fetch) is replaced with a transparent 1×1 placeholder so a single bad URL never breaks the whole render.
+
+> [!TIP]
+> Cached image bytes live under `~/.cache/drawd-mcp/` and persist across runs. The first render of a screen with photos is the slow one; re-renders use the disk cache.
 
 ### Reading the user's current selection
 
