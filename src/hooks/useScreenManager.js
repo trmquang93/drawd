@@ -47,6 +47,7 @@ function makeScreen(overrides = {}) {
     wireframe: null,
     componentId: null,
     componentRole: null,
+    device: null,
     ...overrides,
   };
 }

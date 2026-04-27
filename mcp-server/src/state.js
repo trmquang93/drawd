@@ -152,6 +152,7 @@ export class FlowState {
       notes = "",
       tbd = false,
       tbdNote = "",
+      device = null,
     } = options;
 
     const pos = position || gridPosition(this.screens.length);
@@ -184,6 +185,7 @@ export class FlowState {
       figmaSource: null,
       componentId: null,
       componentRole: null,
+      device,
     };
 
     this.screens.push(screen);
@@ -205,6 +207,7 @@ export class FlowState {
       "imageData", "imageWidth", "imageHeight",
       "svgContent", "sourceHtml", "wireframe",
       "componentId", "componentRole",
+      "device",
     ];
     for (const key of allowed) {
       if (updates[key] !== undefined) {
