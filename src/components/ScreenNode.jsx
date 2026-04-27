@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { COLORS, FONTS } from "../styles/theme";
+import { createPortal } from "react-dom";
+import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, Z_INDEX } from "../styles/theme";
 import { DEFAULT_SCREEN_WIDTH, DEFAULT_IMAGE_HEIGHT, HEADER_HEIGHT, DESCRIPTION_MAX_LENGTH } from "../constants";
 import { CommentPin } from "./CommentPin";
 
@@ -13,6 +14,7 @@ export function ScreenNode({
   scopeRoot, isInScope, onContextMenu,
   isMultiSelected, onToggleSelect, onMultiDragStart,
   isReadOnly,
+  onUpdateStatus,
   onFormSummary,
   mcpFlash,
   // Comment mode
@@ -31,6 +33,7 @@ export function ScreenNode({
   const [draftDesc, setDraftDesc] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [altHeld, setAltHeld] = useState(false);
+  const [statusMenu, setStatusMenu] = useState(null); // { x, y } | null
   const imgRef = useRef(null);
   const [prevImageData, setPrevImageData] = useState(screen.imageData);
 
@@ -313,7 +316,7 @@ export function ScreenNode({
               ↗ Instance
             </span>
           )}
-          {(status !== "new" || isScopeRoot) && (
+          {isReadOnly ? (
             <span
               style={{
                 fontSize: 9,
@@ -324,11 +327,40 @@ export function ScreenNode({
                 padding: "1px 5px",
                 fontFamily: FONTS.mono,
                 whiteSpace: "nowrap",
-                display: status === "new" && !isScopeRoot ? "none" : "inline",
               }}
             >
               {STATUS_CHIP[status].label}
             </span>
+          ) : (
+            <button
+              className="screen-btn"
+              title="Click to cycle • Right-click for options"
+              onMouseDown={(e) => { e.stopPropagation(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateStatus?.(screen.id, STATUS_CYCLE[status]);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setStatusMenu({ x: e.clientX, y: e.clientY });
+              }}
+              style={{
+                fontSize: 9,
+                fontWeight: 600,
+                color: STATUS_CHIP[status].color,
+                background: STATUS_CHIP[status].bg,
+                border: "none",
+                borderRadius: 4,
+                padding: "1px 5px",
+                fontFamily: FONTS.mono,
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                lineHeight: 1.4,
+              }}
+            >
+              {STATUS_CHIP[status].label}
+            </button>
           )}
         </div>
 
@@ -808,6 +840,62 @@ export function ScreenNode({
           border: `2px solid ${COLORS.surface}`,
         }}
       />
+      {statusMenu && createPortal(
+        <div
+          onClick={() => setStatusMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setStatusMenu(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: Z_INDEX.contextMenu - 1 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: statusMenu.y,
+              left: statusMenu.x,
+              background: COLORS.surface,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+              zIndex: Z_INDEX.contextMenu,
+              minWidth: 160,
+              overflow: "hidden",
+              padding: "4px 0",
+            }}
+          >
+            {(["new", "modify", "existing"]).map((s) => {
+              const cfg = STATUS_CONFIG[s];
+              const isCurrent = status === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => { onUpdateStatus?.(screen.id, s); setStatusMenu(null); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "7px 14px",
+                    background: isCurrent ? COLORS.accent01 : "none",
+                    border: "none",
+                    color: COLORS.text,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: FONTS.ui,
+                    fontSize: 12,
+                  }}
+                  onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = COLORS.surfaceHover; }}
+                  onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.background = "none"; }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+                  Mark as {cfg.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

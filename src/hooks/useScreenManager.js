@@ -258,8 +258,9 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
   }, []);
 
   const updateScreenStatus = useCallback((id, status) => {
+    pushHistory(screens, connections, documents);
     setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
-  }, []);
+  }, [screens, connections, documents, pushHistory]);
 
   // Component (shared/reusable screen) actions.
   // mode: "canonical" | "instance" | "unlink"
@@ -328,8 +329,9 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
   }, [screens, connections, documents, pushHistory]);
 
   const markAllExisting = useCallback(() => {
+    pushHistory(screens, connections, documents);
     setScreens((prev) => prev.map((s) => ({ ...s, status: "existing" })));
-  }, []);
+  }, [screens, connections, documents, pushHistory]);
 
   // Lightweight image patch for collab sync (no undo, no dimension clear)
   const patchScreenImage = useCallback((id, imageData) => {

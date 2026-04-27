@@ -58,6 +58,26 @@ Below the description is an "Implementation Notes" field. Use this for developer
 > [!TIP]
 > Multiple images can be uploaded or dropped at once. Drawd auto-arranges them in a grid layout on the canvas.
 
+### Build status
+
+Every screen carries a build status that drives instruction generation:
+
+- `New` — screen needs to be built. Becomes a "to build" task in the generated AI instructions.
+- `Modify` — screen already exists in the codebase but needs changes. Treated as a build task with edit context.
+- `Existing` — screen is already built and only referenced for navigation context. Excluded from build tasks.
+
+The status chip is always visible in the canvas card header and in the right Sidebar's "Build status" pill. To change it:
+
+- **Left-click** the chip or pill to cycle: `New → Modify → Existing → New`.
+- **Right-click** the chip or pill to open a menu and jump directly to any status.
+- In the left Screens Panel, the per-row chip cycles on click and right-clicking the row opens the same menu.
+- The "All existing" header button in the Screens Panel marks every screen as `Existing` in one click — useful when adding a single new screen to a fully built app.
+
+All status changes (single-screen and bulk) participate in undo history — press `Cmd/Ctrl+Z` to revert.
+
+> [!NOTE]
+> Read-only viewers (collab guests on a shared flow) see the status chip but cannot click or right-click to change it.
+
 ## Canvas Navigation
 
 The canvas is an infinite workspace where you arrange and connect screens. You can pan freely in any direction and zoom in or out.
