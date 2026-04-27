@@ -51,6 +51,9 @@ export function importFlow(fileText) {
     if (screen.wireframe === undefined) screen.wireframe = null;
     if (screen.componentId === undefined) screen.componentId = null;
     if (screen.componentRole === undefined) screen.componentRole = null;
+    // v15: device metadata block (preset / chrome / chromeStyle / safeArea).
+    // null = no device chrome was applied (uploaded image, blank, legacy file).
+    if (screen.device === undefined) screen.device = null;
     if (Array.isArray(screen.hotspots)) {
       for (const hs of screen.hotspots) {
         if (!hs.elementType) hs.elementType = "button";

@@ -800,10 +800,10 @@ Open Claude Desktop settings, go to the MCP section, and add a new server with:
 
 ### Available tools
 
-The MCP server exposes 27 tools organized by category:
+The MCP server exposes 29 tools organized by category:
 
 - **File** — `create_flow`, `open_flow`, `save_flow`, `get_flow_info`
-- **Screen** — `create_screen` (from HTML), `create_blank_screen`, `update_screen`, `delete_screen`, `list_screens`, `get_screen`, `update_screen_image`, `batch_create_screens`
+- **Screen** — `create_screen` (from HTML), `create_blank_screen`, `update_screen`, `delete_screen`, `list_screens`, `get_screen`, `update_screen_image`, `batch_create_screens`, `compose_chrome`, `get_chrome_info`
 - **Hotspot** — `create_hotspot`, `update_hotspot`, `delete_hotspot`, `list_hotspots`
 - **Connection** — `create_connection`, `update_connection`, `delete_connection`, `list_connections`
 - **Document** — `create_document`, `update_document`, `delete_document`, `list_documents`
@@ -817,11 +817,8 @@ The MCP server exposes 27 tools organized by category:
 
 The `create_screen` tool accepts an HTML string and renders it as a PNG using Satori (Vercel's SVG engine). You can specify a device preset to control the viewport size:
 
-- `iphone-15-pro` (default) — 393 x 852
-- `iphone-se` — 375 x 667
-- `iphone-16-pro-max` — 440 x 956
-- `ipad` — 820 x 1180
-- `android` — 412 x 915
+- `iphone` (default) — 393 x 852, modern Pro class
+- `android` — 412 x 915, Pixel class
 
 The HTML must use **inline styles only** (no `<style>` tags or CSS classes). Use `display:flex` for layout. Supported properties include: flexbox layout, colors, fonts, borders, border-radius, padding, margin, background, opacity, overflow, and text styling.
 
@@ -829,6 +826,24 @@ The HTML must use **inline styles only** (no `<style>` tags or CSS classes). Use
 > Satori does not support CSS grid, animations, pseudo-elements, media queries, or class selectors. Write all styles as inline `style` attributes.
 
 Because rendering uses Satori instead of a browser, the MCP server requires no Chrome binary and renders each screen in milliseconds. Each rendered screen also stores the original SVG output for Figma export.
+
+### Device chrome
+
+Every screen rendered with a device preset gets device chrome composited on top — iOS status bar + Dynamic Island + home indicator on `iphone`, status bar + gesture pill on `android`. This means your HTML should be designed for the **full** viewport (e.g. 393 × 852 for iPhone) and respect the device's safe area so primary content doesn't sit underneath the chrome.
+
+Three knobs are available on `create_screen`, `update_screen_image`, and `batch_create_screens`:
+
+- `chrome` — `"auto"` (default), `false` (no chrome), or an explicit array like `["status-bar-ios"]`.
+- `chromeStyle` — `"light"` (default, dark glyphs) or `"dark"` (white glyphs, for dark/photo backgrounds).
+- The persisted `device` block on each screen records the preset, chrome ids, style, and computed safe area — visible in `list_screens` and `get_screen`.
+
+Two helper tools support the chrome system:
+
+- `get_chrome_info` — call this **before authoring HTML** to query the safe area for a device. With `{device: "iphone"}` it returns `safeArea: { top: 59, bottom: 34, left: 0, right: 0 }` so you can lay out content within those margins. With no args it returns the full catalog of devices and elements.
+- `compose_chrome` — apply chrome retroactively to a screen that was uploaded, pasted from Figma, or originally rendered with `chrome: false`. Re-uses the persisted device when one is set, falls back to an explicit `device` argument, then to dimension inference.
+
+> [!TIP]
+> If your screen background is a dark photo or hero image, pass `chromeStyle: "dark"` so the status bar glyphs and home indicator stay readable.
 
 ### Auto-connections from hotspots
 

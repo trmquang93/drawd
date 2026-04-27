@@ -6,9 +6,9 @@ describe("buildPayload", () => {
   const connections = [{ id: "c1" }];
   const documents = [{ id: "d1" }, { id: "d2" }, { id: "d3" }];
 
-  it("sets version to 14", () => {
+  it("sets version to 15", () => {
     const payload = buildPayload([], [], { x: 0, y: 0 }, 1);
-    expect(payload.version).toBe(14);
+    expect(payload.version).toBe(15);
   });
 
   it("sets metadata.screenCount to screens.length", () => {

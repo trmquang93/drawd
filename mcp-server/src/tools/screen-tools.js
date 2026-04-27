@@ -1,9 +1,28 @@
 import { DEFAULT_SCREEN_WIDTH } from "../../../src/constants.js";
+import {
+  SUPPORTED_DEVICES,
+  CHROME_IDS,
+  getChromeInfo,
+} from "../renderer/chrome/index.js";
+import { inferDeviceFromDimensions } from "../renderer/device-presets.js";
+
+// Shared schema fragments. The chrome system is the same shape on every
+// render-producing tool, so we describe it once and reuse the description.
+const CHROME_DESC =
+  "Device chrome compositing. Pass \"auto\" (default) to apply the device's standard chrome (status bar + dynamic island/home indicator on iPhone, status bar + gesture pill on Android). Pass false to skip chrome entirely. Pass an explicit array of chrome ids to override (e.g. [\"status-bar-ios\"]). Available ids: " +
+  CHROME_IDS.join(", ") +
+  ". Chrome is composited on top of the rendered HTML — design HTML for the FULL viewport and respect the device safeArea returned by get_chrome_info.";
+
+const CHROME_STYLE_DESC =
+  "Chrome palette. \"light\" (default) uses dark glyphs on a transparent base — appropriate for light app screens. \"dark\" uses white glyphs — use when the app screen has a dark/photo background.";
+
+const DEVICE_DESC =
+  "Device preset for viewport size and chrome geometry. \"iphone\" = 393×852 (modern Pro class). \"android\" = 412×915 (Pixel class). Defaults to \"iphone\" when omitted unless explicit width/height is given.";
 
 export const screenTools = [
   {
     name: "create_screen",
-    description: "Create a new screen by rendering HTML content to an image. If no position is specified, the screen is auto-placed on a grid layout.",
+    description: "Create a new screen by rendering HTML content to an image. If no position is specified, the screen is auto-placed on a grid layout. Device chrome (status bar, home indicator/gesture pill, etc.) is composited automatically — design HTML for the full viewport and respect the device safe-area returned by get_chrome_info.",
     inputSchema: {
       type: "object",
       properties: {
@@ -11,11 +30,17 @@ export const screenTools = [
         name: { type: "string", description: "Screen name (e.g., 'Login Screen', 'Home Feed')" },
         device: {
           type: "string",
-          description: "Device preset for viewport size",
-          enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
+          description: DEVICE_DESC,
+          enum: SUPPORTED_DEVICES,
         },
-        width: { type: "number", description: "Custom viewport width (overrides device preset)" },
-        height: { type: "number", description: "Custom viewport height (overrides device preset)" },
+        width: { type: "number", description: "Custom viewport width (overrides device preset; disables chrome)" },
+        height: { type: "number", description: "Custom viewport height (overrides device preset; disables chrome)" },
+        chrome: { description: CHROME_DESC },
+        chromeStyle: {
+          type: "string",
+          description: CHROME_STYLE_DESC,
+          enum: ["light", "dark"],
+        },
         position: {
           type: "object",
           properties: {
@@ -81,7 +106,7 @@ export const screenTools = [
   },
   {
     name: "list_screens",
-    description: "List all screens in the current flow with summary info (without image data).",
+    description: "List all screens in the current flow with summary info (without image data). The 'device' summary block is present only when chrome was rendered for that screen.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -89,7 +114,7 @@ export const screenTools = [
   },
   {
     name: "get_screen",
-    description: "Get full details of a specific screen, including hotspots. Image data is excluded by default to keep responses small. When included, the image is downsampled to 400 px wide by default to reduce token cost; pass imageMaxWidth: 0 for the original full-resolution image.",
+    description: "Get full details of a specific screen, including hotspots and (if present) the persisted device/chrome/safeArea block. Image data is excluded by default to keep responses small. When included, the image is downsampled to 400 px wide by default to reduce token cost; pass imageMaxWidth: 0 for the original full-resolution image.",
     inputSchema: {
       type: "object",
       properties: {
@@ -113,7 +138,7 @@ export const screenTools = [
   },
   {
     name: "update_screen_image",
-    description: "Re-render a screen's image from new HTML content. Use inline styles only (no <style> tags).",
+    description: "Re-render a screen's image from new HTML content. Device chrome is re-applied with the same rules as create_screen — pass chrome:false to opt out.",
     inputSchema: {
       type: "object",
       properties: {
@@ -121,7 +146,14 @@ export const screenTools = [
         html: { type: "string", description: "New HTML content to render. Use inline styles only. Every element with multiple children must have display:flex. See create_screen for full rendering constraints including Figma-compatibility rules (white-space:nowrap on text leaves, flex:1/flex-shrink:0 in space-between rows, overflow:hidden on containers)." },
         device: {
           type: "string",
-          enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
+          description: DEVICE_DESC,
+          enum: SUPPORTED_DEVICES,
+        },
+        chrome: { description: CHROME_DESC },
+        chromeStyle: {
+          type: "string",
+          description: CHROME_STYLE_DESC,
+          enum: ["light", "dark"],
         },
       },
       required: ["screenId", "html"],
@@ -129,7 +161,7 @@ export const screenTools = [
   },
   {
     name: "batch_create_screens",
-    description: "Create multiple screens at once with auto-layout grid placement. Each screen can have HTML content or be blank.",
+    description: "Create multiple screens at once with auto-layout grid placement. Each screen can have HTML content or be blank. Device, chrome, and chromeStyle apply uniformly to every rendered screen in the batch.",
     inputSchema: {
       type: "object",
       properties: {
@@ -149,11 +181,54 @@ export const screenTools = [
         },
         device: {
           type: "string",
-          description: "Device preset for all screens (default: iphone-15-pro)",
-          enum: ["iphone-15-pro", "iphone-se", "iphone-16-pro-max", "ipad", "ipad-pro-13", "android", "android-tablet"],
+          description: DEVICE_DESC + " Defaults to \"iphone\" for the whole batch.",
+          enum: SUPPORTED_DEVICES,
+        },
+        chrome: { description: CHROME_DESC },
+        chromeStyle: {
+          type: "string",
+          description: CHROME_STYLE_DESC,
+          enum: ["light", "dark"],
         },
       },
       required: ["screens"],
+    },
+  },
+  {
+    name: "compose_chrome",
+    description: "Composite device chrome onto an existing screen (one created from upload, Figma paste, or previously rendered with chrome:false). Re-renders the screen image with status bar / home indicator / gesture pill applied and updates the persisted device block. Device is resolved in this order: (1) screen's own device.preset if set, (2) the device argument, (3) inferred from image dimensions. Throws when no device can be resolved.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        screenId: { type: "string", description: "ID of the screen to chrome" },
+        device: {
+          type: "string",
+          description: "Override or supply the device preset. Required when the screen has no persisted device and dimensions don't match a known preset.",
+          enum: SUPPORTED_DEVICES,
+        },
+        chrome: { description: CHROME_DESC },
+        chromeStyle: {
+          type: "string",
+          description: CHROME_STYLE_DESC,
+          enum: ["light", "dark"],
+        },
+      },
+      required: ["screenId"],
+    },
+  },
+  {
+    name: "get_chrome_info",
+    description: "Query the chrome subsystem for safe-area, auto-expansion, and the catalog of supported devices/elements. Call this BEFORE authoring HTML so your layout respects the device's safe area — e.g. on iPhone with auto chrome, top safeArea is 59 px and bottom is 34 px, so place primary content within those margins. Three call shapes: (1) no args → full catalog of devices + elements. (2) {device} → auto-chrome + safeArea for that device. (3) {device, chrome:[...]} → safeArea for an explicit chrome subset.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        device: {
+          type: "string",
+          description: "Device to query. Omit for the full catalog.",
+          enum: SUPPORTED_DEVICES,
+        },
+        chrome: { description: "Optional explicit chrome subset to compute safe-area for. If omitted with device set, the device's auto-chrome is used." },
+      },
     },
   },
 ];
@@ -166,6 +241,19 @@ function displayedImageHeight(rawWidth, rawHeight) {
   return Math.round(rawHeight * DEFAULT_SCREEN_WIDTH / rawWidth);
 }
 
+// Build the persisted device block for a screen. Returns null when the
+// renderer didn't apply chrome (custom width/height with no device, or
+// device-but-chrome:false on an unsupported device).
+function buildDeviceBlock(renderResult) {
+  if (!renderResult || !renderResult.device) return null;
+  return {
+    preset: renderResult.device,
+    chrome: renderResult.chrome || [],
+    chromeStyle: renderResult.chromeStyle || "light",
+    safeArea: renderResult.safeArea || { top: 0, bottom: 0, left: 0, right: 0 },
+  };
+}
+
 export async function handleScreenTool(name, args, state, renderer) {
   switch (name) {
     case "create_screen": {
@@ -173,6 +261,7 @@ export async function handleScreenTool(name, args, state, renderer) {
       let imageWidth = null;
       let imageHeight = null;
       let svgContent = null;
+      let deviceBlock = null;
       const sourceHtml = args.html || null;
 
       if (args.html) {
@@ -180,11 +269,14 @@ export async function handleScreenTool(name, args, state, renderer) {
           device: args.device,
           width: args.width,
           height: args.height,
+          chrome: args.chrome,
+          chromeStyle: args.chromeStyle,
         });
         imageData = renderer.toDataUri(result.pngBuffer);
         imageWidth = result.width;
         imageHeight = displayedImageHeight(result.width, result.height);
         svgContent = result.svgString || null;
+        deviceBlock = buildDeviceBlock(result);
       }
 
       const screen = state.addScreen({
@@ -197,6 +289,7 @@ export async function handleScreenTool(name, args, state, renderer) {
         position: args.position,
         description: args.description,
         notes: args.notes,
+        device: deviceBlock,
       });
 
       return {
@@ -206,6 +299,7 @@ export async function handleScreenTool(name, args, state, renderer) {
         y: screen.y,
         imageWidth,
         imageHeight,
+        device: deviceBlock,
       };
     }
 
@@ -244,6 +338,16 @@ export async function handleScreenTool(name, args, state, renderer) {
           description: s.description || "",
           status: s.status || "new",
           tbd: s.tbd || false,
+          ...(s.device
+            ? {
+                device: {
+                  preset: s.device.preset,
+                  chrome: s.device.chrome,
+                  chromeStyle: s.device.chromeStyle,
+                  safeArea: s.device.safeArea,
+                },
+              }
+            : {}),
         })),
       };
     }
@@ -321,17 +425,29 @@ export async function handleScreenTool(name, args, state, renderer) {
       const screen = state.getScreen(args.screenId);
       if (!screen) throw new Error(`Screen not found: ${args.screenId}`);
 
-      const result = await renderer.render(args.html, { device: args.device });
+      // Inherit device from the screen's own previously persisted block when
+      // the caller doesn't override. Same for chromeStyle. This keeps a
+      // re-render visually consistent with the original.
+      const inheritedDevice = args.device || screen.device?.preset;
+      const inheritedStyle = args.chromeStyle || screen.device?.chromeStyle;
+
+      const result = await renderer.render(args.html, {
+        device: inheritedDevice,
+        chrome: args.chrome,
+        chromeStyle: inheritedStyle,
+      });
       const imgHeight = displayedImageHeight(result.width, result.height);
+      const deviceBlock = buildDeviceBlock(result);
       state.updateScreen(args.screenId, {
         imageData: renderer.toDataUri(result.pngBuffer),
         imageWidth: result.width,
         imageHeight: imgHeight,
         svgContent: result.svgString || null,
         sourceHtml: args.html,
+        device: deviceBlock,
       });
 
-      return { success: true, imageWidth: result.width, imageHeight: imgHeight };
+      return { success: true, imageWidth: result.width, imageHeight: imgHeight, device: deviceBlock };
     }
 
     case "batch_create_screens": {
@@ -341,13 +457,19 @@ export async function handleScreenTool(name, args, state, renderer) {
         let imageWidth = null;
         let imageHeight = null;
         let svgContent = null;
+        let deviceBlock = null;
 
         if (def.html) {
-          const result = await renderer.render(def.html, { device: args.device });
+          const result = await renderer.render(def.html, {
+            device: args.device,
+            chrome: args.chrome,
+            chromeStyle: args.chromeStyle,
+          });
           imageData = renderer.toDataUri(result.pngBuffer);
           imageWidth = result.width;
           imageHeight = displayedImageHeight(result.width, result.height);
           svgContent = result.svgString || null;
+          deviceBlock = buildDeviceBlock(result);
         }
 
         const screen = state.addScreen({
@@ -360,11 +482,85 @@ export async function handleScreenTool(name, args, state, renderer) {
           description: def.description,
           notes: def.notes,
           tbd: !def.html,
+          device: deviceBlock,
         });
 
-        results.push({ screenId: screen.id, name: screen.name, x: screen.x, y: screen.y });
+        results.push({
+          screenId: screen.id,
+          name: screen.name,
+          x: screen.x,
+          y: screen.y,
+          ...(deviceBlock ? { device: deviceBlock } : {}),
+        });
       }
       return { screens: results };
+    }
+
+    case "compose_chrome": {
+      const screen = state.getScreen(args.screenId);
+      if (!screen) throw new Error(`Screen not found: ${args.screenId}`);
+
+      // Device-resolution priority:
+      //   1. screen's persisted device.preset (round-trip on a Drawd-rendered screen)
+      //   2. the explicit `device` argument
+      //   3. infer from image dimensions (uploaded PNGs that match a known preset)
+      // Throw a friendly error if all three fail — the caller has to commit
+      // to a device before we can emit chrome geometry.
+      let resolvedDevice = screen.device?.preset || args.device;
+      if (!resolvedDevice && screen.imageWidth && screen.imageHeight) {
+        // For inference we use the *raw* render dimensions (imageWidth is in
+        // device pixels — 786 for an iPhone @2x). The displayed height was
+        // scaled, so compute the raw height back from the SVG aspect ratio.
+        // Simpler: just pass imageWidth × the rendered height we have if we
+        // can; otherwise rely on the preset's 2× output match.
+        resolvedDevice = inferDeviceFromDimensions(screen.imageWidth, screen.imageHeight);
+      }
+      if (!resolvedDevice) {
+        throw new Error(
+          `Cannot infer device for screen "${screen.name}". Pass an explicit device argument (one of: ${SUPPORTED_DEVICES.join(", ")}).`
+        );
+      }
+
+      // Prefer the cached SVG path when available (no PNG decode needed).
+      // Falls back to the stored imageData URI.
+      const baseSvg = screen.svgContent || undefined;
+      const baseImageDataUri = baseSvg ? undefined : (screen.imageData || undefined);
+      if (!baseSvg && !baseImageDataUri) {
+        throw new Error(
+          `Screen "${screen.name}" has no image to chrome. Add an image first via update_screen_image or upload.`
+        );
+      }
+
+      const result = await renderer.composeChrome({
+        baseSvg,
+        baseImageDataUri,
+        device: resolvedDevice,
+        chrome: args.chrome,
+        chromeStyle: args.chromeStyle || screen.device?.chromeStyle || "light",
+      });
+
+      const imgHeight = displayedImageHeight(result.width, result.height);
+      const deviceBlock = buildDeviceBlock(result);
+
+      state.updateScreen(args.screenId, {
+        imageData: renderer.toDataUri(result.pngBuffer),
+        imageWidth: result.width,
+        imageHeight: imgHeight,
+        svgContent: result.svgString || null,
+        device: deviceBlock,
+      });
+
+      return {
+        success: true,
+        screenId: screen.id,
+        device: deviceBlock,
+        chromeRenderError: result.chromeRenderError || undefined,
+      };
+    }
+
+    case "get_chrome_info": {
+      // Pure function delegate — no state mutation.
+      return getChromeInfo({ device: args.device, chrome: args.chrome });
     }
 
     default:

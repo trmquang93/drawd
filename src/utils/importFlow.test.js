@@ -24,10 +24,36 @@ describe("importFlow", () => {
     );
   });
 
-  it("throws for future version > 14", () => {
+  it("throws for future version > 15", () => {
     expect(() =>
-      importFlow(JSON.stringify({ version: 15, screens: [], connections: [] }))
+      importFlow(JSON.stringify({ version: 16, screens: [], connections: [] }))
     ).toThrow("Unsupported file version");
+  });
+
+  // --- v14 -> v15 migration: device chrome metadata ---
+
+  it("backfills screen.device to null on legacy files (v14 and earlier)", () => {
+    const file = makeValidFile({
+      version: 14,
+      screens: [{ id: "s1", name: "Home", hotspots: [] }],
+    });
+    const result = importFlow(file);
+    expect(result.screens[0].device).toBeNull();
+  });
+
+  it("preserves a persisted device block on v15 files", () => {
+    const persisted = {
+      preset: "iphone",
+      chrome: ["status-bar-ios", "dynamic-island", "home-indicator"],
+      chromeStyle: "light",
+      safeArea: { top: 59, bottom: 34, left: 0, right: 0 },
+    };
+    const file = makeValidFile({
+      version: 15,
+      screens: [{ id: "s1", name: "Home", hotspots: [], device: persisted }],
+    });
+    const result = importFlow(file);
+    expect(result.screens[0].device).toEqual(persisted);
   });
 
   it("throws for non-array screens", () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { resolveViewport, DEVICE_PRESETS } from "./device-presets.js";
 import { getEmojiCode, loadEmojiSvg } from "./emoji-loader.js";
+import { composeChromeSvg, expandAutoChrome } from "./chrome/index.js";
 
 // Dynamic imports resolved at runtime to support esbuild bundling
 let _satori = null;
@@ -39,27 +39,52 @@ const ASSETS_DIR = resolveAssetsDir();
 export class SatoriRenderer {
   constructor() {
     this.fonts = null;
+    // Resolved on init() — passed to Resvg so the chrome layer's <text>
+    // glyphs render with the same Inter family Satori uses.
+    this.resvgFontPaths = [];
   }
 
   async init() {
     await loadDeps();
 
-    const regularFont = readFileSync(new URL("Inter-Regular.ttf", ASSETS_DIR));
-    const boldFont = readFileSync(new URL("Inter-Bold.ttf", ASSETS_DIR));
+    const regularUrl = new URL("Inter-Regular.ttf", ASSETS_DIR);
+    const boldUrl = new URL("Inter-Bold.ttf", ASSETS_DIR);
+
+    const regularFont = readFileSync(regularUrl);
+    const boldFont = readFileSync(boldUrl);
 
     this.fonts = [
       { name: "Inter", data: regularFont, weight: 400, style: "normal" },
       { name: "Inter", data: boldFont, weight: 700, style: "normal" },
     ];
+
+    this.resvgFontPaths = [fileURLToPath(regularUrl), fileURLToPath(boldUrl)];
   }
 
+  /**
+   * Render HTML to a PNG, optionally composing device chrome on top.
+   *
+   * Chrome integration:
+   *   - `device` (default "iphone") drives viewport sizing AND chrome
+   *     auto-expansion.
+   *   - `chrome` accepts: "auto" (default; expands per device), false
+   *     (no chrome), or an explicit array of element ids.
+   *   - `chromeStyle` is "light" (default) or "dark".
+   *
+   * Fallback: if chrome composition throws (bad geometry, Resvg config
+   * mismatch, etc.) we still return a usable PNG — just without chrome
+   * — and surface `chromeRenderError: true` so callers can flag it.
+   */
   async render(htmlString, options = {}) {
     if (!this.fonts) {
       throw new Error("SatoriRenderer not initialized. Call init() first.");
     }
 
-    const { device, width, height } = options;
+    const { device, width, height, chrome, chromeStyle = "light" } = options;
     const viewport = resolveViewport(device, width, height);
+    // Resolved device id (or null when only custom width/height was given —
+    // chrome only applies when we know which device we're targeting).
+    const resolvedDevice = (width && height) ? null : (device || "iphone");
 
     // satori-html does not decode HTML entities. Agents frequently write
     // numeric entities (&#9679;, &#x25cf;) and safe named entities (&bull;,
@@ -79,7 +104,7 @@ export class SatoriRenderer {
     const markup = _html(fixedHtml);
 
     // VDOM -> SVG string
-    const svgString = await _satori(markup, {
+    const satoriSvg = await _satori(markup, {
       width: viewport.width,
       height: viewport.height,
       fonts: this.fonts,
@@ -91,18 +116,50 @@ export class SatoriRenderer {
       },
     });
 
-    // SVG -> PNG buffer at 2x (Retina)
-    const resvg = new _Resvg(svgString, {
+    // Chrome composition. Wrap in try/catch so a bad geometry / chrome bug
+    // never prevents the user from getting a PNG back.
+    const expandedChrome = expandAutoChrome(chrome, resolvedDevice);
+    let composed = { svgString: satoriSvg, safeArea: { top: 0, bottom: 0, left: 0, right: 0 } };
+    let chromeRenderError = null;
+
+    if (resolvedDevice && expandedChrome.length > 0) {
+      try {
+        composed = composeChromeSvg({
+          baseSvg: satoriSvg,
+          device: resolvedDevice,
+          chrome: expandedChrome,
+          chromeStyle,
+          viewport: { width: viewport.width, height: viewport.height },
+        });
+      } catch (err) {
+        chromeRenderError = err.message || String(err);
+      }
+    }
+
+    // SVG -> PNG buffer at 2x (Retina). Pass the Inter font files so that
+    // chrome <text> elements render with the same family as Satori uses.
+    const resvgOptions = {
       fitTo: { mode: "width", value: viewport.width * viewport.deviceScaleFactor },
-    });
+      font: {
+        fontFiles: this.resvgFontPaths,
+        loadSystemFonts: false,
+        defaultFontFamily: "Inter",
+      },
+    };
+    const resvg = new _Resvg(composed.svgString, resvgOptions);
     const rendered = resvg.render();
     const pngBuffer = rendered.asPng();
 
     return {
       pngBuffer,
-      svgString,
+      svgString: composed.svgString,
       width: viewport.width * viewport.deviceScaleFactor,
       height: viewport.height * viewport.deviceScaleFactor,
+      device: resolvedDevice,
+      chrome: chromeRenderError ? [] : expandedChrome,
+      chromeStyle,
+      safeArea: chromeRenderError ? { top: 0, bottom: 0, left: 0, right: 0 } : composed.safeArea,
+      ...(chromeRenderError ? { chromeRenderError } : {}),
     };
   }
 
@@ -122,6 +179,83 @@ export class SatoriRenderer {
     }));
   }
 }
+
+/**
+ * Compose chrome onto an existing image (universal path).
+ *
+ * Used by the `compose_chrome` tool to retroactively chrome an uploaded
+ * PNG, Figma-pasted screen, or a screen that was previously rendered
+ * with chrome disabled. Re-uses the same Resvg config as `render` so
+ * font/output behaviour is consistent.
+ *
+ * Either `baseSvg` (preferred — fast path for code-rendered screens with
+ * cached svgContent) or `baseImageDataUri` is required.
+ *
+ * @returns {{ pngBuffer, svgString, width, height, device, chrome, chromeStyle, safeArea, chromeRenderError? }}
+ */
+SatoriRenderer.prototype.composeChrome = async function composeChrome({
+  baseSvg,
+  baseImageDataUri,
+  device,
+  chrome,
+  chromeStyle = "light",
+}) {
+  if (!this.fonts) {
+    throw new Error("SatoriRenderer not initialized. Call init() first.");
+  }
+  if (!device) {
+    throw new Error("composeChrome requires a device id");
+  }
+
+  const viewport = resolveViewport(device);
+  const expanded = expandAutoChrome(chrome, device);
+
+  let svgString;
+  let safeArea;
+  let chromeRenderError = null;
+  try {
+    const composed = composeChromeSvg({
+      baseSvg,
+      baseImageDataUri,
+      device,
+      chrome: expanded,
+      chromeStyle,
+      viewport: { width: viewport.width, height: viewport.height },
+    });
+    svgString = composed.svgString;
+    safeArea = composed.safeArea;
+  } catch (err) {
+    chromeRenderError = err.message || String(err);
+    // Fallback: re-emit the base layer with no chrome so the screen is still usable.
+    const baseLayer = baseSvg
+      ? baseSvg
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="${viewport.width}" height="${viewport.height}" viewBox="0 0 ${viewport.width} ${viewport.height}"><image href="${baseImageDataUri}" x="0" y="0" width="${viewport.width}" height="${viewport.height}" preserveAspectRatio="none"/></svg>`;
+    svgString = baseLayer;
+    safeArea = { top: 0, bottom: 0, left: 0, right: 0 };
+  }
+
+  const resvg = new _Resvg(svgString, {
+    fitTo: { mode: "width", value: viewport.width * viewport.deviceScaleFactor },
+    font: {
+      fontFiles: this.resvgFontPaths,
+      loadSystemFonts: false,
+      defaultFontFamily: "Inter",
+    },
+  });
+  const pngBuffer = resvg.render().asPng();
+
+  return {
+    pngBuffer,
+    svgString,
+    width: viewport.width * viewport.deviceScaleFactor,
+    height: viewport.height * viewport.deviceScaleFactor,
+    device,
+    chrome: chromeRenderError ? [] : expanded,
+    chromeStyle,
+    safeArea,
+    ...(chromeRenderError ? { chromeRenderError } : {}),
+  };
+};
 
 /**
  * Satori requires every element with more than one child to have an explicit
