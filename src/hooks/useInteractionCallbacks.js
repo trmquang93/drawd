@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { HEADER_HEIGHT, DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT } from "../constants";
+import { isConditionalConnection } from "../utils/connectionHelpers";
 
 export function useInteractionCallbacks({
   screens, connections, stickyNotes,
@@ -30,7 +31,7 @@ export function useInteractionCallbacks({
       const hotspot = screen.hotspots.find((h) => h.id === conn.hotspotId);
       if (hotspot) setHotspotModal({ screen, hotspot, connection: conn });
     } else {
-      const groupConns = conn.conditionGroupId
+      const groupConns = isConditionalConnection(conn)
         ? connections.filter((c) => c.conditionGroupId === conn.conditionGroupId)
         : [conn];
       setConnectionEditModal({ connection: conn, groupConnections: groupConns, fromScreen: screen });
@@ -48,7 +49,7 @@ export function useInteractionCallbacks({
         );
 
         // Case 1: Already a conditional group — add a new branch
-        const existingGroup = existingHotspotConns.find((c) => c.conditionGroupId);
+        const existingGroup = existingHotspotConns.find(isConditionalConnection);
         if (existingGroup) {
           const isDuplicate = existingHotspotConns.some((c) => c.toScreenId === targetScreenId);
           if (!isDuplicate) {
@@ -83,7 +84,7 @@ export function useInteractionCallbacks({
 
     const existingPlain = connections.filter((c) => c.fromScreenId === fromId && !c.hotspotId);
 
-    const existingGroup = existingPlain.find((c) => c.conditionGroupId);
+    const existingGroup = existingPlain.find(isConditionalConnection);
     if (existingGroup) {
       addToConditionalGroup(fromId, targetScreenId, existingGroup.conditionGroupId);
       setEditingConditionGroup(existingGroup.conditionGroupId);

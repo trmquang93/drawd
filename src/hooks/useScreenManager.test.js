@@ -365,6 +365,36 @@ describe("saveHotspot connection management", () => {
     expect(result.current.connections[1].connectionPath).toBe("condition-1");
   });
 
+  it("conditional hotspot connections share a single non-null conditionGroupId", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+    const idC = result.current.screens[2].id;
+
+    const hotspot = {
+      id: "hs1", label: "Check", x: 10, y: 10, w: 20, h: 20,
+      action: "conditional",
+      conditions: [
+        { id: "c1", label: "logged in", targetScreenId: idB },
+        { id: "c2", label: "guest", targetScreenId: idC },
+      ],
+    };
+    act(() => result.current.saveHotspot(idA, hotspot));
+
+    const groupId = result.current.connections[0].conditionGroupId;
+    expect(groupId).toBeTruthy();
+    expect(result.current.connections[1].conditionGroupId).toBe(groupId);
+    // Re-saving generates a fresh groupId (connections are wiped + recreated),
+    // but every branch must still share whatever groupId is in effect.
+    act(() => result.current.saveHotspot(idA, hotspot));
+    const newGroupId = result.current.connections[0].conditionGroupId;
+    expect(newGroupId).toBeTruthy();
+    expect(result.current.connections[1].conditionGroupId).toBe(newGroupId);
+  });
+
   it("saving hotspot with action='back' does NOT create a connection", () => {
     const { result } = setup();
     act(() => result.current.addScreen(null, "A"));
@@ -734,6 +764,36 @@ describe("convertToConditionalGroup", () => {
     expect(groupId).toBeTruthy();
     expect(result.current.connections[1].conditionGroupId).toBe(groupId);
   });
+
+  it("hotspot-backed conversion syncs hotspot.action='conditional' with conditions", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+    const idC = result.current.screens[2].id;
+
+    // Seed a hotspot in a "navigate" state pointing at B (mirrors what
+    // quickConnectHotspot leaves behind after the first drag from a hotspot).
+    const hotspot = {
+      id: "hs1", label: "Tap", x: 10, y: 10, w: 20, h: 20,
+      action: "navigate", targetScreenId: idB,
+    };
+    act(() => result.current.saveHotspot(idA, hotspot));
+    expect(result.current.connections).toHaveLength(1);
+    const connId = result.current.connections[0].id;
+
+    // Second drag from the same hotspot to C → convertToConditionalGroup with hotspotId.
+    act(() => result.current.convertToConditionalGroup(connId, idA, idC, "hs1"));
+
+    const updatedHotspot = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+    expect(updatedHotspot.action).toBe("conditional");
+    expect(updatedHotspot.targetScreenId).toBeNull();
+    expect(updatedHotspot.conditions).toHaveLength(2);
+    expect(updatedHotspot.conditions[0].targetScreenId).toBe(idB);
+    expect(updatedHotspot.conditions[1].targetScreenId).toBe(idC);
+  });
 });
 
 describe("addToConditionalGroup", () => {
@@ -780,6 +840,164 @@ describe("addToConditionalGroup", () => {
 
     act(() => result.current.addToConditionalGroup(idA, idD, groupId));
     expect(result.current.connections[2].conditionGroupId).toBe(groupId);
+  });
+
+  it("hotspot-backed addTo appends to hotspot.conditions", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    act(() => result.current.addScreen(null, "D"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+    const idC = result.current.screens[2].id;
+    const idD = result.current.screens[3].id;
+
+    // Seed: hotspot navigating to B (quickConnectHotspot output).
+    act(() => result.current.saveHotspot(idA, {
+      id: "hs1", label: "Tap", x: 10, y: 10, w: 20, h: 20,
+      action: "navigate", targetScreenId: idB,
+    }));
+    const connId = result.current.connections[0].id;
+
+    // Drag #2: convert to a conditional group (B + C).
+    let groupId;
+    act(() => { groupId = result.current.convertToConditionalGroup(connId, idA, idC, "hs1"); });
+
+    // Drag #3: add D to the same hotspot's conditional group.
+    act(() => result.current.addToConditionalGroup(idA, idD, groupId, "hs1"));
+
+    const updatedHotspot = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+    expect(updatedHotspot.action).toBe("conditional");
+    expect(updatedHotspot.conditions).toHaveLength(3);
+    expect(updatedHotspot.conditions.map((c) => c.targetScreenId)).toEqual([idB, idC, idD]);
+  });
+});
+
+describe("deleteConnection hotspot sync", () => {
+  it("deleting one of two hotspot conditional branches reverts hotspot to navigate", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+    const idC = result.current.screens[2].id;
+
+    // Set up a hotspot-backed conditional group via the drag flow.
+    act(() => result.current.saveHotspot(idA, {
+      id: "hs1", label: "Tap", x: 10, y: 10, w: 20, h: 20,
+      action: "navigate", targetScreenId: idB,
+    }));
+    const firstConnId = result.current.connections[0].id;
+    act(() => result.current.convertToConditionalGroup(firstConnId, idA, idC, "hs1"));
+    expect(result.current.connections).toHaveLength(2);
+
+    // Delete the second branch (the C-bound one).
+    const cConn = result.current.connections.find((c) => c.toScreenId === idC);
+    act(() => result.current.deleteConnection(cConn.id));
+
+    expect(result.current.connections).toHaveLength(1);
+    const hotspot = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+    expect(hotspot.action).toBe("navigate");
+    expect(hotspot.targetScreenId).toBe(idB);
+    expect(hotspot.conditions).toEqual([]);
+  });
+
+  it("deleting one of three hotspot conditional branches keeps conditional with two", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    act(() => result.current.addScreen(null, "D"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+    const idC = result.current.screens[2].id;
+    const idD = result.current.screens[3].id;
+
+    act(() => result.current.saveHotspot(idA, {
+      id: "hs1", label: "Tap", x: 10, y: 10, w: 20, h: 20,
+      action: "navigate", targetScreenId: idB,
+    }));
+    const firstConnId = result.current.connections[0].id;
+    let groupId;
+    act(() => { groupId = result.current.convertToConditionalGroup(firstConnId, idA, idC, "hs1"); });
+    act(() => result.current.addToConditionalGroup(idA, idD, groupId, "hs1"));
+    expect(result.current.connections).toHaveLength(3);
+
+    // Delete the middle branch (the C-bound one).
+    const cConn = result.current.connections.find((c) => c.toScreenId === idC);
+    act(() => result.current.deleteConnection(cConn.id));
+
+    expect(result.current.connections).toHaveLength(2);
+    const hotspot = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+    expect(hotspot.action).toBe("conditional");
+    expect(hotspot.conditions).toHaveLength(2);
+    expect(hotspot.conditions.map((c) => c.targetScreenId).sort()).toEqual([idB, idD].sort());
+  });
+
+  it("deleting a non-hotspot connection does not mutate any hotspot", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+
+    // A hotspot in conditional state, untouched by the deletion under test.
+    act(() => result.current.saveHotspot(idA, {
+      id: "hs1", label: "Check", x: 10, y: 10, w: 20, h: 20,
+      action: "conditional",
+      conditions: [
+        { id: "c1", label: "x", targetScreenId: idB },
+        { id: "c2", label: "y", targetScreenId: idB },
+      ],
+    }));
+    const hotspotBefore = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+
+    // Add a plain (non-hotspot) connection and delete it.
+    act(() => result.current.addConnection(idA, idB));
+    const plainConn = result.current.connections.find((c) => !c.hotspotId);
+    act(() => result.current.deleteConnection(plainConn.id));
+
+    const hotspotAfter = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+    expect(hotspotAfter).toEqual(hotspotBefore);
+  });
+
+  it("preserves rich per-condition data when shrinking from 3 → 2 branches", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    act(() => result.current.addScreen(null, "D"));
+    const idA = result.current.screens[0].id;
+    const idB = result.current.screens[1].id;
+    const idC = result.current.screens[2].id;
+    const idD = result.current.screens[3].id;
+
+    // Three rich conditions (each with a distinct label so label+target match
+    // is unambiguous when we rebuild after the deletion).
+    act(() => result.current.saveHotspot(idA, {
+      id: "hs1", label: "Check", x: 10, y: 10, w: 20, h: 20,
+      action: "conditional",
+      conditions: [
+        { id: "c1", label: "alpha", targetScreenId: idB, action: "navigate", dataFlow: [{ key: "u" }] },
+        { id: "c2", label: "beta", targetScreenId: idC, action: "navigate", dataFlow: [{ key: "v" }] },
+        { id: "c3", label: "gamma", targetScreenId: idD, action: "navigate", dataFlow: [{ key: "w" }] },
+      ],
+    }));
+    expect(result.current.connections).toHaveLength(3);
+
+    // Delete the C-bound branch.
+    const cConn = result.current.connections.find((c) => c.toScreenId === idC);
+    act(() => result.current.deleteConnection(cConn.id));
+
+    const hotspot = result.current.screens[0].hotspots.find((h) => h.id === "hs1");
+    expect(hotspot.conditions).toHaveLength(2);
+    const labels = hotspot.conditions.map((c) => c.label);
+    expect(labels).toEqual(["alpha", "gamma"]);
+    // Original dataFlow objects should be carried over via the label+target match.
+    expect(hotspot.conditions[0].dataFlow).toEqual([{ key: "u" }]);
+    expect(hotspot.conditions[1].dataFlow).toEqual([{ key: "w" }]);
   });
 });
 

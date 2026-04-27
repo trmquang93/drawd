@@ -127,6 +127,58 @@ export function importFlow(fileText) {
     if (!Array.isArray(conn.dataFlow)) conn.dataFlow = [];
   }
 
+  // Backward compat: heal mismatched conditional indicators.
+  //
+  // Legacy files (v1–v9) may carry connections where `connectionPath` says "condition-N"
+  // but `conditionGroupId` is null, or vice versa. The renderer keys on `connectionPath`
+  // while the modal/double-click keys on `conditionGroupId`, so a mismatch produces a
+  // connection that *renders* conditional but *opens* in plain navigate mode.
+  //
+  // Two passes, both idempotent on already-coherent files:
+  //   Pass A — synthesize missing `conditionGroupId` for connections with a "condition-*"
+  //            path, grouped by (fromScreenId, hotspotId || "__none__").
+  //   Pass B — synthesize a missing/non-conditional `connectionPath` for connections that
+  //            have a `conditionGroupId`, choosing the next free "condition-N" index in
+  //            the group.
+  {
+    // Pass A: connectionPath → conditionGroupId
+    const groupIdByKey = new Map();
+    for (const conn of data.connections) {
+      const isCondPath = typeof conn.connectionPath === "string" && conn.connectionPath.startsWith("condition-");
+      if (!isCondPath || conn.conditionGroupId) continue;
+      const key = `${conn.fromScreenId}__${conn.hotspotId || "__none__"}`;
+      if (!groupIdByKey.has(key)) groupIdByKey.set(key, generateId());
+      conn.conditionGroupId = groupIdByKey.get(key);
+    }
+
+    // Pass B: conditionGroupId → connectionPath
+    const groupMembers = new Map();
+    for (const conn of data.connections) {
+      if (!conn.conditionGroupId) continue;
+      if (!groupMembers.has(conn.conditionGroupId)) groupMembers.set(conn.conditionGroupId, []);
+      groupMembers.get(conn.conditionGroupId).push(conn);
+    }
+    for (const members of groupMembers.values()) {
+      const usedIndices = new Set();
+      for (const m of members) {
+        const match = m.connectionPath?.match(/^condition-(\d+)$/);
+        if (match) usedIndices.add(parseInt(match[1], 10));
+      }
+      let next = 0;
+      const nextFreeIndex = () => {
+        while (usedIndices.has(next)) next++;
+        const v = next;
+        usedIndices.add(v);
+        next++;
+        return v;
+      };
+      for (const m of members) {
+        const isCondPath = typeof m.connectionPath === "string" && m.connectionPath.startsWith("condition-");
+        if (!isCondPath) m.connectionPath = `condition-${nextFreeIndex()}`;
+      }
+    }
+  }
+
   // Backward compat: featureBrief
   if (!data.metadata) data.metadata = {};
   if (!data.metadata.featureBrief) data.metadata.featureBrief = "";

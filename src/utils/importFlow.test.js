@@ -313,4 +313,142 @@ describe("importFlow", () => {
     expect(result.version).toBe(7);
     expect(result.screens[0].notes).toBe("Some implementation notes");
   });
+
+  // --- Conditional connector backfill (Backlog 8.1) ---
+  // See src/utils/connectionHelpers.js — `conditionGroupId` is the canonical predicate.
+  // These cases verify that legacy files with a mismatch between `connectionPath` and
+  // `conditionGroupId` get healed during import so the renderer and the modal agree.
+
+  describe("conditional connector backfill", () => {
+    const makeConn = (overrides) => ({
+      id: overrides.id,
+      fromScreenId: "src",
+      toScreenId: "dst",
+      hotspotId: null,
+      label: "",
+      action: "navigate",
+      connectionPath: "default",
+      condition: "",
+      conditionGroupId: null,
+      transitionType: null,
+      transitionLabel: "",
+      dataFlow: [],
+      ...overrides,
+    });
+
+    it("synthesizes a shared conditionGroupId for siblings sharing fromScreen+hotspot", () => {
+      const file = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({ id: "c0", connectionPath: "condition-0", toScreenId: "a" }),
+          makeConn({ id: "c1", connectionPath: "condition-1", toScreenId: "b" }),
+        ],
+      });
+      const result = importFlow(file);
+      const [c0, c1] = result.connections;
+      expect(c0.conditionGroupId).toBeTruthy();
+      expect(c1.conditionGroupId).toBe(c0.conditionGroupId);
+    });
+
+    it("uses distinct synthesized group ids for connections from different sources", () => {
+      const file = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({ id: "c0", fromScreenId: "src1", connectionPath: "condition-0", toScreenId: "a" }),
+          makeConn({ id: "c1", fromScreenId: "src2", connectionPath: "condition-0", toScreenId: "b" }),
+        ],
+      });
+      const result = importFlow(file);
+      const [c0, c1] = result.connections;
+      expect(c0.conditionGroupId).toBeTruthy();
+      expect(c1.conditionGroupId).toBeTruthy();
+      expect(c0.conditionGroupId).not.toBe(c1.conditionGroupId);
+    });
+
+    it("keeps a coherent conditional connection unchanged", () => {
+      const file = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({
+            id: "c0",
+            connectionPath: "condition-0",
+            conditionGroupId: "g-existing",
+            toScreenId: "a",
+          }),
+        ],
+      });
+      const result = importFlow(file);
+      expect(result.connections[0].connectionPath).toBe("condition-0");
+      expect(result.connections[0].conditionGroupId).toBe("g-existing");
+    });
+
+    it("synthesizes a connectionPath when a connection has only a conditionGroupId", () => {
+      const file = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({
+            id: "c0",
+            connectionPath: "default",
+            conditionGroupId: "g1",
+            toScreenId: "a",
+          }),
+        ],
+      });
+      const result = importFlow(file);
+      expect(result.connections[0].connectionPath).toBe("condition-0");
+      expect(result.connections[0].conditionGroupId).toBe("g1");
+    });
+
+    it("picks a non-colliding condition index when synthesizing within an existing group", () => {
+      const file = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({
+            id: "c0",
+            connectionPath: "condition-0",
+            conditionGroupId: "g1",
+            toScreenId: "a",
+          }),
+          makeConn({
+            id: "c1",
+            connectionPath: "default",
+            conditionGroupId: "g1",
+            toScreenId: "b",
+          }),
+        ],
+      });
+      const result = importFlow(file);
+      const paths = result.connections.map((c) => c.connectionPath).sort();
+      expect(paths).toEqual(["condition-0", "condition-1"]);
+    });
+
+    it("does not merge a hotspot conditional with a plain conditional from the same screen", () => {
+      const file = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({ id: "c0", hotspotId: "h1", connectionPath: "condition-0", toScreenId: "a" }),
+          makeConn({ id: "c1", hotspotId: null, connectionPath: "condition-0", toScreenId: "b" }),
+        ],
+      });
+      const result = importFlow(file);
+      const [c0, c1] = result.connections;
+      expect(c0.conditionGroupId).toBeTruthy();
+      expect(c1.conditionGroupId).toBeTruthy();
+      expect(c0.conditionGroupId).not.toBe(c1.conditionGroupId);
+    });
+
+    it("is idempotent on a healed file (re-import produces no further changes)", () => {
+      const initialFile = makeValidFile({
+        version: 5,
+        connections: [
+          makeConn({ id: "c0", connectionPath: "condition-0", toScreenId: "a" }),
+          makeConn({ id: "c1", connectionPath: "condition-1", toScreenId: "b" }),
+        ],
+      });
+      const firstPass = importFlow(initialFile);
+      // Re-stringify and re-import — should be a fixed point.
+      const secondPass = importFlow(JSON.stringify({ ...firstPass, version: 5 }));
+      expect(secondPass.connections).toEqual(firstPass.connections);
+    });
+  });
 });

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { COLORS, styles } from "../styles/theme";
 import { generateId } from "../utils/generateId";
+import { isConditionalConnection } from "../utils/connectionHelpers";
 import { DataFlowEditor } from "./DataFlowEditor";
 import { TRANSITION_TYPES } from "../constants";
 
 export function ConnectionEditModal({ connection, groupConnections, screens, fromScreen, onSave, onDelete, onClose }) {
-  const isConditional = groupConnections.length > 1 || !!connection.conditionGroupId;
+  const isConditional = isConditionalConnection(connection) || groupConnections.length > 1;
 
   const [mode, setMode] = useState(isConditional ? "conditional" : "navigate");
   const [label, setLabel] = useState(connection.label || "");

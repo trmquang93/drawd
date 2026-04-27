@@ -602,6 +602,11 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     if (hotspot.action === "conditional") {
       setConnections((prev) => {
         let updated = prev.filter((c) => c.hotspotId !== hotspot.id);
+        // Single shared conditionGroupId for every branch (and its api-success/
+        // api-error sub-branches) belonging to this hotspot. Keeps the canonical
+        // `isConditionalConnection` predicate true for these connections, matching
+        // what convertToConditionalGroup / addToConditionalGroup write at drag time.
+        const groupId = generateId();
         (hotspot.conditions || []).forEach((cond, i) => {
           const branchAction = cond.action || "navigate";
 
@@ -618,6 +623,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
               action: branchAction,
               connectionPath: `condition-${i}`,
               condition: cond.label || "",
+              conditionGroupId: groupId,
               transitionType: null,
               transitionLabel: "",
               dataFlow: cond.dataFlow || [],
@@ -637,6 +643,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
                 action: successAction,
                 connectionPath: `condition-${i}-api-success`,
                 condition: cond.label || "",
+                conditionGroupId: groupId,
                 transitionType: null,
                 transitionLabel: "",
                 dataFlow: cond.onSuccessDataFlow || [],
@@ -653,6 +660,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
                 action: errorAction,
                 connectionPath: `condition-${i}-api-error`,
                 condition: cond.label || "",
+                conditionGroupId: groupId,
                 transitionType: null,
                 transitionLabel: "",
                 dataFlow: cond.onErrorDataFlow || [],
@@ -818,7 +826,86 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
   const deleteConnection = useCallback((connectionId) => {
     commentCallbacksRef.current.onDeleteCommentsForConnection?.(connectionId);
     pushHistory(screens, connections, documents);
+
+    // Snapshot the connection being deleted so we can sync the owning hotspot
+    // (if any) below. Captured from `connections` because setConnections runs
+    // asynchronously and we need this value during setScreens scheduling.
+    const deletedConn = connections.find((c) => c.id === connectionId);
+    const isHotspotConditionalBranch =
+      deletedConn?.hotspotId && /^condition-\d+$/.test(deletedConn.connectionPath || "");
+
     setConnections((prev) => prev.filter((c) => c.id !== connectionId));
+
+    // If the deleted connection was one branch of a hotspot's conditional group,
+    // shrink (or revert) the hotspot's `conditions[]` so HotspotModal stays
+    // coherent with the canvas. Without this, on next saveHotspot the deleted
+    // branch would resurrect from the stale hotspot.conditions array.
+    if (isHotspotConditionalBranch) {
+      // Remaining main-branch conditional connections for this hotspot, in their
+      // existing on-canvas order (we ignore api-success/api-error sub-branches
+      // here — they're tied to a parent condition, not a branch on their own).
+      const remaining = connections.filter(
+        (c) =>
+          c.id !== connectionId &&
+          c.hotspotId === deletedConn.hotspotId &&
+          /^condition-\d+$/.test(c.connectionPath || "")
+      );
+
+      setScreens((prev) =>
+        prev.map((s) => {
+          if (s.id !== deletedConn.fromScreenId) return s;
+          return {
+            ...s,
+            hotspots: s.hotspots.map((h) => {
+              if (h.id !== deletedConn.hotspotId) return h;
+
+              // Empty: revert hotspot to a default navigate-with-no-target state.
+              if (remaining.length === 0) {
+                return { ...h, action: "navigate", targetScreenId: null, conditions: [] };
+              }
+              // One branch left: collapse back to plain navigate. The remaining
+              // connection is left intact (renderer still colors it by its
+              // existing condition-N path until next saveHotspot normalizes).
+              if (remaining.length === 1) {
+                return {
+                  ...h,
+                  action: "navigate",
+                  targetScreenId: remaining[0].toScreenId || null,
+                  conditions: [],
+                };
+              }
+              // Two or more left: keep conditional. Rebuild conditions from the
+              // surviving connections, preserving any rich per-condition data
+              // (api/custom/dataFlow) by matching label + target against the
+              // previous `hotspot.conditions` snapshot.
+              const previousConditions = h.conditions || [];
+              const newConditions = remaining.map((c) => {
+                const match = previousConditions.find(
+                  (pc) =>
+                    (pc.label || "") === (c.condition || "") &&
+                    (pc.targetScreenId || "") === (c.toScreenId || "")
+                );
+                return (
+                  match || {
+                    id: generateId(),
+                    label: c.condition || c.label || "",
+                    targetScreenId: c.toScreenId || "",
+                    action: "navigate",
+                    dataFlow: c.dataFlow || [],
+                  }
+                );
+              });
+              return {
+                ...h,
+                action: "conditional",
+                targetScreenId: null,
+                conditions: newConditions,
+              };
+            }),
+          };
+        })
+      );
+    }
   }, [screens, connections, documents, pushHistory]);
 
   const saveConnectionGroup = useCallback((originalConnId, payload) => {
@@ -889,6 +976,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
   const convertToConditionalGroup = useCallback((existingConnId, fromScreenId, toScreenId, hotspotId = null) => {
     pushHistory(screens, connections, documents);
     const groupId = generateId();
+    const existingConn = connections.find((c) => c.id === existingConnId) || null;
     setConnections((prev) => {
       const updated = prev.map((c) =>
         c.id === existingConnId
@@ -910,6 +998,45 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
         dataFlow: [],
       }];
     });
+    // When converting a hotspot-backed connection into a conditional group,
+    // sync the hotspot itself so it becomes the source of truth (saveHotspot
+    // and HotspotModal both read from `hotspot.action` / `hotspot.conditions`).
+    // Without this, double-clicking the new conditional branch would open
+    // HotspotModal in stale "navigate" mode pointing at the old single target.
+    if (hotspotId) {
+      setScreens((prev) =>
+        prev.map((s) => {
+          if (s.id !== fromScreenId) return s;
+          return {
+            ...s,
+            hotspots: s.hotspots.map((h) => {
+              if (h.id !== hotspotId) return h;
+              return {
+                ...h,
+                action: "conditional",
+                targetScreenId: null,
+                conditions: [
+                  {
+                    id: generateId(),
+                    label: existingConn?.label || "",
+                    targetScreenId: existingConn?.toScreenId || "",
+                    action: "navigate",
+                    dataFlow: existingConn?.dataFlow || [],
+                  },
+                  {
+                    id: generateId(),
+                    label: "",
+                    targetScreenId: toScreenId,
+                    action: "navigate",
+                    dataFlow: [],
+                  },
+                ],
+              };
+            }),
+          };
+        })
+      );
+    }
     return groupId;
   }, [screens, connections, documents, pushHistory]);
 
@@ -936,6 +1063,49 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
         dataFlow: [],
       }];
     });
+    // When adding to a hotspot-backed conditional group, mirror the new branch
+    // onto the hotspot so HotspotModal opens with the full set of conditions.
+    // If a previous code path (legacy state, or a save round-trip) left the
+    // hotspot's `conditions` empty but the connection group populated, we
+    // reconstruct the conditions from the existing group connections first.
+    if (hotspotId) {
+      const existingGroupConns = connections.filter((c) => c.conditionGroupId === conditionGroupId);
+      setScreens((prev) =>
+        prev.map((s) => {
+          if (s.id !== fromScreenId) return s;
+          return {
+            ...s,
+            hotspots: s.hotspots.map((h) => {
+              if (h.id !== hotspotId) return h;
+              const baseConditions = (h.conditions && h.conditions.length > 0)
+                ? h.conditions
+                : existingGroupConns.map((c) => ({
+                    id: generateId(),
+                    label: c.label || "",
+                    targetScreenId: c.toScreenId || "",
+                    action: "navigate",
+                    dataFlow: c.dataFlow || [],
+                  }));
+              return {
+                ...h,
+                action: "conditional",
+                targetScreenId: null,
+                conditions: [
+                  ...baseConditions,
+                  {
+                    id: generateId(),
+                    label: "",
+                    targetScreenId: toScreenId,
+                    action: "navigate",
+                    dataFlow: [],
+                  },
+                ],
+              };
+            }),
+          };
+        })
+      );
+    }
   }, [screens, connections, documents, pushHistory]);
 
   const addConnection = useCallback((fromScreenId, toScreenId) => {
@@ -952,6 +1122,9 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
         hotspotId: null,
         label: "",
         action: "navigate",
+        connectionPath: "default",
+        condition: "",
+        conditionGroupId: null,
         transitionType: null,
         transitionLabel: "",
         dataFlow: [],
