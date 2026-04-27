@@ -20,6 +20,37 @@ import {
   HEADER_HEIGHT,
 } from "../constants";
 
+// When a canonical component screen is removed (or unlinked) and we auto-promote
+// its first remaining instance, the promoted screen must inherit the canonical's
+// hotspots so existing connections keyed off those hotspot ids stay live.
+//
+// Returns:
+//   canonicalHotspotIds — Set<string> of hotspot ids that lived on the canonical;
+//                         used by callers to re-point connections from the
+//                         deleted canonical onto the promoted instance.
+//   mergedHotspots      — union of canonical's hotspots and the instance's own
+//                         locals, deduped by id (canonical wins on collision).
+function mergeOnPromotion({ removedCanonical, firstInstance }) {
+  const canonicalHotspots = (removedCanonical && removedCanonical.hotspots) || [];
+  const instanceHotspots = (firstInstance && firstInstance.hotspots) || [];
+  const canonicalHotspotIds = new Set(canonicalHotspots.map((h) => h.id));
+  const seen = new Set();
+  const mergedHotspots = [];
+  for (const h of canonicalHotspots) {
+    if (!seen.has(h.id)) {
+      seen.add(h.id);
+      mergedHotspots.push(h);
+    }
+  }
+  for (const h of instanceHotspots) {
+    if (!seen.has(h.id)) {
+      seen.add(h.id);
+      mergedHotspots.push(h);
+    }
+  }
+  return { canonicalHotspotIds, mergedHotspots };
+}
+
 function makeScreen(overrides = {}) {
   return {
     id: generateId(),
@@ -193,6 +224,36 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     commentCallbacksRef.current.onDeleteCommentsForScreen?.(id);
     pushHistory(screens, connections, documents);
     const removedScreen = screens.find((s) => s.id === id);
+
+    // Pre-compute promotion metadata BEFORE the setters so neither closure
+    // reads stale state. firstInstance is found from the current `screens`
+    // snapshot — auto-save broadcasts and other state-mutators only affect
+    // membership, not which instance is "first."
+    let promotion = null;
+    if (
+      removedScreen &&
+      removedScreen.componentRole === "canonical" &&
+      removedScreen.componentId
+    ) {
+      const firstInstance = screens.find(
+        (s) =>
+          s.id !== id &&
+          s.componentId === removedScreen.componentId &&
+          s.componentRole === "instance"
+      );
+      if (firstInstance) {
+        const { canonicalHotspotIds, mergedHotspots } = mergeOnPromotion({
+          removedCanonical: removedScreen,
+          firstInstance,
+        });
+        promotion = {
+          firstInstanceId: firstInstance.id,
+          canonicalHotspotIds,
+          mergedHotspots,
+        };
+      }
+    }
+
     setScreens((prev) => {
       let remaining = prev.filter((s) => s.id !== id);
       // Auto-cleanup: if only one screen left in the stateGroup, clear it
@@ -206,22 +267,34 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
           );
         }
       }
-      // Auto-promote: if the removed screen was a canonical component, promote the first instance.
-      if (removedScreen?.componentRole === "canonical" && removedScreen.componentId) {
-        const firstInstance = remaining.find(
-          (s) => s.componentId === removedScreen.componentId && s.componentRole === "instance"
+      // Auto-promote: if the removed screen was a canonical component, promote
+      // the first instance and merge canonical's hotspots into its locals.
+      if (promotion) {
+        remaining = remaining.map((s) =>
+          s.id === promotion.firstInstanceId
+            ? { ...s, componentRole: "canonical", hotspots: promotion.mergedHotspots }
+            : s
         );
-        if (firstInstance) {
-          remaining = remaining.map((s) =>
-            s.id === firstInstance.id ? { ...s, componentRole: "canonical" } : s
-          );
-        }
       }
       return remaining;
     });
-    setConnections((prev) =>
-      prev.filter((c) => c.fromScreenId !== id && c.toScreenId !== id)
-    );
+    setConnections((prev) => {
+      let next = prev;
+      if (promotion) {
+        // Re-point connections that originated from the removed canonical and
+        // referenced one of the canonical's hotspot ids to the promoted
+        // instance, BEFORE the orphan-filter drops connections that still
+        // reference the deleted id.
+        next = next.map((c) =>
+          c.fromScreenId === id &&
+          c.hotspotId &&
+          promotion.canonicalHotspotIds.has(c.hotspotId)
+            ? { ...c, fromScreenId: promotion.firstInstanceId }
+            : c
+        );
+      }
+      return next.filter((c) => c.fromScreenId !== id && c.toScreenId !== id);
+    });
     if (selectedScreen === id) setSelectedScreen(null);
   }, [selectedScreen, screens, connections, documents, pushHistory]);
 
@@ -269,6 +342,35 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
   //                  the first instance to canonical so the group survives.
   const setScreenComponent = useCallback((id, mode, opts = {}) => {
     pushHistory(screens, connections, documents);
+
+    // Pre-compute promotion metadata for the unlink-canonical branch BEFORE
+    // any setter so the connection re-pointer uses pre-state, matching the
+    // pattern in removeScreen / removeScreens.
+    let unlinkPromotion = null;
+    if (mode === "unlink") {
+      const target = screens.find((s) => s.id === id);
+      if (target && target.componentRole === "canonical" && target.componentId) {
+        const firstInstance = screens.find(
+          (s) =>
+            s.id !== id &&
+            s.componentId === target.componentId &&
+            s.componentRole === "instance"
+        );
+        if (firstInstance) {
+          const { canonicalHotspotIds, mergedHotspots } = mergeOnPromotion({
+            removedCanonical: target,
+            firstInstance,
+          });
+          unlinkPromotion = {
+            unlinkedCanonicalId: id,
+            firstInstanceId: firstInstance.id,
+            canonicalHotspotIds,
+            mergedHotspots,
+          };
+        }
+      }
+    }
+
     setScreens((prev) => {
       const target = prev.find((s) => s.id === id);
       if (!target) return prev;
@@ -303,20 +405,20 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
       }
 
       if (mode === "unlink") {
-        const wasCanonical = target.componentRole === "canonical";
-        const groupId = target.componentId;
-        if (wasCanonical && groupId) {
-          // Auto-promote: find first instance and make it canonical
-          const firstInstance = prev.find(
-            (s) => s.id !== id && s.componentId === groupId && s.componentRole === "instance"
-          );
-          if (firstInstance) {
-            return prev.map((s) => {
-              if (s.id === id) return { ...s, componentId: null, componentRole: null };
-              if (s.id === firstInstance.id) return { ...s, componentRole: "canonical" };
-              return s;
-            });
-          }
+        if (unlinkPromotion) {
+          // Auto-promote: clear role on the unlinked canonical and merge its
+          // hotspots into the promoted instance.
+          return prev.map((s) => {
+            if (s.id === id) return { ...s, componentId: null, componentRole: null };
+            if (s.id === unlinkPromotion.firstInstanceId) {
+              return {
+                ...s,
+                componentRole: "canonical",
+                hotspots: unlinkPromotion.mergedHotspots,
+              };
+            }
+            return s;
+          });
         }
         return prev.map((s) =>
           s.id === id ? { ...s, componentId: null, componentRole: null } : s
@@ -325,6 +427,22 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
 
       return prev;
     });
+
+    // Re-point connections in the unlink-canonical-with-instances branch only:
+    // hotspot-driven connections originating from the unlinked canonical that
+    // referenced a canonical-owned hotspot id should now flow from the
+    // promoted instance, since the merged hotspots live on it.
+    if (unlinkPromotion) {
+      setConnections((prev) =>
+        prev.map((c) =>
+          c.fromScreenId === unlinkPromotion.unlinkedCanonicalId &&
+          c.hotspotId &&
+          unlinkPromotion.canonicalHotspotIds.has(c.hotspotId)
+            ? { ...c, fromScreenId: unlinkPromotion.firstInstanceId }
+            : c
+        )
+      );
+    }
   }, [screens, connections, documents, pushHistory]);
 
   const markAllExisting = useCallback(() => {
@@ -366,6 +484,43 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     commentCallbacksRef.current.onDeleteCommentsForScreens?.(ids);
     pushHistory(screens, connections, documents);
     const idSet = new Set(ids);
+
+    // Pre-compute per-group promotion metadata BEFORE both setters so neither
+    // closure reads stale state. We resolve `firstInstance` against the
+    // pre-removal screen list (skipping screens being removed).
+    const removedScreensSnapshot = screens.filter((s) => idSet.has(s.id));
+    const removedCanonicalsSnapshot = removedScreensSnapshot.filter(
+      (s) => s.componentRole === "canonical" && s.componentId
+    );
+    // Map of removedCanonicalId -> { firstInstanceId, canonicalHotspotIds, mergedHotspots }
+    const promotions = new Map();
+    for (const removedCanonical of removedCanonicalsSnapshot) {
+      // Skip if another canonical for the same group somehow remains (shouldn't happen normally).
+      const stillCanonical = screens.some(
+        (s) =>
+          !idSet.has(s.id) &&
+          s.componentId === removedCanonical.componentId &&
+          s.componentRole === "canonical"
+      );
+      if (stillCanonical) continue;
+      const firstInstance = screens.find(
+        (s) =>
+          !idSet.has(s.id) &&
+          s.componentId === removedCanonical.componentId &&
+          s.componentRole === "instance"
+      );
+      if (!firstInstance) continue;
+      const { canonicalHotspotIds, mergedHotspots } = mergeOnPromotion({
+        removedCanonical,
+        firstInstance,
+      });
+      promotions.set(removedCanonical.id, {
+        firstInstanceId: firstInstance.id,
+        canonicalHotspotIds,
+        mergedHotspots,
+      });
+    }
+
     setScreens((prev) => {
       const removedScreens = prev.filter((s) => idSet.has(s.id));
       let remaining = prev.filter((s) => !idSet.has(s.id));
@@ -380,32 +535,41 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
           );
         }
       });
-      // Auto-promote any orphaned component groups: if a canonical was removed and instances remain,
-      // promote the first remaining instance to canonical.
-      const removedCanonicalGroups = new Set(
-        removedScreens
-          .filter((s) => s.componentRole === "canonical" && s.componentId)
-          .map((s) => s.componentId)
-      );
-      removedCanonicalGroups.forEach((groupId) => {
-        const stillCanonical = remaining.some(
-          (s) => s.componentId === groupId && s.componentRole === "canonical"
+      // Auto-promote any orphaned component groups: if a canonical was removed
+      // and instances remain, promote the first remaining instance, merging
+      // the canonical's hotspots into its locals.
+      promotions.forEach((promo) => {
+        remaining = remaining.map((s) =>
+          s.id === promo.firstInstanceId
+            ? { ...s, componentRole: "canonical", hotspots: promo.mergedHotspots }
+            : s
         );
-        if (stillCanonical) return;
-        const firstInstance = remaining.find(
-          (s) => s.componentId === groupId && s.componentRole === "instance"
-        );
-        if (firstInstance) {
-          remaining = remaining.map((s) =>
-            s.id === firstInstance.id ? { ...s, componentRole: "canonical" } : s
-          );
-        }
       });
       return remaining;
     });
-    setConnections((prev) =>
-      prev.filter((c) => !idSet.has(c.fromScreenId) && !idSet.has(c.toScreenId))
-    );
+    setConnections((prev) => {
+      let next = prev;
+      if (promotions.size > 0) {
+        // Re-point connections originating from a removed canonical that
+        // referenced one of that canonical's hotspot ids onto the promoted
+        // instance — BEFORE the orphan-filter drops connections that still
+        // touch a removed id.
+        next = next.map((c) => {
+          const promo = promotions.get(c.fromScreenId);
+          if (
+            promo &&
+            c.hotspotId &&
+            promo.canonicalHotspotIds.has(c.hotspotId)
+          ) {
+            return { ...c, fromScreenId: promo.firstInstanceId };
+          }
+          return c;
+        });
+      }
+      return next.filter(
+        (c) => !idSet.has(c.fromScreenId) && !idSet.has(c.toScreenId)
+      );
+    });
     if (idSet.has(selectedScreen)) setSelectedScreen(null);
   }, [selectedScreen, screens, connections, documents, pushHistory]);
 

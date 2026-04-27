@@ -1258,3 +1258,198 @@ describe("addScreensBatch", () => {
     expect(result.current.canUndo).toBe(false);
   });
 });
+
+describe("useScreenManager component promotion", () => {
+  it("removeScreen on canonical with two instances promotes first instance, merges hotspots, re-points connections", () => {
+    // Build: canonical with hotspot hC1 (navigate -> targetScreen).
+    // Instance 1 has its own local hI1.
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "Target"));
+    const targetId = result.current.screens[0].id;
+
+    act(() => result.current.addScreen(null, "Canonical"));
+    const canonicalId = result.current.screens[1].id;
+    const canonicalHotspot = {
+      id: "hC1",
+      label: "CanTap",
+      x: 0, y: 0, w: 10, h: 10,
+      action: "navigate",
+      targetScreenId: targetId,
+    };
+    act(() => result.current.saveHotspot(canonicalId, canonicalHotspot));
+    act(() => result.current.setScreenComponent(canonicalId, "canonical"));
+    const componentId = result.current.screens.find((s) => s.id === canonicalId).componentId;
+
+    act(() => result.current.addScreen(null, "Instance 1"));
+    const inst1Id = result.current.screens[result.current.screens.length - 1].id;
+    act(() => result.current.setScreenComponent(inst1Id, "instance", { componentId }));
+    const localHotspot = {
+      id: "hI1",
+      label: "LocalTap",
+      x: 50, y: 50, w: 10, h: 10,
+      action: "navigate",
+      targetScreenId: null,
+    };
+    act(() => result.current.saveHotspot(inst1Id, localHotspot));
+
+    act(() => result.current.addScreen(null, "Instance 2"));
+    const inst2Id = result.current.screens[result.current.screens.length - 1].id;
+    act(() => result.current.setScreenComponent(inst2Id, "instance", { componentId }));
+
+    // Sanity: connection from canonical exists, keyed off hC1.
+    const connBefore = result.current.connections.find(
+      (c) => c.fromScreenId === canonicalId && c.hotspotId === "hC1"
+    );
+    expect(connBefore).toBeTruthy();
+
+    // Delete canonical.
+    act(() => result.current.removeScreen(canonicalId));
+
+    // Canonical gone.
+    expect(result.current.screens.find((s) => s.id === canonicalId)).toBeUndefined();
+    // Instance 1 promoted.
+    const promoted = result.current.screens.find((s) => s.id === inst1Id);
+    expect(promoted.componentRole).toBe("canonical");
+    // Hotspots merged: canonical's hC1 first, then instance's hI1.
+    const ids = promoted.hotspots.map((h) => h.id);
+    expect(ids).toContain("hC1");
+    expect(ids).toContain("hI1");
+    expect(promoted.hotspots).toHaveLength(2);
+    // Instance 2 still an instance.
+    const stillInstance = result.current.screens.find((s) => s.id === inst2Id);
+    expect(stillInstance.componentRole).toBe("instance");
+
+    // Connection re-pointed: now flows from promoted (inst1) instead of removed canonical.
+    const connAfter = result.current.connections.find((c) => c.hotspotId === "hC1");
+    expect(connAfter).toBeTruthy();
+    expect(connAfter.fromScreenId).toBe(inst1Id);
+    expect(connAfter.toScreenId).toBe(targetId);
+  });
+
+  it("removeScreens batch-deletes canonical with instances; promotes & re-points", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "Target"));
+    const targetId = result.current.screens[0].id;
+
+    act(() => result.current.addScreen(null, "Canonical"));
+    const canonicalId = result.current.screens[1].id;
+    act(() =>
+      result.current.saveHotspot(canonicalId, {
+        id: "hC1", label: "CanTap", x: 0, y: 0, w: 10, h: 10,
+        action: "navigate", targetScreenId: targetId,
+      })
+    );
+    act(() => result.current.setScreenComponent(canonicalId, "canonical"));
+    const componentId = result.current.screens.find((s) => s.id === canonicalId).componentId;
+
+    act(() => result.current.addScreen(null, "Instance 1"));
+    const inst1Id = result.current.screens[result.current.screens.length - 1].id;
+    act(() => result.current.setScreenComponent(inst1Id, "instance", { componentId }));
+    act(() =>
+      result.current.saveHotspot(inst1Id, {
+        id: "hI1", label: "LocalTap", x: 50, y: 50, w: 10, h: 10,
+        action: "navigate", targetScreenId: null,
+      })
+    );
+
+    // Add an unrelated screen alongside the canonical in the batch removal.
+    act(() => result.current.addScreen(null, "Other"));
+    const otherId = result.current.screens[result.current.screens.length - 1].id;
+
+    act(() => result.current.removeScreens([canonicalId, otherId]));
+
+    expect(result.current.screens.find((s) => s.id === canonicalId)).toBeUndefined();
+    expect(result.current.screens.find((s) => s.id === otherId)).toBeUndefined();
+    const promoted = result.current.screens.find((s) => s.id === inst1Id);
+    expect(promoted.componentRole).toBe("canonical");
+    const ids = promoted.hotspots.map((h) => h.id);
+    expect(ids).toContain("hC1");
+    expect(ids).toContain("hI1");
+
+    const connAfter = result.current.connections.find((c) => c.hotspotId === "hC1");
+    expect(connAfter).toBeTruthy();
+    expect(connAfter.fromScreenId).toBe(inst1Id);
+  });
+
+  it("setScreenComponent unlink on canonical with instances promotes first instance, merges hotspots, re-points", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "Target"));
+    const targetId = result.current.screens[0].id;
+
+    act(() => result.current.addScreen(null, "Canonical"));
+    const canonicalId = result.current.screens[1].id;
+    act(() =>
+      result.current.saveHotspot(canonicalId, {
+        id: "hC1", label: "CanTap", x: 0, y: 0, w: 10, h: 10,
+        action: "navigate", targetScreenId: targetId,
+      })
+    );
+    act(() => result.current.setScreenComponent(canonicalId, "canonical"));
+    const componentId = result.current.screens.find((s) => s.id === canonicalId).componentId;
+
+    act(() => result.current.addScreen(null, "Instance 1"));
+    const inst1Id = result.current.screens[result.current.screens.length - 1].id;
+    act(() => result.current.setScreenComponent(inst1Id, "instance", { componentId }));
+    act(() =>
+      result.current.saveHotspot(inst1Id, {
+        id: "hI1", label: "LocalTap", x: 50, y: 50, w: 10, h: 10,
+        action: "navigate", targetScreenId: null,
+      })
+    );
+
+    act(() => result.current.setScreenComponent(canonicalId, "unlink"));
+
+    const unlinked = result.current.screens.find((s) => s.id === canonicalId);
+    expect(unlinked.componentRole).toBeNull();
+    expect(unlinked.componentId).toBeNull();
+
+    const promoted = result.current.screens.find((s) => s.id === inst1Id);
+    expect(promoted.componentRole).toBe("canonical");
+    const ids = promoted.hotspots.map((h) => h.id);
+    expect(ids).toContain("hC1");
+    expect(ids).toContain("hI1");
+
+    // Re-point: connection from the (now-unlinked) canonical that referenced
+    // hC1 should now flow from the promoted instance.
+    const connRePointed = result.current.connections.find(
+      (c) => c.hotspotId === "hC1" && c.fromScreenId === inst1Id
+    );
+    expect(connRePointed).toBeTruthy();
+  });
+
+  it("promotion dedupes by hotspot id (canonical wins on collision)", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "Target"));
+    const targetId = result.current.screens[0].id;
+
+    act(() => result.current.addScreen(null, "Canonical"));
+    const canonicalId = result.current.screens[1].id;
+    const sharedId = "hSHARED";
+    act(() =>
+      result.current.saveHotspot(canonicalId, {
+        id: sharedId, label: "Canonical version", x: 0, y: 0, w: 10, h: 10,
+        action: "navigate", targetScreenId: targetId,
+      })
+    );
+    act(() => result.current.setScreenComponent(canonicalId, "canonical"));
+    const componentId = result.current.screens.find((s) => s.id === canonicalId).componentId;
+
+    act(() => result.current.addScreen(null, "Instance 1"));
+    const inst1Id = result.current.screens[result.current.screens.length - 1].id;
+    act(() => result.current.setScreenComponent(inst1Id, "instance", { componentId }));
+    act(() =>
+      result.current.saveHotspot(inst1Id, {
+        id: sharedId, label: "Instance version", x: 50, y: 50, w: 10, h: 10,
+        action: "navigate", targetScreenId: null,
+      })
+    );
+
+    act(() => result.current.removeScreen(canonicalId));
+
+    const promoted = result.current.screens.find((s) => s.id === inst1Id);
+    expect(promoted.hotspots).toHaveLength(1);
+    // Canonical wins on collision — its label is preserved.
+    expect(promoted.hotspots[0].id).toBe(sharedId);
+    expect(promoted.hotspots[0].label).toBe("Canonical version");
+  });
+});
