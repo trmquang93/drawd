@@ -33,7 +33,7 @@ describe("resolveInstanceVisuals", () => {
     expect(result).toBe(orphan);
   });
 
-  it("merges canonical's image + dimensions + hotspots into instance", () => {
+  it("merges canonical's image + dimensions into instance but NOT hotspots", () => {
     const canonical = baseScreen({
       id: "s1",
       name: "Card",
@@ -60,7 +60,75 @@ describe("resolveInstanceVisuals", () => {
     expect(result.imageWidth).toBe(800);
     expect(result.imageHeight).toBe(600);
     expect(result.width).toBe(800);
-    expect(result.hotspots).toEqual(canonical.hotspots);
+    // Hotspots are NOT inherited from the canonical — instances keep their own.
+    expect(result.hotspots).toEqual([]);
+  });
+
+  it("instance with non-empty local hotspots returns them verbatim regardless of canonical's hotspots", () => {
+    const canonical = baseScreen({
+      id: "s1",
+      componentId: "c1",
+      componentRole: "canonical",
+      hotspots: [
+        { id: "hC1", label: "Canonical Tap", x: 0, y: 0, w: 10, h: 10 },
+        { id: "hC2", label: "Canonical Other", x: 10, y: 10, w: 10, h: 10 },
+      ],
+    });
+    const localHotspots = [
+      { id: "hI1", label: "Local Skip", x: 50, y: 50, w: 30, h: 30 },
+    ];
+    const instance = baseScreen({
+      id: "s2",
+      componentId: "c1",
+      componentRole: "instance",
+      hotspots: localHotspots,
+    });
+    const result = resolveInstanceVisuals(instance, [canonical, instance]);
+    expect(result.hotspots).toBe(localHotspots);
+    expect(result.hotspots).toEqual(localHotspots);
+  });
+
+  it("instance with empty hotspots returns empty (canonical's are NOT copied)", () => {
+    const canonical = baseScreen({
+      id: "s1",
+      componentId: "c1",
+      componentRole: "canonical",
+      hotspots: [{ id: "hC1", label: "Canonical Tap", x: 0, y: 0, w: 10, h: 10 }],
+    });
+    const instance = baseScreen({
+      id: "s2",
+      componentId: "c1",
+      componentRole: "instance",
+      hotspots: [],
+    });
+    const result = resolveInstanceVisuals(instance, [canonical, instance]);
+    expect(result.hotspots).toEqual([]);
+  });
+
+  it("image fields (imageData, imageWidth, imageHeight, width) still inherit from canonical", () => {
+    const canonical = baseScreen({
+      id: "s1",
+      componentId: "c1",
+      componentRole: "canonical",
+      imageData: "data:image/png;base64,CANONICAL",
+      imageWidth: 1024,
+      imageHeight: 768,
+      width: 1024,
+    });
+    const instance = baseScreen({
+      id: "s2",
+      componentId: "c1",
+      componentRole: "instance",
+      imageData: null,
+      imageWidth: 100,
+      imageHeight: 100,
+      width: 200,
+    });
+    const result = resolveInstanceVisuals(instance, [canonical, instance]);
+    expect(result.imageData).toBe("data:image/png;base64,CANONICAL");
+    expect(result.imageWidth).toBe(1024);
+    expect(result.imageHeight).toBe(768);
+    expect(result.width).toBe(1024);
   });
 
   it("preserves identity fields (id, name, position) from the instance", () => {

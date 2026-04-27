@@ -21,10 +21,6 @@ export function ScreenNode({
   selectedCommentId,
   onCommentPinClick,
   onDeselectComment,
-  // True when this is an instance whose image/hotspots are inherited from
-  // its canonical at render time. Hotspot edits are read-only here — users
-  // must edit the canonical instead.
-  isInstanceVisual,
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -370,7 +366,7 @@ export function ScreenNode({
           >
             S+
           </button>
-          {!isInstanceVisual && <button
+          <button
             className="screen-btn"
             onClick={(e) => { e.stopPropagation(); onAddHotspot(screen.id); }}
             title="Add tap area / button link"
@@ -386,7 +382,7 @@ export function ScreenNode({
             }}
           >
             + Link
-          </button>}
+          </button>
           <button
             className="screen-btn"
             onClick={(e) => { e.stopPropagation(); onRemoveScreen(screen.id); }}
@@ -434,7 +430,7 @@ export function ScreenNode({
             }
           }
           onSelect(screen.id);
-          if (screen.imageData && !isInstanceVisual && onImageAreaMouseDown) {
+          if (screen.imageData && onImageAreaMouseDown) {
             onImageAreaMouseDown(e, screen.id);
           }
         }}
@@ -463,12 +459,10 @@ export function ScreenNode({
                   className="hotspot-area"
                   onMouseDown={(e) => {
                     e.stopPropagation();
-                    if (isInstanceVisual) return;
                     if (onHotspotMouseDown) onHotspotMouseDown(e, screen.id, hs.id);
                   }}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
-                    if (isInstanceVisual) return;
                     if (onHotspotDoubleClick) onHotspotDoubleClick(e, screen.id, hs.id);
                   }}
                   style={{
@@ -505,7 +499,7 @@ export function ScreenNode({
                 >
                   {hs.label || "TAP"}
                   {/* Drag handle for hotspot-to-screen connect */}
-                  {isSelected && !isInstanceVisual && (
+                  {isSelected && (
                     <div
                       className="hotspot-drag-handle"
                       onMouseDown={(e) => {
@@ -532,7 +526,7 @@ export function ScreenNode({
                     />
                   )}
                   {/* Resize handles */}
-                  {isSelected && !isInstanceVisual && ["nw","n","ne","e","se","s","sw","w"].map((handle) => {
+                  {isSelected && ["nw","n","ne","e","se","s","sw","w"].map((handle) => {
                     const pos = {
                       nw: { left: -4, top: -4, cursor: "nwse-resize" },
                       n:  { left: "50%", top: -4, cursor: "ns-resize", transform: "translateX(-50%)" },

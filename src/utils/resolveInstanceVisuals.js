@@ -1,15 +1,20 @@
 // resolveInstanceVisuals
 //
-// When a screen is marked as a component instance, on the canvas it should
-// look identical to its canonical (same image, same hotspot positions, same
-// dimensions). The canonical is the single source of truth for the visual
-// spec — instances are placements.
+// When a screen is marked as a component instance, on the canvas it inherits
+// IMAGE and DIMENSIONS from its canonical so every placement renders the same
+// underlying screenshot at the same size. The canonical remains the single
+// source of truth for those visuals.
+//
+// `hotspots[]` is NOT inherited — on an instance, `screen.hotspots[]` holds
+// the placement's own *additive local* hotspots. They are rendered as-is on
+// the canvas and merged with the canonical's hotspots at export time
+// (see generateInstructionFiles.js), not at render time.
 //
 // This helper is the render-time bridge: pass any screen and the full screens
 // array, get back either the screen unchanged (canonical / unlinked / orphan
-// instance) or a shallow-merged screen whose visual fields come from the
-// canonical while identity fields (id, x, y, name, status, comments, etc.)
-// stay from the instance.
+// instance) or a shallow-merged screen whose IMAGE/DIMENSIONS come from the
+// canonical while identity fields (id, x, y, name, status, comments, hotspots,
+// etc.) stay from the instance.
 //
 // We intentionally do NOT copy data into instances on save — keeping this at
 // render time means edits to the canonical propagate to every instance
@@ -20,7 +25,6 @@ const VISUAL_FIELDS = [
   "imageWidth",
   "imageHeight",
   "width",
-  "hotspots",
 ];
 
 export function resolveInstanceVisuals(screen, screens) {
