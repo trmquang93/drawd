@@ -1,5 +1,6 @@
-import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, COMPONENT_CONFIG } from "../styles/theme";
+import { COLORS, FONTS, STATUS_CONFIG, STATUS_CYCLE, COMPONENT_CONFIG, Z_INDEX } from "../styles/theme";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { COPY_FEEDBACK_MS, SIDEBAR_WIDTH } from "../constants";
 
 export function Sidebar({ screen, screens, connections, onClose, onRename, onAddHotspot, onEditHotspot, onAddState, onSelectScreen, onUpdateStateName, onUpdateNotes, onUpdateCodeRef, onUpdateCriteria, onUpdateStatus, onUpdateTbd, onUpdateRoles, onSetComponent, isReadOnly }) {
@@ -13,6 +14,7 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
   const [newRole, setNewRole] = useState("");
   const [rolesScreenId, setRolesScreenId] = useState(screen.id);
   const [idCopied, setIdCopied] = useState(false);
+  const [statusMenu, setStatusMenu] = useState(null); // { x, y } | null
 
   // Reset the "Copied!" flag when switching to a different screen so it
   // never lingers from a previous screen's click.
@@ -212,8 +214,15 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
           Build status
         </span>
         <button
-          onClick={() => onUpdateStatus?.(screen.id, STATUS_CYCLE[status])}
-          title="Click to cycle: New → Modify → Existing"
+          onClick={() => { if (isReadOnly) return; onUpdateStatus?.(screen.id, STATUS_CYCLE[status]); }}
+          onContextMenu={(e) => {
+            if (isReadOnly) return;
+            e.preventDefault();
+            e.stopPropagation();
+            setStatusMenu({ x: e.clientX, y: e.clientY });
+          }}
+          disabled={isReadOnly}
+          title={isReadOnly ? statusCfg.label : "Click to cycle • Right-click for options"}
           style={{
             padding: "3px 9px",
             borderRadius: 4,
@@ -223,13 +232,69 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
             fontFamily: FONTS.mono,
             fontSize: 11,
             fontWeight: 600,
-            cursor: "pointer",
+            cursor: isReadOnly ? "default" : "pointer",
             letterSpacing: "0.03em",
           }}
         >
           {statusCfg.label}
         </button>
       </div>
+      {statusMenu && createPortal(
+        <div
+          onClick={() => setStatusMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setStatusMenu(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: Z_INDEX.contextMenu - 1 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: statusMenu.y,
+              left: statusMenu.x,
+              background: COLORS.surface,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+              zIndex: Z_INDEX.contextMenu,
+              minWidth: 160,
+              overflow: "hidden",
+              padding: "4px 0",
+            }}
+          >
+            {(["new", "modify", "existing"]).map((s) => {
+              const cfg = STATUS_CONFIG[s];
+              const isCurrent = status === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => { onUpdateStatus?.(screen.id, s); setStatusMenu(null); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "7px 14px",
+                    background: isCurrent ? COLORS.accent01 : "none",
+                    border: "none",
+                    color: COLORS.text,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: FONTS.ui,
+                    fontSize: 12,
+                  }}
+                  onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = COLORS.surfaceHover; }}
+                  onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.background = "none"; }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+                  Mark as {cfg.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Reusable Component */}
       <div

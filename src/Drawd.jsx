@@ -625,6 +625,7 @@ export default function Drawd({ initialRoomCode }) {
           toggleSelection={toggleSelection}
           onMultiDragStart={onMultiDragStart}
           isReadOnly={isReadOnly}
+          onUpdateStatus={updateScreenStatus}
           onFormSummary={(screenId) => {
             const s = screens.find((sc) => sc.id === screenId);
             if (s) setFormSummaryScreen(s);

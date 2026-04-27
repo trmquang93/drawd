@@ -33,7 +33,7 @@ export function CanvasArea({
   onHotspotDragHandleMouseDown, onResizeHandleMouseDown, onScreenDimensions,
   drawRect, updateScreenDescription, addState, handleDropImage, activeTool,
   scopeRoot, scopeScreenIds, canvasSelection, toggleSelection, onMultiDragStart,
-  isReadOnly, onFormSummary,
+  isReadOnly, onFormSummary, onUpdateStatus,
   // Sticky notes
   stickyNotes, selectedStickyNote, updateStickyNote, deleteStickyNote, addStickyNote,
   // Selection overlay
@@ -208,6 +208,7 @@ export function CanvasArea({
             onToggleSelect={toggleSelection}
             onMultiDragStart={onMultiDragStart}
             isReadOnly={isReadOnly}
+            onUpdateStatus={onUpdateStatus}
             onFormSummary={onFormSummary}
             mcpFlash={mcpFlashIds?.has(screen.id)}
             commentPins={(comments || []).filter(
