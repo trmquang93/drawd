@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { resolveInstanceVisuals } from "../utils/resolveInstanceVisuals";
 
 export function useHotspotInteraction({
   screens,
@@ -82,7 +83,11 @@ export function useHotspotInteraction({
     e.stopPropagation();
     e.preventDefault();
 
-    const screen = screens.find((s) => s.id === screenId);
+    const rawScreen = screens.find((s) => s.id === screenId);
+    // For instance screens, imageData/imageHeight live on the canonical and
+    // are merged in only at render time. Resolve here so the image guard
+    // doesn't short-circuit on instances.
+    const screen = resolveInstanceVisuals(rawScreen, screens);
     if (!screen?.imageData || !screen.imageHeight) return;
 
     const imageAreaRect = e.currentTarget.getBoundingClientRect();

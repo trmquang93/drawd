@@ -477,4 +477,112 @@ describe("importFlow", () => {
       expect(secondPass.connections).toEqual(firstPass.connections);
     });
   });
+
+  // --- Instance-specific hotspots: round-trip persistence ---
+  // Criterion 2 (success criteria): hotspots created on an instance live in
+  // instance.hotspots[] and must survive auto-save -> reload. The validator/
+  // normalizer in importFlow runs on every screen and must not strip or
+  // reassign instance hotspots based on role.
+  describe("instance-specific hotspots round-trip", () => {
+    it("preserves instance.hotspots[] verbatim on a v15 file with a canonical + instance pair", () => {
+      const localHotspot = {
+        id: "h-local",
+        label: "Skip",
+        x: 50,
+        y: 80,
+        w: 30,
+        h: 10,
+        action: "navigate",
+      };
+      const file = makeValidFile({
+        version: 15,
+        screens: [
+          {
+            id: "s-canon",
+            name: "LoginScreen",
+            componentId: "c1",
+            componentRole: "canonical",
+            hotspots: [{ id: "h-canon", label: "Login", x: 0, y: 0, w: 10, h: 10, action: "navigate" }],
+          },
+          {
+            id: "s-inst",
+            name: "LoginScreen — Onboarding",
+            componentId: "c1",
+            componentRole: "instance",
+            hotspots: [localHotspot],
+          },
+        ],
+      });
+      const result = importFlow(file);
+      const instance = result.screens.find((s) => s.id === "s-inst");
+      expect(instance).toBeTruthy();
+      expect(instance.componentRole).toBe("instance");
+      expect(instance.componentId).toBe("c1");
+      expect(instance.hotspots).toHaveLength(1);
+      expect(instance.hotspots[0].id).toBe("h-local");
+      expect(instance.hotspots[0].label).toBe("Skip");
+      // Position fields preserved (these are user data — never to be reset).
+      expect(instance.hotspots[0].x).toBe(50);
+      expect(instance.hotspots[0].y).toBe(80);
+    });
+
+    it("instance hotspots survive a stringify -> import round-trip (auto-save simulation)", () => {
+      // Auto-save serializes the in-memory state to JSON and reload calls
+      // importFlow on the saved string. A round-trip must be a fixed point
+      // for instance.hotspots[].
+      const file = makeValidFile({
+        version: 15,
+        screens: [
+          {
+            id: "s-canon",
+            name: "Card",
+            componentId: "c1",
+            componentRole: "canonical",
+            hotspots: [],
+          },
+          {
+            id: "s-inst",
+            name: "Card on Home",
+            componentId: "c1",
+            componentRole: "instance",
+            hotspots: [
+              { id: "h-local-1", label: "Tap A", x: 1, y: 2, w: 3, h: 4 },
+              { id: "h-local-2", label: "Tap B", x: 5, y: 6, w: 7, h: 8 },
+            ],
+          },
+        ],
+      });
+      const firstPass = importFlow(file);
+      const secondPass = importFlow(JSON.stringify({ ...firstPass, version: 15 }));
+      const inst1 = firstPass.screens.find((s) => s.id === "s-inst");
+      const inst2 = secondPass.screens.find((s) => s.id === "s-inst");
+      expect(inst2.hotspots.map((h) => h.id)).toEqual(inst1.hotspots.map((h) => h.id));
+      expect(inst2.hotspots).toEqual(inst1.hotspots);
+    });
+
+    it("orphan instance (canonical missing) clears role/id but KEEPS its local hotspots", () => {
+      // Defensive: even when the importer demotes an orphan instance (lines
+      // 221-226 in importFlow.js), the placement-local hotspots are user data
+      // and must not be stripped. The screen simply becomes a standalone
+      // screen owning those hotspots.
+      const file = makeValidFile({
+        version: 15,
+        screens: [
+          {
+            id: "s-orphan",
+            name: "Was an instance",
+            componentId: "c-missing",
+            componentRole: "instance",
+            hotspots: [{ id: "h-local", label: "Skip", x: 50, y: 50, w: 30, h: 10 }],
+          },
+        ],
+      });
+      const result = importFlow(file);
+      const screen = result.screens[0];
+      expect(screen.componentRole).toBeNull();
+      expect(screen.componentId).toBeNull();
+      expect(screen.hotspots).toHaveLength(1);
+      expect(screen.hotspots[0].id).toBe("h-local");
+    });
+  });
 });
