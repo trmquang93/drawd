@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolveViewport, DEVICE_PRESETS } from "./device-presets.js";
 import { getEmojiCode, loadEmojiSvg } from "./emoji-loader.js";
 import { composeChromeSvg, expandAutoChrome } from "./chrome/index.js";
+import { expandFragments, hasFragments } from "../compose/store.js";
 import { Cache } from "../asset-fetchers/cache.js";
 import { fetchBinary } from "../asset-fetchers/http.js";
 
@@ -232,11 +233,17 @@ export class SatoriRenderer {
     // chrome only applies when we know which device we're targeting).
     const resolvedDevice = (width && height) ? null : (device || "iphone");
 
+    // Expand any server-side fragment references (<x-block id="..."/>) placed
+    // by compose_* tools with inline:false. Must run before any other
+    // preprocessing so the full HTML is available for entity decoding, image
+    // inlining, and display injection.
+    const expandedHtml = hasFragments() ? expandFragments(htmlString) : htmlString;
+
     // Inline any remote <img src="https://..."> URLs into base64 data URIs
     // before any other preprocessing. Satori cannot fetch URLs itself, so
     // unresolved <img> elements would otherwise render as broken/missing.
     // Hostname allowlist is enforced inside inlineRemoteImages (SSRF guard).
-    const inlinedHtml = await inlineRemoteImages(htmlString);
+    const inlinedHtml = await inlineRemoteImages(expandedHtml);
 
     // satori-html does not decode HTML entities. Agents frequently write
     // numeric entities (&#9679;, &#x25cf;) and safe named entities (&bull;,
