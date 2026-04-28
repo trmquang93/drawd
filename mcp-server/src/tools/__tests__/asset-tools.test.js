@@ -60,6 +60,21 @@ describe("handleAssetTool — generate_icon", () => {
   });
 });
 
+function mockFetchByQuery(map) {
+  global.fetch = vi.fn(async (url) => {
+    const u = new URL(url);
+    const query = u.searchParams.get("query");
+    const body = map[query] || { icons: [] };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(body),
+      json: async () => body,
+      headers: new Map(),
+    };
+  });
+}
+
 describe("handleAssetTool — search_icons", () => {
   beforeEach(() => {
     iconifyInternal.searchCache.clearMemory();
@@ -77,6 +92,28 @@ describe("handleAssetTool — search_icons", () => {
     await expect(
       handleAssetTool("search_icons", {}, {}),
     ).rejects.toThrow(/query is required/);
+  });
+
+  it("merges multi-word query results", async () => {
+    mockFetchByQuery({
+      sparkle: { icons: ["mdi:sparkles", "ph:sparkle"] },
+      star: { icons: ["mdi:star", "mdi:sparkles"] },
+    });
+    const out = await handleAssetTool("search_icons", { query: "sparkle star" }, {});
+    // mdi:sparkles appears in both terms → ranked first
+    expect(out.results[0].id).toBe("mdi:sparkles");
+    expect(out.total).toBe(3);
+  });
+
+  it("returns suggestions when multi-word query yields no results", async () => {
+    mockFetchByQuery({
+      zzz: { icons: [] },
+      qqq: { icons: [] },
+    });
+    const out = await handleAssetTool("search_icons", { query: "zzz qqq" }, {});
+    expect(out.results).toEqual([]);
+    expect(out.suggestions).toEqual(["zzz", "qqq"]);
+    expect(out.message).toBeTruthy();
   });
 });
 

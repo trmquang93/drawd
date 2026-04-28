@@ -91,13 +91,48 @@ export async function fetchIcon(collection, name, opts = {}) {
 }
 
 /**
+ * Low-level single-term Iconify search (cached).
+ *
+ * @param {string} term       Single keyword.
+ * @param {object} params
+ * @param {number} params.limit
+ * @param {string|null} params.prefix
+ * @returns {Promise<{results: Array<{id:string, collection:string, name:string}>, total:number}>}
+ */
+async function searchSingle(term, { limit, prefix }) {
+  const params = new URLSearchParams({
+    query: term,
+    limit: String(limit),
+  });
+  if (prefix) params.set("prefix", prefix);
+
+  const url = `https://${ICONIFY_HOST}/search?${params.toString()}`;
+  const cacheKey = `${term}|${prefix || ""}|${limit}`;
+
+  return searchCache.getOrFetch(cacheKey, async () => {
+    const json = await fetchJson(url);
+    const icons = Array.isArray(json?.icons) ? json.icons : [];
+    const results = icons.map((id) => {
+      const [collection, ...rest] = String(id).split(":");
+      return { id, collection, name: rest.join(":") };
+    });
+    return { results, total: results.length };
+  });
+}
+
+/**
  * Search Iconify across all (or one) collections.
+ *
+ * Multi-word queries are automatically tokenized: each term is searched
+ * independently and results are merged + ranked by overlap (number of terms
+ * matched, then best individual rank). If no results match, returns
+ * `suggestions[]` with the individual terms so the caller can retry.
  *
  * @param {string} query
  * @param {object} [opts]
  * @param {string} [opts.prefix]   Restrict to one collection.
  * @param {number} [opts.limit=12] Max results (1..64).
- * @returns {Promise<{results: Array<{id:string, collection:string, name:string}>, total:number}>}
+ * @returns {Promise<{results: Array<{id:string, collection:string, name:string}>, total:number, suggestions?:string[], message?:string}>}
  */
 export async function searchIcons(query, opts = {}) {
   if (typeof query !== "string" || query.trim() === "") {
@@ -109,24 +144,50 @@ export async function searchIcons(query, opts = {}) {
   );
   const prefix = opts.prefix && isSafeSlug(opts.prefix) ? opts.prefix : null;
 
-  const params = new URLSearchParams({
-    query: query.trim(),
-    limit: String(limit),
-  });
-  if (prefix) params.set("prefix", prefix);
+  const terms = query.trim().split(/\s+/).filter(Boolean);
 
-  const url = `https://${ICONIFY_HOST}/search?${params.toString()}`;
-  const cacheKey = `${query}|${prefix || ""}|${limit}`;
+  // Single term: direct API search (backward-compatible path).
+  if (terms.length === 1) {
+    return searchSingle(terms[0], { limit, prefix });
+  }
 
-  return searchCache.getOrFetch(cacheKey, async () => {
-    const json = await fetchJson(url);
-    const icons = Array.isArray(json?.icons) ? json.icons : [];
-    const results = icons.map((id) => {
-      const [collection, ...rest] = String(id).split(":");
-      return { id, collection, name: rest.join(":") };
-    });
-    return { results, total: results.length };
-  });
+  // Multi-word: search each term, merge + rank by overlap.
+  const perTerm = await Promise.all(
+    terms.map((term) => searchSingle(term, { limit, prefix })),
+  );
+
+  // iconId → { icon, termCount, bestRank }
+  const iconMap = new Map();
+  for (let t = 0; t < perTerm.length; t++) {
+    const { results } = perTerm[t];
+    for (let rank = 0; rank < results.length; rank++) {
+      const icon = results[rank];
+      const existing = iconMap.get(icon.id);
+      if (existing) {
+        existing.termCount += 1;
+        existing.bestRank = Math.min(existing.bestRank, rank);
+      } else {
+        iconMap.set(icon.id, { icon, termCount: 1, bestRank: rank });
+      }
+    }
+  }
+
+  const merged = [...iconMap.values()]
+    .sort((a, b) => b.termCount - a.termCount || a.bestRank - b.bestRank)
+    .slice(0, limit)
+    .map((e) => e.icon);
+
+  if (merged.length === 0) {
+    return {
+      results: [],
+      total: 0,
+      suggestions: terms,
+      message:
+        "No icons matched the full phrase. Try one of these single-keyword searches.",
+    };
+  }
+
+  return { results: merged, total: merged.length };
 }
 
 // Exposed for tests.
