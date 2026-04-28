@@ -19,6 +19,18 @@ const CHROME_STYLE_DESC =
 const DEVICE_DESC =
   "Device preset for viewport size and chrome geometry. \"iphone\" = 393×852 (modern Pro class). \"android\" = 412×915 (Pixel class). Defaults to \"iphone\" when omitted unless explicit width/height is given.";
 
+// Shared schema fragment for the thumbnail / full-image opt-in (#9.3).
+const RENDER_RESPONSE_PROPS = {
+  includeThumbnail: {
+    type: "boolean",
+    description: "When true, the response includes a ~200px-wide PNG thumbnail of the rendered screen (base64-encoded). Default false.",
+  },
+  includeFullImage: {
+    type: "boolean",
+    description: "When true, the response includes the full-resolution rendered PNG as base64. Default false.",
+  },
+};
+
 export const screenTools = [
   {
     name: "create_screen",
@@ -51,6 +63,7 @@ export const screenTools = [
         },
         description: { type: "string", description: "Screen description for AI instruction generation" },
         notes: { type: "string", description: "Implementation notes (technical context, edge cases)" },
+        ...RENDER_RESPONSE_PROPS,
       },
       required: ["html", "name"],
     },
@@ -155,6 +168,7 @@ export const screenTools = [
           description: CHROME_STYLE_DESC,
           enum: ["light", "dark"],
         },
+        ...RENDER_RESPONSE_PROPS,
       },
       required: ["screenId", "html"],
     },
@@ -190,6 +204,7 @@ export const screenTools = [
           description: CHROME_STYLE_DESC,
           enum: ["light", "dark"],
         },
+        ...RENDER_RESPONSE_PROPS,
       },
       required: ["screens"],
     },
@@ -212,6 +227,7 @@ export const screenTools = [
           description: CHROME_STYLE_DESC,
           enum: ["light", "dark"],
         },
+        ...RENDER_RESPONSE_PROPS,
       },
       required: ["screenId"],
     },
@@ -241,6 +257,78 @@ function displayedImageHeight(rawWidth, rawHeight) {
   return Math.round(rawHeight * DEFAULT_SCREEN_WIDTH / rawWidth);
 }
 
+// ── 8.5: Read actual PNG dimensions from the IHDR chunk ──────────────────────
+// PNG spec: bytes 0-7 = signature, 8-11 = IHDR length, 12-15 = "IHDR",
+// 16-19 = width (big-endian u32), 20-23 = height (big-endian u32).
+function readPngDimensions(pngBuffer) {
+  const buf = Buffer.from(pngBuffer);
+  return {
+    width: buf.readUInt32BE(16),
+    height: buf.readUInt32BE(20),
+  };
+}
+
+// ── 9.3: Generate a ~200px-wide thumbnail from the rendered PNG ──────────────
+// Wraps the PNG in an SVG and uses Resvg to downscale — avoids adding a new
+// dependency (sharp/jimp) since Resvg is already in the dep graph.
+let _ResvgCached = null;
+async function generateThumbnail(pngBuffer, targetWidth = 200) {
+  if (!_ResvgCached) {
+    const mod = await import("@resvg/resvg-js");
+    _ResvgCached = mod.Resvg;
+  }
+  const dims = readPngDimensions(pngBuffer);
+  const base64 = Buffer.from(pngBuffer).toString("base64");
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${dims.width}" height="${dims.height}">` +
+    `<image href="data:image/png;base64,${base64}" width="${dims.width}" height="${dims.height}"/>` +
+    `</svg>`;
+  const resvg = new _ResvgCached(svg, { fitTo: { mode: "width", value: targetWidth } });
+  const rendered = resvg.render();
+  return {
+    width: targetWidth,
+    format: "png",
+    base64: Buffer.from(rendered.asPng()).toString("base64"),
+  };
+}
+
+// ── Combined render-response builder (8.5 + 9.2 + 9.3) ──────────────────────
+// Assembles the response fields shared by every render-producing tool:
+//   - imageWidth / imageHeight from the actual PNG (not display-scaled)
+//   - warnings[] when any resource degradation occurred
+//   - thumbnail / fullImage when the caller opted in
+async function buildRenderResponse(renderResult, args = {}) {
+  const pngDims = readPngDimensions(renderResult.pngBuffer);
+  const response = {
+    imageWidth: pngDims.width,
+    imageHeight: pngDims.height,
+  };
+
+  // 9.2: Merge all warning sources.
+  const warnings = [...(renderResult.warnings || [])];
+  if (renderResult.chromeRenderError) {
+    warnings.push(`Chrome composition failed: ${renderResult.chromeRenderError}. Screen rendered without chrome.`);
+  }
+  if (warnings.length > 0) {
+    response.warnings = warnings;
+  }
+
+  // 9.3: Optional thumbnail.
+  if (args.includeThumbnail) {
+    response.thumbnail = await generateThumbnail(renderResult.pngBuffer);
+  }
+
+  // 9.3: Optional full image.
+  if (args.includeFullImage) {
+    response.fullImage = {
+      format: "png",
+      base64: Buffer.from(renderResult.pngBuffer).toString("base64"),
+    };
+  }
+
+  return response;
+}
+
 // Build the persisted device block for a screen. Returns null when the
 // renderer didn't apply chrome (custom width/height with no device, or
 // device-but-chrome:false on an unsupported device).
@@ -262,21 +350,22 @@ export async function handleScreenTool(name, args, state, renderer) {
       let imageHeight = null;
       let svgContent = null;
       let deviceBlock = null;
+      let renderResult = null;
       const sourceHtml = args.html || null;
 
       if (args.html) {
-        const result = await renderer.render(args.html, {
+        renderResult = await renderer.render(args.html, {
           device: args.device,
           width: args.width,
           height: args.height,
           chrome: args.chrome,
           chromeStyle: args.chromeStyle,
         });
-        imageData = renderer.toDataUri(result.pngBuffer);
-        imageWidth = result.width;
-        imageHeight = displayedImageHeight(result.width, result.height);
-        svgContent = result.svgString || null;
-        deviceBlock = buildDeviceBlock(result);
+        imageData = renderer.toDataUri(renderResult.pngBuffer);
+        imageWidth = renderResult.width;
+        imageHeight = displayedImageHeight(renderResult.width, renderResult.height);
+        svgContent = renderResult.svgString || null;
+        deviceBlock = buildDeviceBlock(renderResult);
       }
 
       const screen = state.addScreen({
@@ -292,15 +381,19 @@ export async function handleScreenTool(name, args, state, renderer) {
         device: deviceBlock,
       });
 
-      return {
+      const response = {
         screenId: screen.id,
         name: screen.name,
         x: screen.x,
         y: screen.y,
-        imageWidth,
-        imageHeight,
         device: deviceBlock,
       };
+
+      if (renderResult) {
+        Object.assign(response, await buildRenderResponse(renderResult, args));
+      }
+
+      return response;
     }
 
     case "create_blank_screen": {
@@ -447,7 +540,8 @@ export async function handleScreenTool(name, args, state, renderer) {
         device: deviceBlock,
       });
 
-      return { success: true, imageWidth: result.width, imageHeight: imgHeight, device: deviceBlock };
+      const renderResponse = await buildRenderResponse(result, args);
+      return { success: true, ...renderResponse, device: deviceBlock };
     }
 
     case "batch_create_screens": {
@@ -458,18 +552,19 @@ export async function handleScreenTool(name, args, state, renderer) {
         let imageHeight = null;
         let svgContent = null;
         let deviceBlock = null;
+        let renderResult = null;
 
         if (def.html) {
-          const result = await renderer.render(def.html, {
+          renderResult = await renderer.render(def.html, {
             device: args.device,
             chrome: args.chrome,
             chromeStyle: args.chromeStyle,
           });
-          imageData = renderer.toDataUri(result.pngBuffer);
-          imageWidth = result.width;
-          imageHeight = displayedImageHeight(result.width, result.height);
-          svgContent = result.svgString || null;
-          deviceBlock = buildDeviceBlock(result);
+          imageData = renderer.toDataUri(renderResult.pngBuffer);
+          imageWidth = renderResult.width;
+          imageHeight = displayedImageHeight(renderResult.width, renderResult.height);
+          svgContent = renderResult.svgString || null;
+          deviceBlock = buildDeviceBlock(renderResult);
         }
 
         const screen = state.addScreen({
@@ -485,13 +580,19 @@ export async function handleScreenTool(name, args, state, renderer) {
           device: deviceBlock,
         });
 
-        results.push({
+        const entry = {
           screenId: screen.id,
           name: screen.name,
           x: screen.x,
           y: screen.y,
           ...(deviceBlock ? { device: deviceBlock } : {}),
-        });
+        };
+
+        if (renderResult) {
+          Object.assign(entry, await buildRenderResponse(renderResult, args));
+        }
+
+        results.push(entry);
       }
       return { screens: results };
     }
@@ -550,11 +651,12 @@ export async function handleScreenTool(name, args, state, renderer) {
         device: deviceBlock,
       });
 
+      const renderResponse = await buildRenderResponse(result, args);
       return {
         success: true,
         screenId: screen.id,
+        ...renderResponse,
         device: deviceBlock,
-        chromeRenderError: result.chromeRenderError || undefined,
       };
     }
 
@@ -567,3 +669,10 @@ export async function handleScreenTool(name, args, state, renderer) {
       throw new Error(`Unknown screen tool: ${name}`);
   }
 }
+
+// Exported for tests
+export const _renderResponseInternals = {
+  readPngDimensions,
+  generateThumbnail,
+  buildRenderResponse,
+};
