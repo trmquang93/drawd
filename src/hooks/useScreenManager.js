@@ -446,9 +446,10 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     }
   }, [screens, connections, documents, pushHistory]);
 
-  const markAllExisting = useCallback(() => {
+  const markAllScreensStatus = useCallback((status) => {
+    if (status !== "new" && status !== "modify" && status !== "existing") return;
     pushHistory(screens, connections, documents);
-    setScreens((prev) => prev.map((s) => ({ ...s, status: "existing" })));
+    setScreens((prev) => prev.map((s) => ({ ...s, status })));
   }, [screens, connections, documents, pushHistory]);
 
   // Lightweight image patch for collab sync (no undo, no dimension clear)
@@ -1544,7 +1545,7 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     updateScreenCriteria,
     updateScreenStatus,
     setScreenComponent,
-    markAllExisting,
+    markAllScreensStatus,
     assignScreenImage,
     patchScreenImage,
     updateWireframe,

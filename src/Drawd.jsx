@@ -74,7 +74,7 @@ export default function Drawd({ initialRoomCode }) {
     replaceAll, mergeAll, duplicateSelection,
     pushHistory,
     canUndo, canRedo, undo, redo, captureDragSnapshot, commitDragSnapshot,
-    updateScreenStatus, markAllExisting, updateWireframe,
+    updateScreenStatus, markAllScreensStatus, updateWireframe,
     setScreenComponent,
   } = useScreenManager(pan, zoom, canvasRef, {
     onDeleteCommentsForScreen: deleteCommentsForScreen,
@@ -556,7 +556,7 @@ export default function Drawd({ initialRoomCode }) {
           selectedScreen={selectedScreen}
           onScreenClick={onScreensPanelClick}
           onUpdateStatus={updateScreenStatus}
-          onMarkAllExisting={markAllExisting}
+          onMarkAllStatus={markAllScreensStatus}
           scopeRoot={scopeRoot}
           onSetScopeRoot={setScopeRoot}
           scopeScreenIds={scopeScreenIds}

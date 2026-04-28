@@ -71,7 +71,7 @@ The status chip is always visible in the canvas card header and in the right Sid
 - **Left-click** the chip or pill to cycle: `New → Modify → Existing → New`.
 - **Right-click** the chip or pill to open a menu and jump directly to any status.
 - In the left Screens Panel, the per-row chip cycles on click and right-clicking the row opens the same menu.
-- The "All existing" header button in the Screens Panel marks every screen as `Existing` in one click — useful when adding a single new screen to a fully built app.
+- The bulk status button in the Screens Panel header (label tracks the current shared state — `All new`, `All modify`, `All existing`, or `All existing` when statuses are mixed) acts on every screen at once. **Left-click** cycles all screens through `New → Modify → Existing → New`; **right-click** opens a menu to jump every screen directly to any status. Useful when adding a single new screen to a fully built app, or when reverting an accidental bulk mark.
 
 All status changes (single-screen and bulk) participate in undo history — press `Cmd/Ctrl+Z` to revert.
 

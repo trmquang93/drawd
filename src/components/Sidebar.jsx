@@ -133,32 +133,68 @@ export function Sidebar({ screen, screens, connections, onClose, onRename, onAdd
         )}
       </div>
 
-      {/* Screen ID chip — click to copy. Always visible (read-only-safe). */}
-      <button
-        onClick={handleCopyId}
-        title={idCopied ? "Copied!" : "Click to copy screen ID"}
-        style={{
-          display: "block",
-          width: "100%",
-          padding: "6px 12px",
-          marginBottom: 12,
-          background: COLORS.bg,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 6,
-          color: idCopied ? COLORS.accentLight : COLORS.textMuted,
-          fontFamily: FONTS.mono,
-          fontSize: 11,
-          textAlign: "left",
-          cursor: "pointer",
-          letterSpacing: "0.02em",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          boxSizing: "border-box",
-        }}
-      >
-        {idCopied ? "Copied!" : screen.id}
-      </button>
+      {/* Screen ID chip — click chip OR copy button. Always visible (read-only-safe). */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.mono, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+          Screen ID
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+          <button
+            onClick={handleCopyId}
+            title={idCopied ? "Copied!" : "Click to copy screen ID"}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: "6px 12px",
+              background: COLORS.bg,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              color: idCopied ? COLORS.accentLight : COLORS.textMuted,
+              fontFamily: FONTS.mono,
+              fontSize: 11,
+              textAlign: "left",
+              cursor: "pointer",
+              letterSpacing: "0.02em",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              boxSizing: "border-box",
+            }}
+          >
+            {idCopied ? "Copied!" : screen.id}
+          </button>
+          <button
+            onClick={handleCopyId}
+            title={idCopied ? "Copied!" : "Copy screen ID"}
+            aria-label="Copy screen ID"
+            style={{
+              flex: "0 0 auto",
+              width: 32,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: idCopied ? COLORS.accent01 : COLORS.bg,
+              border: `1px solid ${idCopied ? COLORS.accent02 : COLORS.border}`,
+              borderRadius: 6,
+              color: idCopied ? COLORS.accentLight : COLORS.textMuted,
+              cursor: "pointer",
+              padding: 0,
+              boxSizing: "border-box",
+            }}
+          >
+            {idCopied ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* TBD toggle */}
       <div style={{ marginBottom: 12 }}>

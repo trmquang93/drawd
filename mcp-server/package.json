@@ -1,6 +1,6 @@
 {
   "name": "drawd-mcp-server",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "MCP server for Drawd — AI agent flow builder. Create app flow designs programmatically with AI agents.",
   "type": "module",
   "bin": {

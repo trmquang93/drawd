@@ -213,6 +213,19 @@ describe("useScreenManager undo/redo", () => {
     expect(result.current.screens[0].description).toBe("");
   });
 
+  it("updateScreenStatus is undoable", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "S1"));
+    const id = result.current.screens[0].id;
+    const initial = result.current.screens[0].status || "new";
+
+    act(() => result.current.updateScreenStatus(id, "existing"));
+    expect(result.current.screens[0].status).toBe("existing");
+
+    act(() => result.current.undo());
+    expect(result.current.screens[0].status || "new").toBe(initial);
+  });
+
   it("multiple undo/redo steps work correctly", () => {
     const { result } = setup();
 
@@ -1451,5 +1464,70 @@ describe("useScreenManager component promotion", () => {
     // Canonical wins on collision — its label is preserved.
     expect(promoted.hotspots[0].id).toBe(sharedId);
     expect(promoted.hotspots[0].label).toBe("Canonical version");
+  });
+});
+
+describe("markAllScreensStatus", () => {
+  it("sets every screen to the given status", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+
+    act(() => result.current.markAllScreensStatus("existing"));
+    expect(result.current.screens.every((s) => s.status === "existing")).toBe(true);
+
+    act(() => result.current.markAllScreensStatus("modify"));
+    expect(result.current.screens.every((s) => s.status === "modify")).toBe(true);
+
+    act(() => result.current.markAllScreensStatus("new"));
+    expect(result.current.screens.every((s) => s.status === "new")).toBe(true);
+  });
+
+  it("ignores invalid status values without touching state or history", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.updateScreenStatus(result.current.screens[0].id, "modify"));
+    const undoCountBefore = result.current.canUndo;
+
+    act(() => result.current.markAllScreensStatus("garbage"));
+    expect(result.current.screens[0].status).toBe("modify");
+    expect(result.current.canUndo).toBe(undoCountBefore);
+  });
+
+  it("is undoable — restores per-screen statuses, not just the prior bulk state", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+    act(() => result.current.addScreen(null, "C"));
+    const [a, b, c] = result.current.screens.map((s) => s.id);
+
+    act(() => result.current.updateScreenStatus(a, "new"));
+    act(() => result.current.updateScreenStatus(b, "modify"));
+    act(() => result.current.updateScreenStatus(c, "existing"));
+
+    // Bulk: everyone → existing.
+    act(() => result.current.markAllScreensStatus("existing"));
+    expect(result.current.screens.map((s) => s.status)).toEqual(["existing", "existing", "existing"]);
+
+    // Undo — the per-screen statuses set above must come back exactly.
+    act(() => result.current.undo());
+    const byId = Object.fromEntries(result.current.screens.map((s) => [s.id, s.status]));
+    expect(byId[a]).toBe("new");
+    expect(byId[b]).toBe("modify");
+    expect(byId[c]).toBe("existing");
+  });
+
+  it("redo replays the bulk change", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    act(() => result.current.addScreen(null, "B"));
+
+    act(() => result.current.markAllScreensStatus("existing"));
+    act(() => result.current.undo());
+    expect(result.current.screens.every((s) => s.status === "existing")).toBe(false);
+
+    act(() => result.current.redo());
+    expect(result.current.screens.every((s) => s.status === "existing")).toBe(true);
   });
 });

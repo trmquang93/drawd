@@ -7,7 +7,7 @@ export function ScreensPanel({
   selectedScreen,
   onScreenClick,
   onUpdateStatus,
-  onMarkAllExisting,
+  onMarkAllStatus,
   scopeRoot,
   onSetScopeRoot,
   scopeScreenIds,
@@ -24,6 +24,7 @@ export function ScreensPanel({
   const [techOpen, setTechOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState(null); // { screenId, x, y }
   const [instancePickerOpen, setInstancePickerOpen] = useState(false);
+  const [bulkMenu, setBulkMenu] = useState(null); // { x, y } | null
 
   const handleContextMenu = (e, screenId) => {
     e.preventDefault();
@@ -31,7 +32,20 @@ export function ScreensPanel({
     setContextMenu({ screenId, x: e.clientX, y: e.clientY });
   };
 
-  const closeContextMenu = () => { setContextMenu(null); setInstancePickerOpen(false); };
+  const closeContextMenu = () => { setContextMenu(null); setInstancePickerOpen(false); setBulkMenu(null); };
+
+  // "Bulk status" is the shared status across all screens, or null if mixed.
+  // Drives both the cycle target and the button label.
+  const bulkStatus = (() => {
+    if (screens.length === 0) return null;
+    const first = screens[0].status || "new";
+    return screens.every((s) => (s.status || "new") === first) ? first : null;
+  })();
+
+  // Cycle target: from a uniform state, advance via STATUS_CYCLE; from mixed,
+  // default to "existing" so the original one-shot affordance is preserved.
+  const nextBulkStatus = bulkStatus ? STATUS_CYCLE[bulkStatus] : "existing";
+  const bulkLabel = bulkStatus ? `All ${STATUS_CONFIG[bulkStatus].label.toLowerCase()}` : "All existing";
 
   const handleStatusClick = (e, screen) => {
     e.stopPropagation();
@@ -87,23 +101,37 @@ export function ScreensPanel({
           </h4>
           {screens.length > 0 && (
             <button
-              onClick={onMarkAllExisting}
-              title="Mark all screens as Existing — then flip just the new ones"
+              onClick={(e) => { if (isReadOnly) return; e.stopPropagation(); onMarkAllStatus?.(nextBulkStatus); }}
+              onContextMenu={(e) => {
+                if (isReadOnly) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setBulkMenu({ x: e.clientX, y: e.clientY });
+              }}
+              disabled={isReadOnly}
+              title={isReadOnly ? "Read-only" : "Click to cycle • Right-click for options"}
+              data-testid="bulk-status-button"
               style={{
                 background: "none",
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: 4,
                 color: COLORS.textMuted,
-                cursor: "pointer",
+                cursor: isReadOnly ? "default" : "pointer",
                 fontSize: 10,
                 fontFamily: FONTS.ui,
                 padding: "2px 6px",
                 whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.text; e.currentTarget.style.borderColor = COLORS.textDim; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textMuted; e.currentTarget.style.borderColor = COLORS.border; }}
+              onMouseEnter={(e) => { if (isReadOnly) return; e.currentTarget.style.color = COLORS.text; e.currentTarget.style.borderColor = COLORS.textDim; }}
+              onMouseLeave={(e) => { if (isReadOnly) return; e.currentTarget.style.color = COLORS.textMuted; e.currentTarget.style.borderColor = COLORS.border; }}
             >
-              All existing
+              {bulkStatus && (
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: STATUS_CONFIG[bulkStatus].color, flexShrink: 0 }} />
+              )}
+              {bulkLabel}
             </button>
           )}
         </div>
@@ -612,6 +640,56 @@ export function ScreensPanel({
               </>
             );
           })()}
+        </div>
+      )}
+
+      {/* Bulk status menu (right-click on "All <status>" header button) */}
+      {bulkMenu && (
+        <div
+          data-testid="bulk-status-menu"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: bulkMenu.y,
+            left: bulkMenu.x,
+            background: COLORS.surface,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 6,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+            zIndex: Z_INDEX.contextMenu,
+            minWidth: 170,
+            overflow: "hidden",
+          }}
+        >
+          {(["new", "modify", "existing"]).map((s) => {
+            const cfg = STATUS_CONFIG[s];
+            const isCurrent = bulkStatus === s;
+            return (
+              <button
+                key={s}
+                onClick={() => { onMarkAllStatus?.(s); setBulkMenu(null); }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  padding: "7px 14px",
+                  background: isCurrent ? COLORS.accent01 : "none",
+                  border: "none",
+                  color: COLORS.text,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: FONTS.ui,
+                  fontSize: 12,
+                }}
+                onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = COLORS.surfaceHover; }}
+                onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.background = "none"; }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+                Mark all as {cfg.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
