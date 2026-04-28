@@ -15,6 +15,7 @@ import { commentTools, handleCommentTool } from "./tools/comment-tools.js";
 import { generationTools, handleGenerationTool } from "./tools/generation-tools.js";
 import { selectionTools, handleSelectionTool } from "./tools/selection-tools.js";
 import { assetTools, handleAssetTool } from "./tools/asset-tools.js";
+import { bundleTools, handleBundleTool } from "./tools/bundle-tools.js";
 
 const FILE_TOOL_NAMES = new Set(fileTools.map((t) => t.name));
 const SCREEN_TOOL_NAMES = new Set(screenTools.map((t) => t.name));
@@ -27,6 +28,7 @@ const COMMENT_TOOL_NAMES = new Set(commentTools.map((t) => t.name));
 const GENERATION_TOOL_NAMES = new Set(generationTools.map((t) => t.name));
 const SELECTION_TOOL_NAMES = new Set(selectionTools.map((t) => t.name));
 const ASSET_TOOL_NAMES = new Set(assetTools.map((t) => t.name));
+const BUNDLE_TOOL_NAMES = new Set(bundleTools.map((t) => t.name));
 
 // filePath is injected into every non-file tool so callers can establish
 // session context inline (auto-loaded once, then reused for the whole session).
@@ -60,6 +62,7 @@ const ALL_TOOLS = [
   ...withFilePath(commentTools),
   ...withFilePath(generationTools),
   ...withFilePath(selectionTools),
+  ...withFilePath(bundleTools),
   // Asset tools (icons, stock photos) are stateless — no flow context required.
   ...assetTools,
 ];
@@ -106,6 +109,8 @@ export function createServer(state, renderer, bridge) {
         result = handleGenerationTool(name, args, state);
       } else if (SELECTION_TOOL_NAMES.has(name)) {
         result = handleSelectionTool(name, args, state, bridge);
+      } else if (BUNDLE_TOOL_NAMES.has(name)) {
+        result = await handleBundleTool(name, args, state, renderer);
       } else if (ASSET_TOOL_NAMES.has(name)) {
         result = await handleAssetTool(name, args, state);
       } else {
