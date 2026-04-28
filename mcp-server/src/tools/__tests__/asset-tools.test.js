@@ -81,7 +81,7 @@ describe("handleAssetTool — search_icons", () => {
 });
 
 describe("handleAssetTool — find_stock_image (zero config)", () => {
-  it("falls back to Picsum with warning when no keys are set", async () => {
+  it("falls back to Picsum with structured warning when no keys are set", async () => {
     delete process.env.UNSPLASH_ACCESS_KEY;
     delete process.env.PEXELS_API_KEY;
     const out = await handleAssetTool(
@@ -90,8 +90,10 @@ describe("handleAssetTool — find_stock_image (zero config)", () => {
       {},
     );
     expect(out.source).toBe("picsum");
-    expect(out.results).toHaveLength(2);
-    expect(out.warning).toBeTruthy();
+    // Picsum returns a single deterministic placeholder
+    expect(out.results).toHaveLength(1);
+    expect(out.warning).toMatch(/RANDOM/);
+    expect(out.warning).toContain('"kitchen"');
   });
 
   it("requires query", async () => {
