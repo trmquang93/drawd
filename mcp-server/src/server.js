@@ -15,6 +15,7 @@ import { commentTools, handleCommentTool } from "./tools/comment-tools.js";
 import { generationTools, handleGenerationTool } from "./tools/generation-tools.js";
 import { selectionTools, handleSelectionTool } from "./tools/selection-tools.js";
 import { assetTools, handleAssetTool } from "./tools/asset-tools.js";
+import { validationTools, handleValidationTool } from "./tools/validation-tools.js";
 
 const FILE_TOOL_NAMES = new Set(fileTools.map((t) => t.name));
 const SCREEN_TOOL_NAMES = new Set(screenTools.map((t) => t.name));
@@ -27,6 +28,7 @@ const COMMENT_TOOL_NAMES = new Set(commentTools.map((t) => t.name));
 const GENERATION_TOOL_NAMES = new Set(generationTools.map((t) => t.name));
 const SELECTION_TOOL_NAMES = new Set(selectionTools.map((t) => t.name));
 const ASSET_TOOL_NAMES = new Set(assetTools.map((t) => t.name));
+const VALIDATION_TOOL_NAMES = new Set(validationTools.map((t) => t.name));
 
 // filePath is injected into every non-file tool so callers can establish
 // session context inline (auto-loaded once, then reused for the whole session).
@@ -62,6 +64,8 @@ const ALL_TOOLS = [
   ...withFilePath(selectionTools),
   // Asset tools (icons, stock photos) are stateless — no flow context required.
   ...assetTools,
+  // Validation tools are stateless — no flow context required.
+  ...validationTools,
 ];
 
 export function createServer(state, renderer, bridge) {
@@ -108,6 +112,8 @@ export function createServer(state, renderer, bridge) {
         result = handleSelectionTool(name, args, state, bridge);
       } else if (ASSET_TOOL_NAMES.has(name)) {
         result = await handleAssetTool(name, args, state);
+      } else if (VALIDATION_TOOL_NAMES.has(name)) {
+        result = handleValidationTool(name, args);
       } else {
         return {
           content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }],
