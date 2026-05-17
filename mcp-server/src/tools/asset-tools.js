@@ -55,11 +55,14 @@ export const assetTools = [
   {
     name: "search_icons",
     description:
-      "Search Iconify across all (or one) collections for icons matching a query. Returns ranked candidate icon IDs. Pick one and pass it to generate_icon to fetch the SVG.",
+      "Search Iconify across all (or one) collections for icons matching a query. " +
+      "Multi-word queries are automatically split into keywords and results are merged by relevance. " +
+      "For best results prefer a single keyword (e.g. 'menu' rather than 'hamburger menu icon'). " +
+      "Returns ranked candidate icon IDs. Pick one and pass it to generate_icon to fetch the SVG.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Search query (e.g. 'hamburger menu')." },
+        query: { type: "string", description: "Search query — single keyword recommended (e.g. 'home'). Multi-word queries are split and merged automatically." },
         collection: {
           type: "string",
           description:
@@ -118,11 +121,10 @@ export async function handleAssetTool(name, args, _state) {
 
     case "search_icons": {
       if (!args?.query) throw new Error("query is required");
-      const { results, total } = await iconifySearch(args.query, {
+      return iconifySearch(args.query, {
         prefix: args.collection,
         limit: args.limit,
       });
-      return { results, total };
     }
 
     case "find_stock_image": {

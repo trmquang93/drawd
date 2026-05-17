@@ -32,28 +32,30 @@ function slugify(query) {
 }
 
 /**
- * @param {string} query
- * @param {object} [opts]
- * @param {number} [opts.limit=5]
+ * Return a single deterministic placeholder image.
+ *
+ * Picsum doesn't search by query — returning many "results" misleads agents
+ * into thinking they are distinct matches. A single seeded URL makes the
+ * placeholder nature obvious.
+ *
+ * @param {string} query  — echoed in alt text but NOT used for search
  * @returns {{results: Array<object>}}
  */
-export function searchPhotos(query, opts = {}) {
-  const limit = Math.max(1, Math.min(20, Number.isFinite(opts.limit) ? opts.limit : 5));
+export function searchPhotos(query) {
   const seedBase = slugify(query);
-
-  const results = [];
-  for (let i = 0; i < limit; i++) {
-    const [w, h] = DEFAULT_SIZES[i % DEFAULT_SIZES.length];
-    const seed = `${seedBase}-${i}`;
-    results.push({
-      url: `https://${PICSUM_HOST}/seed/${seed}/${w}/${h}`,
-      thumbnailUrl: `https://${PICSUM_HOST}/seed/${seed}/300/200`,
-      alt: `${query} #${i}`,
-      attribution: "Picsum (Lorem Picsum)",
-      source: "picsum",
-      width: w,
-      height: h,
-    });
-  }
-  return { results };
+  const [w, h] = DEFAULT_SIZES[0];
+  const seed = `${seedBase}-0`;
+  return {
+    results: [
+      {
+        url: `https://${PICSUM_HOST}/seed/${seed}/${w}/${h}`,
+        thumbnailUrl: `https://${PICSUM_HOST}/seed/${seed}/300/200`,
+        alt: `Placeholder image (not related to "${query}")`,
+        attribution: "Picsum (Lorem Picsum)",
+        source: "picsum",
+        width: w,
+        height: h,
+      },
+    ],
+  };
 }

@@ -58,7 +58,14 @@ export async function findStockImage(query, opts = {}) {
     try {
       const result = await Promise.resolve(provider.searchPhotos(query, { limit }));
       const out = { ...result, source };
-      if (warnings.length > 0) out.warning = warnings.join(" ");
+      if (source === "picsum") {
+        const picsumMsg = `RANDOM photos \u2014 Picsum ignores your query ("${query}"). For relevant results, set UNSPLASH_ACCESS_KEY.`;
+        out.warning = warnings.length > 0
+          ? warnings.join(" ") + " " + picsumMsg
+          : picsumMsg;
+      } else if (warnings.length > 0) {
+        out.warning = warnings.join(" ");
+      }
       return out;
     } catch (err) {
       if (err instanceof MissingApiKeyError) {

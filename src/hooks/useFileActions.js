@@ -9,12 +9,14 @@ export function useFileActions({
   setScopeRoot, openFile, saveAs, disconnect,
 }) {
   const applyPayload = useCallback((payload, { source } = {}) => {
-    if (source === 'mcp') {
+    const isMcp = source === 'mcp';
+    if (isMcp) {
       pushHistory(screens, connections, documents);
     }
-    const opts = source === 'mcp' ? { preserveHistory: true } : {};
+    const opts = isMcp ? { preserveHistory: true, preserveSelection: true } : {};
     replaceAll(payload.screens, payload.connections, payload.screens.length + 1, payload.documents || [], opts);
-    if (payload.viewport) { setPan(payload.viewport.pan); setZoom(payload.viewport.zoom); }
+    // Preserve the user's current viewport during MCP-driven reloads
+    if (!isMcp && payload.viewport) { setPan(payload.viewport.pan); setZoom(payload.viewport.zoom); }
     setFeatureBrief(payload.metadata?.featureBrief || "");
     setTaskLink(payload.metadata?.taskLink || "");
     setTechStack(payload.metadata?.techStack || {});
@@ -22,7 +24,7 @@ export function useFileActions({
     setStickyNotes(payload.stickyNotes || []);
     setScreenGroups(payload.screenGroups || []);
     setComments(payload.comments || []);
-    setScopeRoot(null);
+    if (!isMcp) setScopeRoot(null);
   }, [replaceAll, pushHistory, screens, connections, documents, setPan, setZoom, setFeatureBrief, setTaskLink, setTechStack, setDataModels, setStickyNotes, setScreenGroups, setComments, setScopeRoot]);
 
   const onOpen = useCallback(async () => {

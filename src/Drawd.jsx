@@ -464,6 +464,7 @@ export default function Drawd({ initialRoomCode }) {
     canComment,
     duplicateSelection,
     onAddWireframe: handleAddWireframe,
+    onAddBlank: addScreenAtCenter,
   });
 
   // ── Derived values ──────────────────────────────────────────────────────────────────

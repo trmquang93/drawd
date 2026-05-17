@@ -60,6 +60,21 @@ describe("handleAssetTool — generate_icon", () => {
   });
 });
 
+function mockFetchByQuery(map) {
+  global.fetch = vi.fn(async (url) => {
+    const u = new URL(url);
+    const query = u.searchParams.get("query");
+    const body = map[query] || { icons: [] };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(body),
+      json: async () => body,
+      headers: new Map(),
+    };
+  });
+}
+
 describe("handleAssetTool — search_icons", () => {
   beforeEach(() => {
     iconifyInternal.searchCache.clearMemory();
@@ -78,10 +93,32 @@ describe("handleAssetTool — search_icons", () => {
       handleAssetTool("search_icons", {}, {}),
     ).rejects.toThrow(/query is required/);
   });
+
+  it("merges multi-word query results", async () => {
+    mockFetchByQuery({
+      sparkle: { icons: ["mdi:sparkles", "ph:sparkle"] },
+      star: { icons: ["mdi:star", "mdi:sparkles"] },
+    });
+    const out = await handleAssetTool("search_icons", { query: "sparkle star" }, {});
+    // mdi:sparkles appears in both terms → ranked first
+    expect(out.results[0].id).toBe("mdi:sparkles");
+    expect(out.total).toBe(3);
+  });
+
+  it("returns suggestions when multi-word query yields no results", async () => {
+    mockFetchByQuery({
+      zzz: { icons: [] },
+      qqq: { icons: [] },
+    });
+    const out = await handleAssetTool("search_icons", { query: "zzz qqq" }, {});
+    expect(out.results).toEqual([]);
+    expect(out.suggestions).toEqual(["zzz", "qqq"]);
+    expect(out.message).toBeTruthy();
+  });
 });
 
 describe("handleAssetTool — find_stock_image (zero config)", () => {
-  it("falls back to Picsum with warning when no keys are set", async () => {
+  it("falls back to Picsum with structured warning when no keys are set", async () => {
     delete process.env.UNSPLASH_ACCESS_KEY;
     delete process.env.PEXELS_API_KEY;
     const out = await handleAssetTool(
@@ -90,8 +127,10 @@ describe("handleAssetTool — find_stock_image (zero config)", () => {
       {},
     );
     expect(out.source).toBe("picsum");
-    expect(out.results).toHaveLength(2);
-    expect(out.warning).toBeTruthy();
+    // Picsum returns a single deterministic placeholder
+    expect(out.results).toHaveLength(1);
+    expect(out.warning).toMatch(/RANDOM/);
+    expect(out.warning).toContain('"kitchen"');
   });
 
   it("requires query", async () => {

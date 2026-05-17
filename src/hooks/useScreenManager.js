@@ -1390,13 +1390,18 @@ export function useScreenManager(pan, zoom, canvasRef, commentCallbacks = {}) {
     );
   }, [screens, connections, documents, pushHistory]);
 
-  const replaceAll = useCallback((newScreens, newConnections, newScreenCounter, newDocuments = [], { preserveHistory = false } = {}) => {
+  const replaceAll = useCallback((newScreens, newConnections, newScreenCounter, newDocuments = [], { preserveHistory = false, preserveSelection = false } = {}) => {
     if (!preserveHistory) clearHistory();
     setScreens(newScreens);
     setConnections(newConnections);
     setDocuments(newDocuments);
     screenCounter.current = newScreenCounter;
-    setSelectedScreen(null);
+    if (preserveSelection) {
+      const newIds = new Set(newScreens.map(s => s.id));
+      setSelectedScreen(prev => newIds.has(prev) ? prev : null);
+    } else {
+      setSelectedScreen(null);
+    }
   }, [clearHistory]);
 
   const mergeAll = useCallback((newScreens, newConnections, newDocuments = []) => {

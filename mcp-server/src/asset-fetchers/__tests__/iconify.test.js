@@ -59,6 +59,22 @@ describe("iconify.fetchIcon", () => {
   });
 });
 
+/** Route fetch responses by query param in the URL. */
+function mockFetchByQuery(map) {
+  global.fetch = vi.fn(async (url) => {
+    const u = new URL(url);
+    const query = u.searchParams.get("query");
+    const body = map[query] || { icons: [] };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(body),
+      json: async () => body,
+      headers: new Map(),
+    };
+  });
+}
+
 describe("iconify.searchIcons", () => {
   beforeEach(() => {
     _internal.searchCache.clearMemory();
@@ -91,5 +107,76 @@ describe("iconify.searchIcons", () => {
     await searchIcons("home", { prefix: "mdi" });
     const calledUrl = global.fetch.mock.calls[0][0];
     expect(calledUrl).toContain("prefix=mdi");
+  });
+});
+
+describe("iconify.searchIcons — multi-word queries", () => {
+  beforeEach(() => {
+    _internal.searchCache.clearMemory();
+    _internal.searchCache.readDisk = async () => null;
+  });
+
+  it("merges results across terms, ranked by overlap then best rank", async () => {
+    mockFetchByQuery({
+      crown: { icons: ["mdi:crown", "ph:crown-fill", "mdi:chess-king"] },
+      premium: { icons: ["mdi:star-circle", "ph:crown-fill", "mdi:crown"] },
+    });
+
+    const out = await searchIcons("crown premium");
+
+    // ph:crown-fill and mdi:crown appear in both term results (termCount=2)
+    // ph:crown-fill has bestRank=1 (from "crown"), mdi:crown has bestRank=0 (from "crown")
+    // So mdi:crown should come first (termCount=2, bestRank=0), then ph:crown-fill (termCount=2, bestRank=1)
+    expect(out.results[0].id).toBe("mdi:crown");
+    expect(out.results[1].id).toBe("ph:crown-fill");
+    // Remaining icons appear in only one term (termCount=1)
+    expect(out.total).toBe(4);
+    expect(out.suggestions).toBeUndefined();
+  });
+
+  it("returns suggestions when no results match any term", async () => {
+    mockFetchByQuery({
+      xyzzy: { icons: [] },
+      plugh: { icons: [] },
+    });
+
+    const out = await searchIcons("xyzzy plugh");
+
+    expect(out.results).toEqual([]);
+    expect(out.total).toBe(0);
+    expect(out.suggestions).toEqual(["xyzzy", "plugh"]);
+    expect(out.message).toMatch(/single-keyword/i);
+  });
+
+  it("respects limit on merged results", async () => {
+    mockFetchByQuery({
+      home: { icons: ["mdi:home", "ph:house", "lucide:home"] },
+      door: { icons: ["mdi:door", "ph:door-open", "lucide:door-closed"] },
+    });
+
+    const out = await searchIcons("home door", { limit: 3 });
+    expect(out.results).toHaveLength(3);
+    expect(out.total).toBe(3);
+  });
+
+  it("passes prefix to each per-term search", async () => {
+    mockFetchByQuery({
+      star: { icons: ["mdi:star"] },
+      gold: { icons: ["mdi:gold"] },
+    });
+
+    await searchIcons("star gold", { prefix: "mdi" });
+
+    for (const call of global.fetch.mock.calls) {
+      expect(call[0]).toContain("prefix=mdi");
+    }
+  });
+
+  it("single-word query still works (backward compat)", async () => {
+    mockFetchOnce({ icons: ["mdi:menu", "ph:list"] });
+    const out = await searchIcons("menu");
+    expect(out.total).toBe(2);
+    expect(out.results[0].id).toBe("mdi:menu");
+    expect(out.suggestions).toBeUndefined();
   });
 });

@@ -39,7 +39,8 @@ describe("findStockImage — fallback chain", () => {
   it("falls all the way through to Picsum when no keys are set", async () => {
     const out = await findStockImage("kitchen", { limit: 3 });
     expect(out.source).toBe("picsum");
-    expect(out.results.length).toBe(3);
+    // Picsum now returns a single placeholder regardless of limit
+    expect(out.results.length).toBe(1);
     expect(out.warning).toMatch(/UNSPLASH_ACCESS_KEY/);
     expect(out.warning).toMatch(/PEXELS_API_KEY/);
   });
@@ -67,7 +68,9 @@ describe("findStockImage — fallback chain", () => {
   it("respects explicit source override", async () => {
     const out = await findStockImage("kitchen", { source: "picsum", limit: 1 });
     expect(out.source).toBe("picsum");
-    expect(out.warning).toBeUndefined();
+    // Explicit picsum still gets the warning — the images are still random
+    expect(out.warning).toMatch(/RANDOM/);
+    expect(out.warning).toMatch(/kitchen/);
   });
 
   it("falls through when explicit source has no key", async () => {
@@ -90,5 +93,33 @@ describe("findStockImage — fallback chain", () => {
     await findStockImage("a", { source: "pexels" });
     const headers = global.fetch.mock.calls[0][1].headers;
     expect(headers.Authorization).toBe("k2");
+  });
+});
+
+describe("findStockImage — picsum warning structure", () => {
+  it("echoes the original query in the warning", async () => {
+    const out = await findStockImage("modern kitchen");
+    expect(out.source).toBe("picsum");
+    expect(out.warning).toContain('"modern kitchen"');
+  });
+
+  it("includes RANDOM keyword and UNSPLASH_ACCESS_KEY hint", async () => {
+    const out = await findStockImage("sunset beach");
+    expect(out.warning).toMatch(/RANDOM/);
+    expect(out.warning).toMatch(/UNSPLASH_ACCESS_KEY/);
+  });
+
+  it("has no warning when unsplash succeeds", async () => {
+    process.env.UNSPLASH_ACCESS_KEY = "test-key";
+    mockFetchJson({ results: [] });
+    const out = await findStockImage("mountain");
+    expect(out.source).toBe("unsplash");
+    expect(out.warning).toBeUndefined();
+  });
+
+  it("returns a single placeholder result from picsum", async () => {
+    const out = await findStockImage("city skyline", { limit: 10 });
+    expect(out.source).toBe("picsum");
+    expect(out.results).toHaveLength(1);
   });
 });
