@@ -68,6 +68,7 @@ function makeProps(overrides = {}) {
     onTemplates: vi.fn(),
     duplicateSelection: vi.fn(),
     onAddWireframe: vi.fn(),
+    onAddBlank: vi.fn(),
     ...overrides,
   };
 }
@@ -334,5 +335,68 @@ describe("useKeyboardShortcuts — Select All (Cmd+A)", () => {
     renderHook(() => useKeyboardShortcuts(props));
     fireKey("a", { metaKey: true });
     expect(props.setCanvasSelection).toHaveBeenCalledWith([]);
+  });
+});
+
+describe("useKeyboardShortcuts — B (add blank screen)", () => {
+  it("calls onAddBlank when B is pressed", () => {
+    const props = makeProps();
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("b");
+    expect(props.onAddBlank).toHaveBeenCalled();
+  });
+
+  it("works with uppercase B", () => {
+    const props = makeProps();
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("B");
+    expect(props.onAddBlank).toHaveBeenCalled();
+  });
+
+  it("is blocked when a modal is open", () => {
+    const props = makeProps({ hotspotModal: { screen: {}, hotspot: {} } });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("b");
+    expect(props.onAddBlank).not.toHaveBeenCalled();
+  });
+
+  it("is blocked when isReadOnly is true", () => {
+    const props = makeProps({ isReadOnly: true });
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("b");
+    expect(props.onAddBlank).not.toHaveBeenCalled();
+  });
+
+  it("is blocked when focus is in an INPUT", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const props = makeProps();
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("b");
+    expect(props.onAddBlank).not.toHaveBeenCalled();
+
+    document.body.removeChild(input);
+  });
+
+  it("is blocked when focus is in a TEXTAREA", () => {
+    const ta = document.createElement("textarea");
+    document.body.appendChild(ta);
+    ta.focus();
+
+    const props = makeProps();
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("b");
+    expect(props.onAddBlank).not.toHaveBeenCalled();
+
+    document.body.removeChild(ta);
+  });
+
+  it("is not triggered with Cmd+B", () => {
+    const props = makeProps();
+    renderHook(() => useKeyboardShortcuts(props));
+    fireKey("b", { metaKey: true });
+    expect(props.onAddBlank).not.toHaveBeenCalled();
   });
 });

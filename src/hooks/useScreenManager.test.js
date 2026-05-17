@@ -1531,3 +1531,47 @@ describe("markAllScreensStatus", () => {
     expect(result.current.screens.every((s) => s.status === "existing")).toBe(true);
   });
 });
+
+describe("replaceAll preserveSelection", () => {
+  it("clears selection by default", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    const screenId = result.current.screens[0].id;
+    act(() => result.current.setSelectedScreen(screenId));
+    expect(result.current.selectedScreen).toBe(screenId);
+
+    act(() => result.current.replaceAll(
+      [{ ...result.current.screens[0] }],
+      [], 2, [],
+    ));
+    expect(result.current.selectedScreen).toBe(null);
+  });
+
+  it("keeps selection when preserveSelection is true and screen still exists", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    const screenId = result.current.screens[0].id;
+    act(() => result.current.setSelectedScreen(screenId));
+
+    act(() => result.current.replaceAll(
+      [{ ...result.current.screens[0], name: "A updated" }],
+      [], 2, [],
+      { preserveHistory: true, preserveSelection: true },
+    ));
+    expect(result.current.selectedScreen).toBe(screenId);
+  });
+
+  it("clears selection when preserveSelection is true but screen was removed", () => {
+    const { result } = setup();
+    act(() => result.current.addScreen(null, "A"));
+    const screenId = result.current.screens[0].id;
+    act(() => result.current.setSelectedScreen(screenId));
+
+    act(() => result.current.replaceAll(
+      [{ id: "other", name: "Other", hotspots: [] }],
+      [], 2, [],
+      { preserveHistory: true, preserveSelection: true },
+    ));
+    expect(result.current.selectedScreen).toBe(null);
+  });
+});

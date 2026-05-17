@@ -4,6 +4,7 @@ export function useKeyboardShortcuts({
   // modal open state (used to block undo/delete when any modal is open)
   hotspotModal,
   onAddWireframe,
+  onAddBlank,
   connectionEditModal,
   renameModal,
   importConfirm,
@@ -125,6 +126,16 @@ export function useKeyboardShortcuts({
         if (anyModalOpen) return;
         if (isReadOnly) return;
         onAddWireframe?.();
+        return;
+      }
+
+      // Add blank screen: B
+      if ((e.key === "b" || e.key === "B") && !e.metaKey && !e.ctrlKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (anyModalOpen) return;
+        if (isReadOnly) return;
+        onAddBlank?.();
         return;
       }
 
@@ -298,7 +309,7 @@ export function useKeyboardShortcuts({
     deleteHotspot, selectedStickyNote, setSelectedStickyNote, deleteStickyNote,
     selectedScreenGroup, setSelectedScreenGroup, deleteScreenGroup,
     setActiveTool, canvasSelection, clearSelection, removeScreens, addScreenGroup, screens,
-    onTemplates, isReadOnly, canComment, duplicateSelection, setCanvasSelection, onAddWireframe,
+    onTemplates, isReadOnly, canComment, duplicateSelection, setCanvasSelection, onAddWireframe, onAddBlank,
     stickyNotes, scopeScreenIds,
   ]);
 }
